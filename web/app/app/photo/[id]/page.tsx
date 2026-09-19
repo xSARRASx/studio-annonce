@@ -44,8 +44,8 @@ export default function Atelier(props: PageProps<"/app/photo/[id]">) {
       const restants = p.essais_restants;
       setBulles((b) => [...b, { de: "ia", texte: (texte ? "Voilà. " : "Voilà la version annonce. ") + (p.alerte ? `Il vous reste ${restants} essai${restants > 1 ? "s" : ""} sur cette photo.` : "Ça vous plaît ? Sinon dites-moi quoi changer.") }]);
     } catch (e) {
-      const err = e as ErreurApi; setErreur(err.message);
-      if (err.statut === 402) setBulles((b) => [...b, { de: "ia", texte: err.message }]);
+      const err = e as ErreurApi;
+      if (err.statut === 402) setBulles((b) => [...b, { de: "ia", texte: err.message }]); else setErreur(err.message);
     } finally { setOccupe(null); }
   }
 
