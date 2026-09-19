@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">
+  <rect width="100" height="100" fill="#0b0b0f"/>
+  <g transform="translate(11 9) scale(0.78)">
+  <circle cx="50" cy="50" r="45" fill="none" stroke="#f2ede4" stroke-width="3.5"/>
+  <circle cx="50" cy="50" r="37.5" fill="none" stroke="#e8a33a" stroke-width="7"/>
+  <line x1="50.00" y1="17.00" x2="50.00" y2="8.00" stroke="#0b0b0f" stroke-width="2.4"/>
+  <line x1="21.42" y1="66.50" x2="13.63" y2="71.00" stroke="#0b0b0f" stroke-width="2.4"/>
+  <line x1="78.58" y1="66.50" x2="86.37" y2="71.00" stroke="#0b0b0f" stroke-width="2.4"/>
+  <clipPath id="obt"><circle cx="50" cy="40" r="16"/></clipPath>
+  <circle cx="50" cy="40" r="16" fill="#f2ede4"/>
+  <polygon points="54.74,44.74 48.27,46.47 43.53,41.73 45.26,35.26 51.73,33.53 56.47,38.27" fill="#0b0b0f"/>
+  <line x1="55.60" y1="41.50" x2="47.84" y2="70.48" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <line x1="51.50" y1="45.60" x2="22.52" y2="53.37" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <line x1="45.90" y1="44.10" x2="24.69" y2="22.89" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <line x1="44.40" y1="38.50" x2="52.16" y2="9.52" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <line x1="48.50" y1="34.40" x2="77.48" y2="26.63" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <line x1="54.10" y1="35.90" x2="75.31" y2="57.11" stroke="#0b0b0f" stroke-width="2.6" clip-path="url(#obt)"/>
+  <path d="M50 58 L27 79 L27 100 L73 100 L73 79 Z" fill="#0b0b0f" stroke="#0b0b0f" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M50 61 L30 79 L30 100 M70 100 L70 79 L50 61" fill="none" stroke="#f2ede4" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="45" y="85" width="10" height="15" fill="#f2ede4"/>
+  </g>
+</svg>

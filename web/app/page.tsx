@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Wand2, ShieldCheck, Camera } from "lucide-react";
+import { Sparkles, Wand2, ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { api, jeton, poserJeton } from "@/lib/api";
 import { Bouton, Champ, Message } from "@/components/ui";
 
@@ -30,9 +31,8 @@ export default function Accueil() {
 
   return (
     <main className="flex-1 flex flex-col">
-      <header className="px-6 py-5 flex items-center gap-2">
-        <span className="size-8 rounded-xl bg-accent grid place-items-center"><Camera className="size-4 text-accent-fg" /></span>
-        <span className="font-semibold tracking-tight">Studio Annonce</span>
+      <header className="px-6 py-5 flex items-center">
+        <Logo taille="size-9" />
       </header>
       <section className="flex-1 grid lg:grid-cols-2 gap-10 px-6 pb-16 max-w-6xl mx-auto w-full items-center">
         <div className="apparait">

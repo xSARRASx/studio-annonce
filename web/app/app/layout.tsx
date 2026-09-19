@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Camera, Coins, LogOut } from "lucide-react";
+import { Coins, LogOut } from "lucide-react";
+import { Embleme } from "@/components/logo";
 import { api, jeton, poserJeton, type Compte } from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,8 +21,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-20 backdrop-blur bg-bg/80 border-b border-line">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <Link href="/app" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="size-7 rounded-lg bg-accent grid place-items-center"><Camera className="size-3.5 text-accent-fg" /></span>
-            <span className="hidden sm:inline">Studio Annonce</span>
+            <Embleme className="size-8" />
+            <span className="hidden sm:inline">Studio <span className="text-accent">Annonce</span></span>
           </Link>
           <nav className="ml-auto flex items-center gap-1 text-sm">
             <Link href="/app/compte" className="inline-flex items-center gap-2 rounded-full bg-surface-2 border border-line px-3 h-9 hover:border-line-strong">
