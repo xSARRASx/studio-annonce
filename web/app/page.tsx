@@ -12,13 +12,14 @@ export default function Accueil() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [erreur, setErreur] = useState("");
+  const [codeDemo, setCodeDemo] = useState("");
   const [chargement, setChargement] = useState(false);
 
   useEffect(() => { if (jeton()) routeur.replace("/app"); }, [routeur]);
 
   async function demanderCode() {
     setErreur(""); setChargement(true);
-    try { await api("/auth/code", { method: "POST", body: JSON.stringify({ email }) }); setEtape("code"); }
+    try { const r = await api<{ code_demo?: string }>("/auth/code", { method: "POST", body: JSON.stringify({ email }) }); setCodeDemo(r.code_demo ?? ""); setEtape("code"); }
     catch (e) { setErreur((e as Error).message); } finally { setChargement(false); }
   }
   async function verifier() {

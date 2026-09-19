@@ -1,0 +1,25 @@
+# Mise en ligne du cerveau sur Render (Blueprint) : New + > Blueprint > ce dépôt.
+services:
+  - type: web
+    name: studio-annonce-api
+    runtime: python
+    plan: free
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /sante
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # à coller dans Render, jamais dans le dépôt
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CODE_DANS_LA_REPONSE
+        value: "true"        # démo : le code de connexion s'affiche à l'écran tant qu'il n'y a pas de SMTP
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studio-annonce-db
+          property: connectionString
+
+databases:
+  - name: studio-annonce-db
+    plan: free

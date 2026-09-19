@@ -22,6 +22,8 @@ class Reglages(BaseSettings):
     MAIL_FROM: str = "Studio Annonce <no-reply@example.com>"
     SECRET_KEY: str = "changer-moi"
     URL_PUBLIQUE_API: str = "http://localhost:8000"
+    # Démo seulement : sans SMTP, renvoyer le code de connexion dans la réponse (à couper dès que les mails partent).
+    CODE_DANS_LA_REPONSE: bool = False
 
     # Les règles du produit, décidées avec Martin (18 et 19/09/2026)
     PHOTO_OFFERTE_PAR_COMPTE: int = 1
@@ -39,3 +41,14 @@ class Reglages(BaseSettings):
 
 
 reglages = Reglages()
+
+
+# Sur Render, l'adresse publique est fournie par la plateforme.
+import os as _os
+if _os.environ.get("RENDER_EXTERNAL_URL") and reglages.URL_PUBLIQUE_API.startswith("http://localhost"):
+    reglages.URL_PUBLIQUE_API = _os.environ["RENDER_EXTERNAL_URL"]
+# Render fournit une URL postgres:// ; SQLAlchemy veut postgresql+psycopg://
+if reglages.DATABASE_URL.startswith("postgres://"):
+    reglages.DATABASE_URL = "postgresql+psycopg://" + reglages.DATABASE_URL[len("postgres://"):]
+elif reglages.DATABASE_URL.startswith("postgresql://"):
+    reglages.DATABASE_URL = "postgresql+psycopg://" + reglages.DATABASE_URL[len("postgresql://"):]

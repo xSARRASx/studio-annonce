@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..config import reglages
 from ..db import session
 from ..mail import envoyer
 from ..models import CodeConnexion, Compte, Jeton, maintenant
@@ -29,6 +30,8 @@ def demander_code(d: DemandeCode, s: Session = Depends(session)):
     s.add(CodeConnexion(email=d.email.lower(), code=code, expire_le=maintenant() + timedelta(minutes=10)))
     s.commit()
     envoyer(d.email, "Votre code Studio Annonce", f"Votre code de connexion : {code}\nIl est valable 10 minutes.")
+    if reglages.CODE_DANS_LA_REPONSE and not reglages.SMTP_HOST:
+        return {"ok": True, "code_demo": code}
     return {"ok": True}
 
 
