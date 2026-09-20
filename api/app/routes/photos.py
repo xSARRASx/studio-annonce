@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .. import credits, gemini, images, stockage
+from .. import credits, gemini, images, retouche, stockage
 from ..config import reglages
 from ..db import session
 from ..models import Compte, Logement, Photo, Version, maintenant
@@ -108,7 +108,7 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         consigne = await gemini.reformuler_demande(p.analyse, historique, d.demande.strip())
     else:
         consigne = (p.analyse or {}).get("consigne") or "Rends cette photo digne d'un photographe immobilier professionnel : lumière équilibrée, couleurs justes, netteté, verticales droites, sans rien changer d'autre."
-    resultat = await gemini.retoucher(source, consigne)
+    resultat = await retouche.retoucher(source, consigne)
     v = Version(photo_id=p.id, numero=len(p.versions) + 1, depuis_version_id=d.depuis_version_id, consigne=consigne,
                 cle_apercu="", cle_pleine="")
     s.add(v); s.flush()
@@ -143,7 +143,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     elif maintenant() > p.credite_le + timedelta(days=reglages.JOURS_DE_REPRISE) and v.cle_hd == "":
         raise HTTPException(402, "La fenêtre de 7 jours est passée pour cette photo.")
     if not v.cle_hd:
-        hd = await gemini.retoucher(stockage.lire(v.cle_pleine),
+        hd = await retouche.retoucher(stockage.lire(v.cle_pleine),
                                     "Reproduis exactement cette image, sans rien changer, en haute définition et parfaitement nette.", hd=True)
         v.cle_hd = stockage.ecrire(f"{compte.id}/{p.logement_id}/{p.id}/v{v.numero}-hd.jpg", hd, "image/jpeg")
     p.version_gardee_id = v.id

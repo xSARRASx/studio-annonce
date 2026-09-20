@@ -34,6 +34,12 @@ class Reglages(BaseSettings):
     ESSAIS_MAX_PAR_JOUR: int = 150
     JOURS_DE_REPRISE: int = 7
     ALERTES_ESSAIS_RESTANTS: tuple[int, ...] = (10, 5, 3, 2, 1)
+    # Qui fabrique les images : "openai" (GPT Image, choix de Martin) ou "gemini".
+    OPENAI_API_KEY: str = ""
+    FOURNISSEUR_IMAGE: str = "openai"
+    MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"   # le modèle OpenAI fait pour la retouche précise
+    QUALITE_OPENAI_APERCU: str = "medium"
+    QUALITE_OPENAI_HD: str = "high"
     MODELE_ANALYSE: str = "gemini-3.5-flash"
     MODELE_APERCU: str = "gemini-3.1-flash-image"
     MODELE_HD: str = "gemini-3-pro-image"
