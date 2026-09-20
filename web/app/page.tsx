@@ -70,6 +70,9 @@ export default function Accueil() {
               <Champ inputMode="numeric" placeholder="123456" maxLength={6} value={code} className="text-center text-2xl tracking-[0.4em]"
                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && verifier()} autoFocus />
             )}
+            {etape === "code" && codeDemo && (
+              <p className="text-xs text-fg-muted text-center">Mode démo, les mails ne partent pas encore. Votre code : <b className="text-accent tracking-widest">{codeDemo}</b></p>
+            )}
             <Message texte={erreur} />
             {etape === "email"
               ? <Bouton className="w-full" chargement={chargement} onClick={demanderCode} disabled={!email.includes("@")}>Recevoir mon code</Bouton>

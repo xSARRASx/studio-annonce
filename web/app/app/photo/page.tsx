@@ -1,14 +1,15 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Send, Sparkles, RotateCcw, Eye } from "lucide-react";
 import { api, ErreurApi, type Photo, type Version } from "@/lib/api";
 import { Bouton, Message, Pastille } from "@/components/ui";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
 
-export default function Atelier(props: PageProps<"/app/photo/[id]">) {
-  const [id, setId] = useState("");
+function Atelier() {
+  const id = useSearchParams().get("id") || "";
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [courante, setCourante] = useState<Version | null>(null);
   const [voirAvant, setVoirAvant] = useState(false);
@@ -18,7 +19,6 @@ export default function Atelier(props: PageProps<"/app/photo/[id]">) {
   const [erreur, setErreur] = useState("");
   const bas = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { props.params.then((p) => setId(p.id)); }, [props.params]);
   useEffect(() => {
     if (!id) return;
     api<Photo>(`/photos/${id}`).then(async (p) => {
@@ -67,7 +67,7 @@ export default function Atelier(props: PageProps<"/app/photo/[id]">) {
   return (
     <div className="apparait grid lg:grid-cols-[1fr_400px] gap-6 items-start">
       <div className="space-y-3">
-        <Link href={photo ? `/app/logement/${photo.logement_id}` : "/app"} className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Retour au logement</Link>
+        <Link href={photo ? `/app/logement?id=${photo.logement_id}` : "/app"} className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Retour au logement</Link>
         <div className="relative rounded-3xl overflow-hidden bg-surface border border-line">
           {image ? <img src={image} alt="" className="w-full max-h-[78vh] object-contain bg-black" /> : <div className="aspect-[3/4] grid place-items-center text-fg-muted">Chargement…</div>}
           {occupe === "essai" && <div className="absolute inset-0 bg-black/50 backdrop-blur-sm grid place-items-center text-sm"><span className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-2 border border-line"><Sparkles className="size-4 text-accent animate-pulse" /> Retouche en cours, une dizaine de secondes…</span></div>}
@@ -117,4 +117,8 @@ export default function Atelier(props: PageProps<"/app/photo/[id]">) {
       </aside>
     </div>
   );
+}
+
+export default function Page() {
+  return <Suspense fallback={null}><Atelier /></Suspense>;
 }

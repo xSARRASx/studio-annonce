@@ -18,7 +18,9 @@ export async function api<T = unknown>(chemin: string, options: RequestInit = {}
   const j = jeton();
   if (j) entetes.Authorization = `Bearer ${j}`;
   if (options.body && !(options.body instanceof FormData)) entetes["Content-Type"] = "application/json";
-  const rep = await fetch(`${API}${chemin}`, { ...options, headers: entetes });
+  let rep: Response;
+  try { rep = await fetch(`${API}${chemin}`, { ...options, headers: entetes }); }
+  catch { throw new ErreurApi(0, "Le cerveau n'est pas encore en ligne. Le site est visible, mais la connexion attend la mise en ligne."); }
   if (!rep.ok) {
     let message = "Une erreur est survenue.";
     try { const d = await rep.json(); message = typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail); } catch {}

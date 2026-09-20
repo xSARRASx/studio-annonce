@@ -46,7 +46,7 @@ export default function MesLogements() {
         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {logements.map((l) => (
             <li key={l.id}>
-              <Link href={`/app/logement/${l.id}`} className="block rounded-3xl bg-surface border border-line hover:border-line-strong transition overflow-hidden group">
+              <Link href={`/app/logement?id=${l.id}`} className="block rounded-3xl bg-surface border border-line hover:border-line-strong transition overflow-hidden group">
                 <div className="aspect-[4/3] bg-surface-2 grid grid-cols-3 gap-0.5 overflow-hidden">
                   {l.photos.slice(0, 3).map((p) => <img key={p.id} src={p.vignette} alt="" className="w-full h-full object-cover" />)}
                   {l.photos.length === 0 && <div className="col-span-3 grid place-items-center text-fg-muted"><Home className="size-8" /></div>}

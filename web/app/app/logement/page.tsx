@@ -1,19 +1,19 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Upload, ImagePlus, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { api, type Logement, type Photo } from "@/lib/api";
 import { Bouton, Message, Pastille } from "@/components/ui";
 
-export default function PageLogement(props: PageProps<"/app/logement/[id]">) {
-  const [id, setId] = useState<string>("");
+function PageLogement() {
+  const id = useSearchParams().get("id") || "";
   const [logement, setLogement] = useState<Logement | null>(null);
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState<{ fait: number; total: number } | null>(null);
   const [glisse, setGlisse] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { props.params.then((p) => setId(p.id)); }, [props.params]);
   useEffect(() => { if (id) api<Logement>(`/logements/${id}`).then(setLogement).catch((e) => setErreur(e.message)); }, [id]);
 
   async function reduire(fichier: File): Promise<Blob> {
@@ -67,7 +67,7 @@ export default function PageLogement(props: PageProps<"/app/logement/[id]">) {
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {logement.photos.map((p, i) => (
             <li key={p.id}>
-              <Link href={`/app/photo/${p.id}`} className="block relative rounded-2xl overflow-hidden bg-surface-2 border border-line hover:border-line-strong group aspect-[3/4]">
+              <Link href={`/app/photo?id=${p.id}`} className="block relative rounded-2xl overflow-hidden bg-surface-2 border border-line hover:border-line-strong group aspect-[3/4]">
                 <img src={p.vignette} alt={`Photo ${i + 1}`} className="w-full h-full object-cover group-hover:scale-[1.02] transition" />
                 <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center gap-2 text-xs">
                   <span>Photo {i + 1}</span>
@@ -81,4 +81,8 @@ export default function PageLogement(props: PageProps<"/app/logement/[id]">) {
       )}
     </div>
   );
+}
+
+export default function Page() {
+  return <Suspense fallback={null}><PageLogement /></Suspense>;
 }
