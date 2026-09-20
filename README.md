@@ -18,4 +18,4 @@ Aucune clé ni secret dans ce dépôt : tout vit dans le `.env` du serveur (voir
   **À passer à `false` avant d'ouvrir le site au public.**
 - Sur l'offre gratuite de Render, les images déposées vivent sur le disque du serveur et
   disparaissent à chaque redémarrage : c'est prévu pour regarder, pas pour les vrais clients.
-  Le stockage durable (Cloudflare R2) se branche par les variables `R2_*`.
+  Le stockage durable (Amazon S3 ou Cloudflare R2) se branche par les variables `S3_*` + `AWS_REGION` ou `R2_ACCOUNT_ID`.

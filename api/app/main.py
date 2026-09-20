@@ -14,7 +14,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 for r in (auth, logements, photos, compte):
     app.include_router(r.routeur)
 
-if not stockage.utilise_r2():  # en local seulement : en prod, les fichiers sont servis par Cloudflare, jamais par nous
+if not stockage.utilise_s3():  # en local seulement : en prod, les fichiers sont servis par le stockage, jamais par nous
     stockage.DOSSIER_LOCAL.mkdir(exist_ok=True)
     app.mount("/fichiers", StaticFiles(directory=stockage.DOSSIER_LOCAL), name="fichiers")
 

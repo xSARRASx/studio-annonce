@@ -8,11 +8,13 @@ class Reglages(BaseSettings):
     GEMINI_API_KEY: str = ""
     HF_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./studio.db"
-    R2_ACCOUNT_ID: str = ""
-    R2_ACCESS_KEY_ID: str = ""
-    R2_SECRET_ACCESS_KEY: str = ""
-    R2_BUCKET: str = "studio-annonce"
-    R2_PUBLIC_URL: str = ""
+    # Stockage des fichiers, compatible S3 : Amazon S3 (AWS_REGION) ou Cloudflare R2 (R2_ACCOUNT_ID).
+    S3_ACCESS_KEY_ID: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
+    S3_BUCKET: str = "studio-annonce"
+    S3_PUBLIC_URL: str = ""        # ex. https://d1234.cloudfront.net ou https://photos.mondomaine.fr
+    AWS_REGION: str = ""           # Amazon S3, ex. eu-west-3 (Paris)
+    R2_ACCOUNT_ID: str = ""        # Cloudflare R2
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
     SMTP_HOST: str = ""
