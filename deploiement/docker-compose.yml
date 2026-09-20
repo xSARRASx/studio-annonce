@@ -1,0 +1,48 @@
+# Studio Annonce sur un serveur (PlanetHoster HybridCloud ou tout VPS) : cerveau + base + site + HTTPS.
+# 1. cp .env.example .env  puis remplir .env      2. docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: studio
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["base:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studio"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ../api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://studio:${POSTGRES_PASSWORD}@db:5432/studio
+      URL_PUBLIQUE_API: https://${DOMAINE}/api
+    volumes: ["fichiers:/app/stockage-local"]   # utilisé seulement sans S3
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_API_URL: "https://${DOMAINE}/api"
+    restart: unless-stopped
+    environment:
+      DOMAINE: "${DOMAINE}"
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+
+volumes:
+  base:
+  fichiers:
+  caddy_data:
+  caddy_config:

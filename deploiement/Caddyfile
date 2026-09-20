@@ -1,0 +1,15 @@
+# Le site et le cerveau derrière une seule adresse : https://DOMAINE et https://DOMAINE/api
+{$DOMAINE} {
+    encode gzip zstd
+    handle_path /api/* {
+        reverse_proxy api:8000 {
+            transport http { read_timeout 300s }
+        }
+    }
+    handle {
+        root * /srv
+        try_files {path} {path}/ {path}.html /404.html
+        file_server
+    }
+    request_body { max_size 40MB }
+}
