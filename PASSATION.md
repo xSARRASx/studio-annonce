@@ -211,3 +211,28 @@ publiques : dépôt `xSARRASx/mon-premier-projet`, branche `claude/new-session-e
 
 Confirme en trois lignes que tu as tout lu, dis-lui que la prochaine étape est la clé OpenAI (étape 1 de
 la section 6) et explique-lui, clic par clic, où la mettre. Une seule action à la fois.
+
+---
+
+## 11. Reprise du travail Codex (26/09/2026)
+
+Du 22 au 25/09, Martin a avancé avec ChatGPT Codex sur son Mac (`/Users/more/Documents/Codex/studio-annonce`),
+puis a atteint sa limite. Tout ce travail a été poussé sur la branche `codex-travail` puis fusionné dans `main` :
+
+- **Site de démonstration** `web/app/demo/` : direction crème et vert sauge, logo « porte lumineuse » (choisi par
+  Martin), accueil avec comparateur avant/après, pages Exemples, Tarifs (publique, distincte de « Mes crédits ») et
+  Aide. Studio : bibliothèque de photos puis atelier, 4 versions du salon, sauvegarde locale (IndexedDB).
+- **Application mobile** `mobile/` (Expo, iOS + Android + web) : Mes photos, Atelier (liste d'abord, bouton
+  « Retoucher ma première photo » quand c'est vide), Versions (liste par photo), Compte. Crédits simulés.
+- **Cerveau** `api/` : débit unique au premier téléchargement HD, reprise explicite à 1 crédit après 7 jours,
+  verrous contre les doubles débits ; 19 tests (`api/tests/test_photos_credits.py`).
+- **Notes de Codex** : `DESIGN-DEMO.md`, `DESIGN-MOBILE.md`, `LANCEMENT-2026-09-23.md`,
+  `VERIFICATION-CREDITS-2026-09-23.md`, et sa mémoire complète dans `memoire-codex/`.
+- **Retours de Martin à respecter** : moins de texte, plus lisible ; pas de bouton inutile (« Comment ça marche »
+  retiré) ; « changer toute la déco » = changer tout le mobilier, pas juste les couleurs ; une nouvelle version
+  s'ajoute à l'historique, elle ne remplace jamais la précédente ; tarifs du site et crédits de l'appli séparés.
+
+Vérifié le 26/09 dans le cloud : 19 tests API, 25 tests bibliothèque web, 12 tests mobile, build statique Next et
+export web Expo réussis. La page publique publie désormais la démo (`/demo/`) et l'appli mobile en version web
+(`/mobile/`, affichée dans `/mobile-preview/`). Toujours pas branchés : vraie génération IA, comptes réels,
+paiement, synchronisation site/mobile.
