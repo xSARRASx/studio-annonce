@@ -100,6 +100,30 @@ class MouvementCredit(Base):
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
 
 
+class ReprisePhoto(Base):
+    """Une nouvelle période payée ; ni les versions ni les essais historiques ne sont effacés."""
+    __tablename__ = "reprises_photos"
+    id: Mapped[str] = mapped_column(String(24), primary_key=True, default=identifiant)
+    photo_id: Mapped[str] = mapped_column(ForeignKey("photos.id"), index=True)
+    commence_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+    essais_depart: Mapped[int] = mapped_column(Integer)
+
+
+class OperationPhoto(Base):
+    """Réservation courte, persistante, pour ne pas lancer deux générations sur une photo.
+
+    Le jeton empêche une réponse tardive d'un fournisseur de terminer une opération
+    remplacée. Le verrou SQL du compte n'est jamais conservé pendant un appel IA.
+    """
+    __tablename__ = "operations_photos"
+    photo_id: Mapped[str] = mapped_column(ForeignKey("photos.id"), primary_key=True)
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    jeton: Mapped[str] = mapped_column(String(24), default=identifiant)
+    nature: Mapped[str] = mapped_column(String(16))
+    statut: Mapped[str] = mapped_column(String(16), default="en_cours")
+    expire_le: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Video(Base):
     __tablename__ = "videos"
     id: Mapped[str] = mapped_column(String(24), primary_key=True, default=identifiant)

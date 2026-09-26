@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Coins, LogOut } from "lucide-react";
 import { Embleme } from "@/components/logo";
-import { api, jeton, poserJeton, type Compte } from "@/lib/api";
+import { api, ErreurApi, jeton, poserJeton, type Compte } from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const routeur = useRouter();
@@ -13,7 +13,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!jeton()) { routeur.replace("/"); return; }
-    api<Compte>("/compte").then(setCompte).catch(() => { poserJeton(null); routeur.replace("/"); });
+    let annule = false;
+    const actualiser = () => {
+      api<Compte>("/compte").then((valeur) => { if (!annule) setCompte(valeur); }).catch((erreur: ErreurApi) => {
+        // Une panne après un téléchargement ne doit pas déconnecter l'utilisateur.
+        if (!annule && erreur.statut === 401) { poserJeton(null); routeur.replace("/"); }
+      });
+    };
+    actualiser();
+    window.addEventListener("studio:credits-updated", actualiser);
+    return () => { annule = true; window.removeEventListener("studio:credits-updated", actualiser); };
   }, [routeur, chemin]);
 
   return (

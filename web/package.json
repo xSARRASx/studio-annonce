@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:library": "node --test tests/library.test.mjs tests/use-library.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.47.0",
@@ -21,6 +22,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "fake-indexeddb": "6.2.5",
+    "react-test-renderer": "19.2.8",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

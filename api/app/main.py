@@ -10,7 +10,8 @@ from .routes import auth, compte, logements, photos
 Base.metadata.create_all(moteur)
 
 app = FastAPI(title="Studio Annonce", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+                   expose_headers=["X-Photo-Credit-Consomme", "X-Photo-Offerte", "X-Photo-Reprise-Jusqu-Au"])
 for r in (auth, logements, photos, compte):
     app.include_router(r.routeur)
 
