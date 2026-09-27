@@ -249,3 +249,5 @@ paiement, synchronisation site/mobile.
 - Anciennes adresses conservées : `#versions` et `#historique` mènent à Mes photos, `#credits` à Facturation ;
   sur l'appli, `/atelier` et `/versions` affichent Mes photos.
 - Appli : chaque photo porte un `property` (logement), facultatif pour les anciennes sauvegardes (`logementOf`).
+
+- **Appareil photo** : sur téléphone, la page Nouvelle retouche du site propose « Prendre une photo » (caméra arrière, `capture="environment"`) ; sur ordinateur le bouton est masqué. Dans l'appli, « Prendre une photo » passe en premier.

@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Building2, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 import "./studio-screens.css";
 
@@ -93,6 +93,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
   const apercus = useMemo(() => fichiers.slice(0, 6).map(f => URL.createObjectURL(f)), [fichiers]);
   useEffect(() => () => apercus.forEach(url => URL.revokeObjectURL(url)), [apercus]);
   const logement = choix === "__nouveau" ? nouveau.trim() : choix;
@@ -128,8 +129,9 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt=""/><button type="button" aria-label={`Retirer ${fichiers[i].name}`} onClick={() => setFichiers(f => f.filter((_, j) => j !== i))}><X size={13}/></button></span>)}
             {fichiers.length > 6 && <span className="st-more">+{fichiers.length - 6}</span>}
-            <button type="button" className="st-add-more" onClick={() => input.current?.click()}><Plus size={20}/></button></div>
-          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong>Glissez vos photos ici</strong><small>ou</small><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir sur cet appareil</button><small>Jusqu’à 20 photos, même prises au téléphone.</small></>}
+            <button type="button" className="st-add-more st-camera" aria-label="Prendre une autre photo" onClick={() => camera.current?.click()}><Camera size={20}/></button><button type="button" className="st-add-more" aria-label="Ajouter d’autres photos" onClick={() => input.current?.click()}><Plus size={20}/></button></div>
+          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez vos photos ici</strong><strong className="st-camera">Prenez la pièce en photo</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Jusqu’à 20 photos, même prises au téléphone.</small></>}
+          <input ref={camera} id="st-camera" type="file" accept="image/*" capture="environment" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
           <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
         </div>
       </fieldset>

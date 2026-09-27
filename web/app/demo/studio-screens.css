@@ -140,3 +140,15 @@
   .st-bill-top{grid-template-columns:1fr}
   .st-packs{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Appareil photo : proposé sur téléphone et tablette, là où il ouvre vraiment la caméra. */
+.st-pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.st-camera{display:none!important}
+@media (pointer:coarse){
+  .st-camera{display:inline-flex!important}
+  strong.st-camera{display:block!important}
+  .st-add-more.st-camera{display:grid!important}
+  .st-drop-desk{display:none!important}
+  .st-pick{flex-direction:column;width:100%;max-width:320px}
+  .st-pick .button{width:100%}
+}
