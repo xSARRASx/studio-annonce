@@ -7,5 +7,5 @@ export default function Layout() {
     <Tabs.Screen name="index" options={{title:'Mes photos',tabBarIcon:({color})=><Text style={{color,fontSize:23}}>▧</Text>}}/>
     <Tabs.Screen name="nouvelle" options={{title:'Nouvelle',tabBarIcon:({color})=><Text style={{color,fontSize:23}}>+</Text>}}/>
     <Tabs.Screen name="compte" options={{title:'Facturation',tabBarIcon:({color})=><Text style={{color,fontSize:23}}>○</Text>}}/>
-  <Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/></Tabs></StudioProvider>;
+  <Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></StudioProvider>;
 }

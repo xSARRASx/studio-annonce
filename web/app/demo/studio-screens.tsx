@@ -99,9 +99,9 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onPla
 }
 
 /* Nouvelle retouche : une page à rouvrir à chaque fois. Logement, photos, idée. */
-export function CreateView({ library, busy, initial, onCreate, onExample, onCancel }: {
+export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine }: {
   library: DemoLibrary; busy: boolean; initial?: string;
-  onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void;
+  onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void; onImagine: () => void;
 }) {
   const logements = logementsDe(library, false);
   const [choix, setChoix] = useState(initial && logements.includes(initial) ? initial : logements[0] || "__nouveau");
@@ -133,6 +133,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
     <button className="text-action st-back" onClick={onCancel}>← Mes photos</button>
     <p className="eyebrow">{premiere ? "VOTRE PREMIÈRE RETOUCHE" : "NOUVELLE RETOUCHE"}</p>
     <h1>{premiere ? "On commence par une photo." : "Une nouvelle photo à sublimer."}</h1>
+    <button type="button" className="st-imagine-link" onClick={onImagine}><Sparkles size={16}/> Créer une image sans photo de départ <ArrowRight size={15}/></button>
     {!library.freeUsed && <p className="st-offer"><Sparkles size={16}/> Votre première photo retouchée est offerte.</p>}
     <form className="st-form" onSubmit={creer}>
       <fieldset className="st-step"><legend><span>1</span> Pour quel logement ?</legend>
@@ -158,7 +159,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
         </div>
       </fieldset>
       <fieldset className="st-step"><legend><span>3</span> Ce que vous voulez changer <em>facultatif</em></legend>
-        <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={2000} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
+        <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={20000} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
         <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => d ? `${d}, ${i.toLowerCase()}` : i)}><Plus size={13}/> {i}</button>)}</div>
         <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>
       </fieldset>

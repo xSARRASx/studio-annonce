@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:brief": "node --test tests/brief-flow.test.mjs",
     "test:library": "node --test tests/library.test.mjs tests/use-library.test.mjs"
   },
   "dependencies": {
