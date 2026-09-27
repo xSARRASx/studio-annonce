@@ -25,18 +25,39 @@ function statut(p: DemoProject, now: number) {
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
 export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExample, onOpen }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: (logement?: string) => void; onVideo: () => void; onExample: () => void; onOpen: (p: DemoProject) => void;
+  onCreate: (logement?: string) => void; onVideo: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
 }) {
   const [filtre, setFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
-  const logements = logementsDe(library);
+  const logements = logementsDe(library, false);
+  const miennes = library.projects.filter(p => !p.sample);
+  const exemples = library.projects.filter(p => p.sample).sort((a, b) => b.updatedAt - a.updatedAt);
   const q = recherche.toLocaleLowerCase("fr");
   const groupes = logements.filter(l => !filtre || l === filtre).map(l => ({
     nom: l,
-    photos: library.projects.filter(p => p.property === l && `${p.title} ${p.property}`.toLocaleLowerCase("fr").includes(q)).sort((a, b) => b.updatedAt - a.updatedAt),
+    photos: miennes.filter(p => p.property === l && `${p.title} ${p.property}`.toLocaleLowerCase("fr").includes(q)).sort((a, b) => b.updatedAt - a.updatedAt),
   })).filter(g => g.photos.length);
+  const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
+    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
+    <span className="st-row-main"><strong>{p.title}</strong><small>{p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}</small></span>
+    <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
+    <ChevronRight size={20} className="st-chevron"/>
+  </button></li>;
+  /* Les exemples ne sont pas un logement : ils ont leur partie à eux, toujours la même, tout en bas. */
+  const vus = new Set(exemples.map(p => p.kind));
+  const cartesExemples = [
+    { kind: "photo" as const, image: "salon-deco-complete.png", titre: "Le salon", type: "Photo", texte: "Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions." },
+    { kind: "video" as const, image: "visite/sejour.png", titre: "La visite", type: "Vidéo", texte: "Une courte visite du logement montée à partir de photos. La vidéo arrive bientôt." },
+  ];
+  const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
+    <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Deux exemples tout prêts, pour voir ce que le studio sait faire. Ils ne comptent pas dans vos photos et ne coûtent rien.</p></div>
+    <div className="st-examples-grid">{cartesExemples.map(c => <button key={c.kind} className="st-ex-card" disabled={busy} onClick={() => onExample(c.kind)}>
+      <span className="st-ex-img"><Image src={asset(c.image)} alt="" fill sizes="(max-width: 700px) 90vw, 320px" unoptimized/><span className="st-ex-type">{c.kind === "video" ? <Film size={12}/> : <Images size={12}/>} {c.type}</span></span>
+      <span className="st-ex-body"><strong>{c.titre}</strong><small>{c.texte}</small><span className="st-ex-go">{vus.has(c.kind) ? "Rouvrir" : "Ouvrir l’exemple"} <ArrowRight size={14}/></span></span>
+    </button>)}</div>
+  </section>;
 
-  if (!library.projects.length) return <main className="st-main">
+  if (!miennes.length) return <main className="st-main">
     <section className="st-first">
       <div className="st-first-art" aria-hidden="true">
         <div className="st-first-card st-c1"><Image src={asset("salon-avant.png")} alt="" fill sizes="220px" unoptimized/></div>
@@ -49,10 +70,10 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
         <p>Choisissez une photo de votre logement, dites ce que vous voulez changer. {library.freeUsed ? "" : "La première photo est offerte."}</p>
         <div className="st-actions">
           <button className="button dark st-big" onClick={() => onCreate()}><Sparkles size={18}/> {library.freeUsed ? "Créer ma première retouche" : "Créer ma première retouche, offerte"}</button>
-          <button className="button outlined" disabled={busy} onClick={onExample}>Voir le salon d’exemple</button>
         </div>
       </div>
     </section>
+    {partieExemples}
   </main>;
 
   return <main className="st-main">
@@ -62,21 +83,16 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
     </div>
     <div className="st-toolbar">
       <div className="st-tabs" role="group" aria-label="Choisir un logement">
-        <button aria-pressed={!filtre} onClick={() => setFiltre("")}>Tous <span>{library.projects.length}</span></button>
-        {logements.map(l => <button key={l} aria-pressed={filtre === l} onClick={() => setFiltre(l)}><Building2 size={14}/> {l} <span>{library.projects.filter(p => p.property === l).length}</span></button>)}
+        <button aria-pressed={!filtre} onClick={() => setFiltre("")}>Tous <span>{miennes.length}</span></button>
+        {logements.map(l => <button key={l} aria-pressed={filtre === l} onClick={() => setFiltre(l)}><Building2 size={14}/> {l} <span>{miennes.filter(p => p.property === l).length}</span></button>)}
       </div>
       <label className="st-search"><Search size={16}/><input aria-label="Rechercher une photo" placeholder="Rechercher…" value={recherche} onChange={e => setRecherche(e.target.value)}/></label>
     </div>
     {groupes.length ? groupes.map(g => <section key={g.nom} className="st-group" aria-label={g.nom}>
       <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "photos" : "photo"}</span><button className="text-action" onClick={() => onCreate(g.nom)}><Plus size={15}/> Ajouter une photo</button></div>
-      <ul className="st-list">{g.photos.map(p => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
-        <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
-        <span className="st-row-main"><strong>{p.title}</strong><small>{p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}{p.sample ? " · exemple" : ""}</small></span>
-        <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
-        <ChevronRight size={20} className="st-chevron"/>
-      </button></li>)}</ul>
+      <ul className="st-list">{g.photos.map(ligne)}</ul>
     </section>) : <div className="st-none"><Search size={22}/><p>Aucune photo ne correspond.</p><button className="text-action" onClick={() => { setFiltre(""); setRecherche(""); }}>Tout afficher</button></div>}
-    {!library.projects.some(p => p.sample && p.kind === "photo") && <button className="st-sample" disabled={busy} onClick={onExample}><span className="st-sample-img"><Image src={asset("salon-deco-complete.png")} alt="" fill sizes="80px"/></span><span><strong>Le salon d’exemple</strong><small>4 versions à comparer, pour voir ce qui est possible</small></span><ArrowUpRight size={18}/></button>}
+    {partieExemples}
   </main>;
 }
 
