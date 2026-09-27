@@ -5,6 +5,7 @@ import { MobileBriefAssistant } from './MobileBriefAssistant';
 import { Button, Screen, useStudio } from './Studio';
 import { logementOf } from '../lib/studio-model';
 import { useLocalDraft } from '../lib/use-local-draft';
+import { suggestionState } from '../../../shared/idea-suggestions';
 
 type PlannerKind = 'image' | 'video';
 type PlannerDraft = { idea: string; brief: string; briefSource: string; selectedIds: string[] };
@@ -56,6 +57,12 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
     setDraft(previous => ({ ...previous, brief, briefSource: source }));
     setShowBrief(true);
   }
+  function toggleIdea(suggestion: string) {
+    setDraft(previous => {
+      const next = suggestionState(previous.idea, suggestion);
+      return next.added || !next.full ? { ...previous, idea: next.text } : previous;
+    });
+  }
 
   return <Screen title={kind === 'image' ? 'Créer une image' : 'Préparer une vidéo'} subtitle={kind === 'image' ? 'Un lieu, une ambiance ou un visuel à imaginer. Aucun fichier nécessaire.' : 'Une idée, un point de vue, un rythme. Vos photos peuvent guider la visite.'}>
     <Pressable accessibilityRole="button" onPress={() => router.navigate('/')}><Text style={styles.back}>← Mes photos</Text></Pressable>
@@ -65,7 +72,13 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
         <Text style={styles.label}>Qu’aimeriez-vous {kind === 'image' ? 'créer' : 'montrer'} ?</Text>
         <TextInput accessibilityLabel={kind === 'image' ? 'Votre idée d’image' : 'Votre idée de vidéo'} value={draft.idea} onChangeText={idea => setDraft(previous => ({ ...previous, idea }))} maxLength={4000} multiline placeholder={kind === 'image' ? 'Ex. : un salon lumineux avec une décoration chaleureuse et une vue sur les montagnes…' : 'Ex. : une vue drone qui traverse le salon, puis ralentit près de la table…'} placeholderTextColor="#89917d" style={styles.input}/>
         <Text style={styles.small}>Quelques mots suffisent. L’aide vous permet de choisir des cartes et d’ajouter vos précisions.</Text>
-        <View style={styles.examples}>{examples[kind].map(([label, idea], index) => <Pressable key={label} accessibilityRole="button" onPress={() => setDraft(previous => ({ ...previous, idea }))} style={[styles.example, index === 1 && styles.exampleSage, index === 2 && styles.exampleSand]}><Text style={styles.exampleLabel}>{label}</Text><Text style={styles.exampleArrow}>↗</Text></Pressable>)}</View>
+        <Text style={styles.small}>Cliquez pour ajouter une idée, recliquez pour la retirer.</Text>
+        <View style={styles.examples}>{examples[kind].map(([label, idea], index) => {
+          const state = suggestionState(draft.idea, idea);
+          const disabled = !state.added && state.full;
+          return <Pressable key={label} accessibilityRole="button" accessibilityLabel={`${state.added ? 'Retirer' : 'Ajouter'} ${label}${disabled ? ' : limite de 4 000 caractères atteinte' : ''}`} aria-pressed={state.added} aria-disabled={disabled} accessibilityState={{ selected: state.added, disabled }} disabled={disabled} onPress={() => toggleIdea(idea)} style={[styles.example, index === 1 && styles.exampleSage, index === 2 && styles.exampleSand]}><Text style={styles.exampleLabel}>{label}</Text><Text style={[styles.exampleArrow, { fontSize: 12, fontWeight: '500' }]}>{state.added ? '✓ Ajouté · Retirer' : state.full ? 'Limite atteinte' : '+ Ajouter'}</Text></Pressable>;
+        })}</View>
+        {examples[kind].some(([, idea]) => { const state = suggestionState(draft.idea, idea); return !state.added && state.full; }) && <Text accessibilityLiveRegion="polite" style={styles.small}>Raccourcissez votre texte pour ajouter une idée complète sans dépasser 4 000 caractères.</Text>}
       </View>
 
       {kind === 'video' && <View style={styles.panel}>

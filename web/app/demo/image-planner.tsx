@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, CheckCircle2, ChevronDown, ImagePlus, Info, Lightbulb, Palette, Sparkles, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, CheckCircle2, ChevronDown, ImagePlus, Info, Lightbulb, Palette, Plus, Sparkles, Sun } from "lucide-react";
 import { BriefAssistant } from "./brief-assistant";
+import { suggestionState } from "../../../shared/idea-suggestions";
 import "./image-planner.css";
 
 const STORAGE_KEY = "studio-annonce.image-plan.v1";
@@ -17,7 +18,6 @@ export function ImagePlanner() {
   const [brief, setBrief] = useState("");
   const [briefIdea, setBriefIdea] = useState("");
   const [restored, setRestored] = useState(false);
-  const ideaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -58,18 +58,23 @@ export function ImagePlanner() {
     <section className="st-step ip-idea" aria-labelledby="image-idea-title">
       <div className="ip-section-title"><span aria-hidden="true">1</span><h2 id="image-idea-title">Tout commence avec votre idée.</h2></div>
       <label htmlFor="image-idea">Qu’aimeriez-vous créer ?</label>
-      <textarea ref={ideaRef} id="image-idea" value={idea} maxLength={4000} rows={4} onChange={event => setIdea(event.target.value)} placeholder="Ex. : imagine un salon avec de grandes fenêtres, une décoration chaleureuse et une vue sur les montagnes…"/>
+      <textarea id="image-idea" value={idea} maxLength={4000} rows={4} onChange={event => setIdea(event.target.value)} placeholder="Ex. : imagine un salon avec de grandes fenêtres, une décoration chaleureuse et une vue sur les montagnes…"/>
       <p className="ip-field-hint">Quelques mots suffisent. Vous pourrez choisir le style, le cadrage et ajouter vos propres précisions.</p>
 
       <div className="ip-examples" aria-label="Exemples pour démarrer">
-        <p>Besoin d’un point de départ ?</p>
+        <p>Ajoutez une ou plusieurs idées à la ligne. Recliquez pour en retirer une.</p>
         <div>{EXAMPLES.map(example => {
           const Icon = example.icon;
-          return <button type="button" key={example.label} className={`ip-example ip-example-${example.tone}`} onClick={() => { setIdea(example.text); ideaRef.current?.focus(); }}>
+          const state = suggestionState(idea, example.text);
+          return <button type="button" key={example.label} className={`ip-example ip-example-${example.tone}${state.added ? " ip-example-added" : ""}`} disabled={!state.added && state.full} aria-pressed={state.added} aria-label={`${example.label} — ${state.added ? "Retirer de ma demande" : state.full ? "raccourcissez votre demande pour ajouter cette idée" : "Ajouter à ma demande"}`} onClick={() => setIdea(previous => {
+            const next = suggestionState(previous, example.text);
+            return !next.added && next.full ? previous : next.text;
+          })}>
             <span className="ip-example-icon" aria-hidden="true"><Icon size={21} strokeWidth={1.6}/></span>
-            <strong>{example.label}</strong><span>{example.detail}</span><ArrowUpRight size={16} aria-hidden="true"/>
+            <strong>{example.label}</strong><span>{example.detail}</span><span className="ip-example-action">{state.added ? <><Check size={14}/> Ajouté · Retirer</> : state.full ? "Demande trop longue" : <><Plus size={14}/> Ajouter</>}</span>
           </button>;
         })}</div>
+        {EXAMPLES.some(example => { const state = suggestionState(idea, example.text); return !state.added && state.full; }) && <p className="ip-suggestion-limit" role="status">Raccourcissez votre texte pour ajouter une autre idée : la demande est limitée à 4 000 caractères.</p>}
       </div>
       <BriefAssistant kind="image" request={idea} onUse={useBrief}/>
     </section>
