@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 import { BriefAssistant } from "./brief-assistant";
 import "./studio-screens.css";
@@ -24,19 +24,16 @@ function statut(p: DemoProject, now: number) {
 }
 
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
-export function PhotoList({ library, source, now, busy, onCreate, onVideo, onPlan, onExample, onOpen }: {
+export function PhotoList({ library, source, now, busy, onCreate, onVideo, onFrames, onPlan, onExample, onOpen }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: (logement?: string) => void; onVideo: () => void; onPlan: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
+  onCreate: (logement?: string) => void; onVideo: () => void; onFrames: () => void; onPlan: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
 }) {
-  const [filtre, setFiltre] = useState("");
-  const [recherche, setRecherche] = useState("");
   const logements = logementsDe(library, false);
   const miennes = library.projects.filter(p => !p.sample);
   const exemples = library.projects.filter(p => p.sample).sort((a, b) => b.updatedAt - a.updatedAt);
-  const q = recherche.toLocaleLowerCase("fr");
-  const groupes = logements.filter(l => !filtre || l === filtre).map(l => ({
+  const groupes = logements.map(l => ({
     nom: l,
-    photos: miennes.filter(p => p.property === l && `${p.title} ${p.property}`.toLocaleLowerCase("fr").includes(q)).sort((a, b) => b.updatedAt - a.updatedAt),
+    photos: miennes.filter(p => p.property === l).sort((a, b) => b.updatedAt - a.updatedAt),
   })).filter(g => g.photos.length);
   const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
     <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
@@ -71,6 +68,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onPla
         <p>Choisissez une photo de votre logement, dites ce que vous voulez changer. {library.freeUsed ? "" : "La première photo est offerte."}</p>
         <div className="st-actions">
           <button className="button dark st-big" onClick={() => onCreate()}><Sparkles size={18}/> {library.freeUsed ? "Créer ma première retouche" : "Créer ma première retouche, offerte"}</button>
+          <button className="button outlined" onClick={onFrames}><Images size={17}/> Créer des photos depuis une vidéo</button>
           <button className="button outlined" onClick={onPlan}><Film size={17}/> Préparer une visite vidéo</button>
         </div>
       </div>
@@ -81,19 +79,12 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onPla
   return <main className="st-main">
     <div className="st-head">
       <div><p className="eyebrow">MES PHOTOS</p><h1>Vos photos, par logement.</h1><p>Touchez une photo pour ouvrir sa retouche et toutes ses versions.</p></div>
-      <div className="st-actions"><button className="button dark" onClick={() => onCreate(filtre || undefined)}><Plus size={18}/> Nouvelle retouche</button><button className="button outlined" onClick={onPlan}><Film size={17}/> Préparer une vidéo</button><button className="button outlined" onClick={onVideo}><Film size={17}/> Ajouter une vidéo</button></div>
+      <div className="st-actions"><button className="button dark" onClick={() => onCreate()}><Plus size={18}/> Nouvelle retouche</button><button className="button outlined" onClick={onFrames}><Images size={17}/> Photos depuis une vidéo</button><button className="button outlined" onClick={onPlan}><Film size={17}/> Préparer une vidéo</button><button className="button outlined" onClick={onVideo}><Film size={17}/> Ajouter une vidéo</button></div>
     </div>
-    <div className="st-toolbar">
-      <div className="st-tabs" role="group" aria-label="Choisir un logement">
-        <button aria-pressed={!filtre} onClick={() => setFiltre("")}>Tous <span>{miennes.length}</span></button>
-        {logements.map(l => <button key={l} aria-pressed={filtre === l} onClick={() => setFiltre(l)}><Building2 size={14}/> {l} <span>{miennes.filter(p => p.property === l).length}</span></button>)}
-      </div>
-      <label className="st-search"><Search size={16}/><input aria-label="Rechercher une photo" placeholder="Rechercher…" value={recherche} onChange={e => setRecherche(e.target.value)}/></label>
-    </div>
-    {groupes.length ? groupes.map(g => <section key={g.nom} className="st-group" aria-label={g.nom}>
+    {groupes.map(g => <section key={g.nom} className="st-group" aria-label={g.nom}>
       <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "photos" : "photo"}</span><button className="text-action" onClick={() => onCreate(g.nom)}><Plus size={15}/> Ajouter une photo</button></div>
       <ul className="st-list">{g.photos.map(ligne)}</ul>
-    </section>) : <div className="st-none"><Search size={22}/><p>Aucune photo ne correspond.</p><button className="text-action" onClick={() => { setFiltre(""); setRecherche(""); }}>Tout afficher</button></div>}
+    </section>)}
     {partieExemples}
   </main>;
 }

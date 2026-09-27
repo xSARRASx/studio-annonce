@@ -12,6 +12,7 @@ import { Billing, CreateView, PhotoList } from "./studio-screens";
 import { VideoPlanner } from "./video-planner";
 import { ImagePlanner } from "./image-planner";
 import { BriefAssistant } from "./brief-assistant";
+import { VideoFrames } from "./video-frames";
 import "./studio.css";
 import "./workspace.css";
 
@@ -51,7 +52,7 @@ export default function StudioDemo() {
   const [ecran, id] = route.split("/");
   // Anciennes adresses : « versions » et « historique » sont réunies dans Mes photos, « crédits » devient Facturation.
   const screen = ({ versions: "studio", historique: "photo", credits: "facturation" } as Record<string, string>)[ecran] || ecran;
-  const inStudio = ["studio", "nouvelle", "creer-image", "visite", "photo", "video", "facturation"].includes(screen);
+  const inStudio = ["studio", "nouvelle", "creer-image", "video-photos", "visite", "photo", "video", "facturation"].includes(screen);
   const project = id ? library.projects.find(item => item.id === id) : undefined;
   const activeLarge = large ? library.projects.find(item => item.id === large.id) || large : null;
   async function act(action: () => Promise<void>) {
@@ -115,6 +116,7 @@ export default function StudioDemo() {
           <button className={["studio", "photo", "video"].includes(screen) ? "active" : ""} onClick={() => nav("studio")}><FolderOpen size={19}/> Mes photos <span>{library.projects.filter(p => !p.sample).length || ""}</span></button>
           <button className={screen === "nouvelle" ? "active" : ""} onClick={() => nav("nouvelle")}><Plus size={19}/> Nouvelle retouche</button>
           <button className={screen === "creer-image" ? "active" : ""} onClick={() => nav("creer-image")}><Sparkles size={19}/> Créer une image</button>
+          <button className={screen === "video-photos" ? "active" : ""} onClick={() => nav("video-photos")}><Images size={19}/> Photos depuis vidéo</button>
           <button className={screen === "visite" ? "active" : ""} onClick={() => nav("visite")}><Film size={19}/> Visite vidéo</button>
           <button className={screen === "facturation" ? "active" : ""} onClick={() => nav("facturation")}><Wallet size={19}/> Facturation</button>
         </nav>
@@ -122,10 +124,10 @@ export default function StudioDemo() {
         <div className="sidebar-bottom"><Link className="mobile-preview-link" href="/mobile-preview/"><Smartphone size={17}/> L’aperçu mobile <ArrowUpRight size={14}/></Link><Link className="studio-help-link" href="/demo/aide/">Une question ? Consulter l’aide</Link><button className="back-site" onClick={() => nav("")}><ArrowLeft size={15}/> Retour au site</button></div>
       </aside>
       <div className="workspace-body">
-        <header className="workspace-header"><button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu"><Menu/></button><div className="breadcrumb">Mon studio <ChevronRight size={13}/><strong>{screen === "facturation" ? "Facturation" : screen === "nouvelle" ? "Nouvelle retouche" : screen === "creer-image" ? "Créer une image" : screen === "visite" ? "Visite vidéo" : "Mes photos"}</strong></div><button className="workspace-credit" onClick={() => nav("facturation")}><span className="status-dot"/>{library.credits} crédits démo</button></header>
+        <header className="workspace-header"><button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu"><Menu/></button><div className="breadcrumb">Mon studio <ChevronRight size={13}/><strong>{screen === "facturation" ? "Facturation" : screen === "nouvelle" ? "Nouvelle retouche" : screen === "creer-image" ? "Créer une image" : screen === "video-photos" ? "Photos depuis une vidéo" : screen === "visite" ? "Visite vidéo" : "Mes photos"}</strong></div><button className="workspace-credit" onClick={() => nav("facturation")}><span className="status-dot"/>{library.credits} crédits démo</button></header>
         {notice && <div className="notice work-notice" role="status"><Info size={18}/><p>{notice}</p><button aria-label="Fermer le message" onClick={() => setNotice("")}><X size={18}/></button></div>}
         {error ? <main className="projects-main"><div className="storage-failure" role="alert"><Info size={28}/><h1>Votre espace est préservé.</h1><p>{error}</p><button className="button dark" onClick={() => void refresh()}>Réessayer</button></div></main> : loading ? <main className="projects-main"><div className="library-loading" role="status">Ouverture de votre studio…</div></main> : <>
-          {screen === "studio" && <PhotoList library={library} source={source} now={now} busy={busy} onCreate={logement => go(logement ? `nouvelle/${encodeURIComponent(logement)}` : "nouvelle")} onVideo={() => setUpload("video")} onPlan={() => go("visite")} onExample={kind => void example(kind)} onOpen={item => go(`${item.kind}/${item.id}`)}/>}
+          {screen === "studio" && <PhotoList library={library} source={source} now={now} busy={busy} onCreate={logement => go(logement ? `nouvelle/${encodeURIComponent(logement)}` : "nouvelle")} onVideo={() => setUpload("video")} onFrames={() => go("video-photos")} onPlan={() => go("visite")} onExample={kind => void example(kind)} onOpen={item => go(`${item.kind}/${item.id}`)}/>}
           {screen === "nouvelle" && <CreateView key={id || "nouvelle"} library={library} busy={busy} initial={id ? decodeURIComponent(id) : undefined} onCancel={() => go("studio")} onImagine={() => go("creer-image")} onExample={() => void example("photo")} onCreate={async (files, logement, demande) => {
             const projects = await importedProjects(files, "photo");
             for (const item of projects) { item.property = logement; item.draft = demande; }
@@ -137,8 +139,23 @@ export default function StudioDemo() {
             go(projects.length === 1 ? `photo/${projects[0].id}` : "studio");
             setNotice(projects.length === 1 ? `Retouche créée dans « ${logement} ».` : `${projects.length} retouches créées dans « ${logement} ».`);
           }}/>}
-          {screen === "visite" && <VideoPlanner library={library} source={source} onPhoto={() => go("nouvelle")}/>}
+          {screen === "visite" && (
+            <VideoPlanner library={library} source={source} onPhoto={() => go("nouvelle")}/>
+          )}
           {screen === "creer-image" && <ImagePlanner/>}
+          {screen === "video-photos" && (
+            <VideoFrames library={library} busy={busy} onCancel={() => go("studio")} onCreate={async (files, logement, videoName, request) => {
+            const projects = await importedProjects(files, "photo");
+            for (const item of projects) { item.property = logement; item.draft = request || `Image extraite de la vidéo « ${videoName} ».`; }
+            await update(state => {
+              const total = [...state.projects, ...projects].reduce((sum, item) => sum + (item.file?.size || 0), 0);
+              if (total > 300 * 1024 * 1024) throw new Error("Cette démo conserve jusqu’à 300 Mo de fichiers. Vos projets existants sont préservés ; choisissez moins d’images.");
+              state.projects.unshift(...projects);
+            });
+            go(projects.length === 1 ? `photo/${projects[0].id}` : "studio");
+            setNotice(`${projects.length} ${projects.length > 1 ? "photos extraites" : "photo extraite"} de la vidéo et rangées dans « ${logement} ».`);
+            }}/>
+          )}
           {screen === "photo" && project && <PhotoEditor key={project.id} project={project} source={source} busy={busy} now={now} onChange={change => changeProject(project.id, change)} onDownload={() => void download(project)} onRename={() => setRename(project)} onRenew={() => setRenew(project)} onLarge={() => setLarge(project)} onNotice={setNotice}/>}
           {screen === "video" && project && <VideoProject key={project.id} project={project} source={source} onDownload={() => void download(project)} onRename={() => setRename(project)} busy={busy}/>}
           {["photo", "video"].includes(screen) && !project && <main className="projects-main"><div className="storage-failure"><FolderOpen size={30}/><h1>Retrouvez vos projets.</h1><p>Ce lien ne correspond pas à un projet enregistré dans ce navigateur.</p><button className="button dark" onClick={() => go("studio")}>Voir mes photos</button></div></main>}
