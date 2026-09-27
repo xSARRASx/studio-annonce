@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEMO_CREDITS, EDIT_WINDOW_MS, downloadState, emptyStudio, readStudio, renewEditWindow, simulateDownload } from './studio-model.ts';
+import { DEMO_CREDITS, EDIT_WINDOW_MS, downloadState, emptyStudio, logementOf, readStudio, renewEditWindow, simulateDownload } from './studio-model.ts';
 
 const start = 1_800_000_000_000;
 const project = (id) => ({ id, title: id, created: start, source: 'example', selected: 2, saved: null, request: 'Plus de lumière', firstDownloadedAt: null, windowStartedAt: null, downloadCount: 0 });
@@ -146,4 +146,12 @@ test('returning to the original preserves the existing edited-photo deadline and
   assert.equal(result.data.projects[0].windowStartedAt, start);
   assert.equal(result.data.projects[0].firstDownloadedAt, start);
   assert.equal(result.data.projects[0].saved, 2);
+});
+
+test('photos are grouped by logement, and older saves without one still load', () => {
+  const ancien = readStudio(JSON.parse(JSON.stringify(collection())));
+  assert.equal(logementOf(ancien.projects[0]), 'Mon logement');
+  const range = readStudio({ ...collection(), projects: [{ ...project('salon'), property: 'Appartement Nice' }] });
+  assert.equal(logementOf(range.projects[0]), 'Appartement Nice');
+  assert.throws(() => readStudio({ ...collection(), projects: [{ ...project('salon'), property: 42 }] }));
 });

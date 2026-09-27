@@ -236,3 +236,16 @@ Vérifié le 26/09 dans le cloud : 19 tests API, 25 tests bibliothèque web, 12 
 export web Expo réussis. La page publique publie désormais la démo (`/demo/`) et l'appli mobile en version web
 (`/mobile/`, affichée dans `/mobile-preview/`). Toujours pas branchés : vraie génération IA, comptes réels,
 paiement, synchronisation site/mobile.
+
+### Mise à jour du 27/09/2026 (demandes de Martin)
+
+- **Accueil en relief** (`web/app/demo/showcase.tsx`, `landing3d.css`) : les 4 versions du salon empilées en 3D
+  avec leurs demandes, les trois gestes illustrés, une annonce complète en perspective, la visite vidéo annoncée
+  « bientôt ».
+- **Studio réorganisé, site et appli** : « Atelier » et « Mes versions » ne font plus qu'un écran, **Mes photos**,
+  qui liste les photos **rangées par logement** ; on touche une photo pour ouvrir sa retouche et toutes ses versions.
+  Sans photo : un bouton « Créer ma première retouche, offerte ». Une page **Nouvelle retouche** (logement, photos,
+  idée) se rouvre à chaque fois. Une page **Facturation** : solde, photo offerte, packs, historique, factures.
+- Anciennes adresses conservées : `#versions` et `#historique` mènent à Mes photos, `#credits` à Facturation ;
+  sur l'appli, `/atelier` et `/versions` affichent Mes photos.
+- Appli : chaque photo porte un `property` (logement), facultatif pour les anciennes sauvegardes (`logementOf`).

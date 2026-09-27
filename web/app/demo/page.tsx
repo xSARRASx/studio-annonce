@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, Film, FolderOpen, Heart, History, Images, Info, Maximize2, Menu, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Smartphone, Sparkles, Upload, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, Film, FolderOpen, Heart, History, Images, Info, Maximize2, Menu, Pencil, Plus,  ShieldCheck, SlidersHorizontal, Smartphone, Sparkles, Upload, Wallet, X } from "lucide-react";
 import Landing from "./landing";
 import { Brand, Compare, Modal } from "./studio-parts";
-import { asset, beginDownload, dateText, importedProjects, isExpired, projectFrom, renewProject, sampleProject, storageError, type DemoLibrary, type DemoProject, type DemoVersion, type MediaKind } from "./library";
+import { asset, beginDownload, dateText, importedProjects, isExpired, projectFrom, renewProject, sampleProject, storageError, type DemoProject, type DemoVersion, type MediaKind } from "./library";
 import { useLibrary } from "./use-library";
+import { Billing, CreateView, PhotoList } from "./studio-screens";
 import "./studio.css";
 import "./workspace.css";
 
@@ -15,7 +16,6 @@ type Source = (project: DemoProject, version?: DemoVersion) => string;
 type Receipt = { title: string; free: boolean; until: number; renewal?: boolean };
 const go = (hash: string) => { window.location.hash = hash; window.scrollTo({ top: 0 }); };
 const selectedVersion = (project: DemoProject) => project.versions.find(item => item.id === project.selected) || project.versions[0];
-const projectStatus = (project: DemoProject, now: number) => isExpired(project, now) ? "Retouches à renouveler" : project.editUntil ? "Retouches ouvertes" : project.saved ? "Version gardée" : project.kind === "video" ? "À regarder" : "À retoucher";
 function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -45,8 +45,10 @@ export default function StudioDemo() {
     document.addEventListener("visibilitychange", tick);
     return () => { window.removeEventListener("hashchange", read); window.clearInterval(clock); window.removeEventListener("focus", tick); document.removeEventListener("visibilitychange", tick); };
   }, []);
-  const [screen, id] = route.split("/");
-  const inStudio = ["studio", "versions", "photo", "video", "historique", "credits"].includes(screen);
+  const [ecran, id] = route.split("/");
+  // Anciennes adresses : « versions » et « historique » sont réunies dans Mes photos, « crédits » devient Facturation.
+  const screen = ({ versions: "studio", historique: "photo", credits: "facturation" } as Record<string, string>)[ecran] || ecran;
+  const inStudio = ["studio", "nouvelle", "photo", "video", "facturation"].includes(screen);
   const project = id ? library.projects.find(item => item.id === id) : undefined;
   const activeLarge = large ? library.projects.find(item => item.id === large.id) || large : null;
   async function act(action: () => Promise<void>) {
@@ -107,22 +109,33 @@ export default function StudioDemo() {
       <aside className={`sidebar ${menu ? "is-open" : ""}`}><Brand onClick={() => nav("")}/><button className="close-menu icon-button" aria-label="Fermer le menu" onClick={() => setMenu(false)}><X/></button>
         <div className="sidebar-section-label">VOTRE ESPACE</div>
         <nav aria-label="Navigation du studio">
-          <button className={["studio", "photo", "video"].includes(screen) ? "active" : ""} onClick={() => nav("studio")}><FolderOpen size={19}/> L’atelier <span>{library.projects.length || ""}</span></button>
-          <button className={["versions", "historique"].includes(screen) ? "active" : ""} onClick={() => nav("versions")}><History size={19}/> Mes versions</button>
-          <button className={screen === "credits" ? "active" : ""} onClick={() => nav("credits")}><Wallet size={19}/> Mes crédits</button>
+          <button className={["studio", "photo", "video"].includes(screen) ? "active" : ""} onClick={() => nav("studio")}><FolderOpen size={19}/> Mes photos <span>{library.projects.length || ""}</span></button>
+          <button className={screen === "nouvelle" ? "active" : ""} onClick={() => nav("nouvelle")}><Plus size={19}/> Nouvelle retouche</button>
+          <button className={screen === "facturation" ? "active" : ""} onClick={() => nav("facturation")}><Wallet size={19}/> Facturation</button>
         </nav>
         <div className="studio-sidebar-note"><ShieldCheck size={19}/><p>Votre espace à vous.<small>Projets enregistrés dans ce navigateur.</small></p></div>
         <div className="sidebar-bottom"><Link className="mobile-preview-link" href="/mobile-preview/"><Smartphone size={17}/> L’aperçu mobile <ArrowUpRight size={14}/></Link><Link className="studio-help-link" href="/demo/aide/">Une question ? Consulter l’aide</Link><button className="back-site" onClick={() => nav("")}><ArrowLeft size={15}/> Retour au site</button></div>
       </aside>
       <div className="workspace-body">
-        <header className="workspace-header"><button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu"><Menu/></button><div className="breadcrumb">Mon studio <ChevronRight size={13}/><strong>{screen === "credits" ? "Mes crédits" : screen === "versions" || screen === "historique" ? "Mes versions" : "L’atelier"}</strong></div><button className="workspace-credit" onClick={() => nav("credits")}><span className="status-dot"/>{library.credits} crédits démo</button></header>
+        <header className="workspace-header"><button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu"><Menu/></button><div className="breadcrumb">Mon studio <ChevronRight size={13}/><strong>{screen === "facturation" ? "Facturation" : screen === "nouvelle" ? "Nouvelle retouche" : "Mes photos"}</strong></div><button className="workspace-credit" onClick={() => nav("facturation")}><span className="status-dot"/>{library.credits} crédits démo</button></header>
         {notice && <div className="notice work-notice" role="status"><Info size={18}/><p>{notice}</p><button aria-label="Fermer le message" onClick={() => setNotice("")}><X size={18}/></button></div>}
         {error ? <main className="projects-main"><div className="storage-failure" role="alert"><Info size={28}/><h1>Votre espace est préservé.</h1><p>{error}</p><button className="button dark" onClick={() => void refresh()}>Réessayer</button></div></main> : loading ? <main className="projects-main"><div className="library-loading" role="status">Ouverture de votre studio…</div></main> : <>
-          {(screen === "studio" || screen === "versions") && <LibraryView key={screen} library={library} source={source} now={now} history={screen === "versions"} busy={busy} onAdd={setUpload} onExample={example} onOpen={item => go(`${screen === "versions" && item.kind === "photo" ? "historique" : item.kind}/${item.id}`)}/>}
-          {(screen === "photo" || screen === "historique") && project && <PhotoEditor key={project.id} project={project} source={source} busy={busy} now={now} history={screen === "historique"} onChange={change => changeProject(project.id, change)} onDownload={() => void download(project)} onRename={() => setRename(project)} onRenew={() => setRenew(project)} onLarge={() => setLarge(project)} onNotice={setNotice}/>}
+          {screen === "studio" && <PhotoList library={library} source={source} now={now} busy={busy} onCreate={logement => go(logement ? `nouvelle/${encodeURIComponent(logement)}` : "nouvelle")} onVideo={() => setUpload("video")} onExample={() => void example("photo")} onOpen={item => go(`${item.kind}/${item.id}`)}/>}
+          {screen === "nouvelle" && <CreateView key={id || "nouvelle"} library={library} busy={busy} initial={id ? decodeURIComponent(id) : undefined} onCancel={() => go("studio")} onExample={() => void example("photo")} onCreate={async (files, logement, demande) => {
+            const projects = await importedProjects(files, "photo");
+            for (const item of projects) { item.property = logement; item.draft = demande; }
+            await update(state => {
+              const total = [...state.projects, ...projects].reduce((sum, item) => sum + (item.file?.size || 0), 0);
+              if (total > 300 * 1024 * 1024) throw new Error("Cette démo conserve jusqu’à 300 Mo de fichiers. Vos projets existants sont préservés ; choisissez des photos plus légères.");
+              state.projects.unshift(...projects);
+            });
+            go(projects.length === 1 ? `photo/${projects[0].id}` : "studio");
+            setNotice(projects.length === 1 ? `Retouche créée dans « ${logement} ».` : `${projects.length} retouches créées dans « ${logement} ».`);
+          }}/>}
+          {screen === "photo" && project && <PhotoEditor key={project.id} project={project} source={source} busy={busy} now={now} onChange={change => changeProject(project.id, change)} onDownload={() => void download(project)} onRename={() => setRename(project)} onRenew={() => setRenew(project)} onLarge={() => setLarge(project)} onNotice={setNotice}/>}
           {screen === "video" && project && <VideoProject key={project.id} project={project} source={source} onDownload={() => void download(project)} onRename={() => setRename(project)} busy={busy}/>}
-          {["photo", "video", "historique"].includes(screen) && !project && <main className="projects-main"><div className="storage-failure"><FolderOpen size={30}/><h1>Retrouvez vos projets.</h1><p>Ce lien ne correspond pas à un projet enregistré dans ce navigateur.</p><button className="button dark" onClick={() => go("studio")}>Ouvrir mon atelier</button></div></main>}
-          {screen === "credits" && <Credits library={library}/>}
+          {["photo", "video"].includes(screen) && !project && <main className="projects-main"><div className="storage-failure"><FolderOpen size={30}/><h1>Retrouvez vos projets.</h1><p>Ce lien ne correspond pas à un projet enregistré dans ce navigateur.</p><button className="button dark" onClick={() => go("studio")}>Voir mes photos</button></div></main>}
+          {screen === "facturation" && <Billing library={library} onCreate={() => go("nouvelle")}/>}
         </>}
       </div>
     </div>}
@@ -154,39 +167,15 @@ export default function StudioDemo() {
   </div>;
 }
 
-function LibraryView({ library, source, now, history, busy, onAdd, onExample, onOpen }: { library: DemoLibrary; source: Source; now: number; history: boolean; busy: boolean; onAdd: (kind: MediaKind) => void; onExample: (kind: MediaKind) => Promise<void>; onOpen: (project: DemoProject) => void }) {
-  const [filter, setFilter] = useState("all");
-  const [query, setQuery] = useState("");
-  const [order, setOrder] = useState("recent");
-  const projects = library.projects.filter(item => !history || item.kind === "photo");
-  const visible = projects.filter(item => (filter === "all" || filter === "saved" && !!item.saved || filter === item.kind) && `${item.title} ${item.property}`.toLocaleLowerCase("fr").includes(query.toLocaleLowerCase("fr"))).sort((a, b) => order === "name" ? a.title.localeCompare(b.title, "fr") : b.createdAt - a.createdAt);
-  return <main className="projects-main">
-    <div className="projects-heading"><div><p className="eyebrow">{history ? "CHAQUE ÉTAPE, CONSERVÉE" : "BIENVENUE DANS VOTRE ATELIER"}</p><h1>{history ? "Vos versions, par photo." : "Mes photos et vidéos"}</h1><p>{history ? "Choisissez une photo pour retrouver toutes ses versions." : "Vos intérieurs. Vos idées. Tout au même endroit."}</p></div>{projects.length > 0 && !history && <button className="button dark" onClick={() => onAdd("photo")}><Plus size={18}/> Ajouter des photos</button>}</div>
-    {projects.length === 0 ? <section className="work-empty">
-      <div className="empty-photo-art" aria-hidden="true"><div className="empty-photo-back"/><div className="empty-photo-front"><Image src={asset("salon-apres.png")} alt="" fill sizes="240px"/><span><Sparkles size={16}/> Tout commence ici</span></div><span className="empty-art-plus"><Plus size={27}/></span></div>
-      <div className="empty-copy"><p className="section-kicker">UN NOUVEAU REGARD SUR VOTRE INTÉRIEUR</p><h2>{history ? "Votre première histoire reste à écrire." : "On commence par votre première photo ?"}</h2><p>Ajoutez les photos de votre logement. Vous pourrez les retrouver ici, puis ouvrir celle que vous voulez travailler.</p><div className="empty-main-actions"><button className="button dark" onClick={() => onAdd("photo")}><Plus size={18}/> Ajouter mes premières photos</button><button className="button outlined" onClick={() => onAdd("video")}><Film size={18}/> Ajouter une vidéo</button></div><span className="local-note"><ShieldCheck size={15}/> Vos fichiers restent sur cet appareil.</span></div>
-    </section> : <>
-      <div className="library-toolbar"><div className="library-filters" role="group" aria-label="Filtrer les projets">{(history ? [["all", "Toutes"], ["saved", "Gardées"]] : [["all", "Tout"], ["photo", "Photos"], ["video", "Vidéos"], ["saved", "Gardées"]]).map(([value, label]) => <button key={value} aria-pressed={filter === value} className={filter === value ? "selected" : ""} onClick={() => setFilter(value)}>{label}</button>)}</div><label className="library-search"><Search size={17}/><input aria-label="Rechercher une photo ou un logement" placeholder="Rechercher…" value={query} onChange={event => setQuery(event.target.value)}/></label><select aria-label="Trier les projets" value={order} onChange={event => setOrder(event.target.value)}><option value="recent">Plus récents</option><option value="name">Nom A–Z</option></select></div>
-      <div className="collection-title"><h2>{visible.length} {visible.length === 1 ? "projet" : "projets"}</h2>{!history && <button className="text-action" onClick={() => onAdd("video")}><Film size={16}/> Ajouter une vidéo</button>}</div>
-      {visible.length ? <div className="project-cards work-project-cards">{visible.map(project => <button className="project-card" key={project.id} onClick={() => onOpen(project)}>
-        <span className="project-card-preview">{project.kind === "photo" ? <Image src={source(project)} alt={project.title} fill unoptimized sizes="(max-width:650px) 90vw, (max-width:1100px) 45vw, 30vw"/> : project.sample ? <Image src={asset("visite/sejour.png")} alt="Séjour de la visite d’exemple" fill sizes="30vw"/> : <video src={source(project)} muted preload="metadata"/>}<span className="project-type">{project.kind === "photo" ? <Images size={14}/> : <Film size={14}/>} {project.kind === "photo" ? "Photo" : "Vidéo"}{project.sample ? " · exemple" : ""}</span>{project.saved && <span className="project-heart"><Heart size={16} fill="currentColor"/></span>}</span>
-        <span className="project-card-copy"><small>{project.property}</small><strong>{project.title}</strong><span className="project-card-meta"><span>{project.versions.length} {project.versions.length === 1 ? "version" : "versions"}</span><span>{dateText(project.createdAt)}</span></span><span className={`project-status ${isExpired(project, now) ? "expired" : ""}`}><span className="status-dot"/>{history ? "Ouvrir l’historique" : projectStatus(project, now)}<ArrowUpRight size={16}/></span></span>
-      </button>)}</div> : <div className="no-search-results"><Search size={25}/><p>Aucun projet ne correspond à cette recherche.</p><button className="text-action" onClick={() => { setFilter("all"); setQuery(""); }}>Afficher tous les projets</button></div>}
-      <p className="projects-session-note"><ShieldCheck size={14}/> Enregistré dans ce navigateur · vos projets sont conservés au rechargement.</p>
-    </>}
-    {!history && <section className="sample-shelf"><div><p className="section-kicker">ENVIE D’EXPLORER D’ABORD ?</p><h2>Un aperçu de ce qui est possible.</h2></div><div className="sample-shelf-actions"><button disabled={busy} onClick={() => void onExample("photo")}><span className="sample-mini"><Image src={asset("salon-deco-complete.png")} alt="" fill sizes="72px"/></span><span><strong>Le salon, réinventé</strong><small>4 versions à comparer</small></span><ArrowUpRight size={19}/></button><button disabled={busy} onClick={() => void onExample("video")}><span className="sample-mini"><Image src={asset("visite/cuisine.png")} alt="" fill sizes="72px"/></span><span><strong>La visite en images</strong><small>Une maquette vidéo de 10 secondes</small></span><Film size={19}/></button></div></section>}
-  </main>;
-}
-
-function PhotoEditor({ project, source, busy, now, history, onChange, onDownload, onRename, onRenew, onLarge, onNotice }: { project: DemoProject; source: Source; busy: boolean; now: number; history: boolean; onChange: (change: (project: DemoProject) => void) => Promise<boolean>; onDownload: () => void; onRename: () => void; onRenew: () => void; onLarge: () => void; onNotice: (text: string) => void }) {
+function PhotoEditor({ project, source, busy, now, onChange, onDownload, onRename, onRenew, onLarge, onNotice }: { project: DemoProject; source: Source; busy: boolean; now: number; onChange: (change: (project: DemoProject) => void) => Promise<boolean>; onDownload: () => void; onRename: () => void; onRenew: () => void; onLarge: () => void; onNotice: (text: string) => void }) {
   const [compare, setCompare] = useState(false);
-  const [allVersions, setAllVersions] = useState(history);
+  const [allVersions, setAllVersions] = useState(true);
   const [draft, setDraft] = useState(project.draft);
   const version = selectedVersion(project);
   const index = project.versions.findIndex(item => item.id === version.id);
   const expired = isExpired(project, now);
   return <main className="editor-main work-editor">
-    <button className="text-action back-to-projects" onClick={() => go(history ? "versions" : "studio")}><ArrowLeft size={16}/> {history ? "Toutes mes photos" : "Mes photos et vidéos"}</button>
+    <button className="text-action back-to-projects" onClick={() => go("studio")}><ArrowLeft size={16}/> Mes photos</button>
     <div className="editor-title"><div><p className="eyebrow">{project.property}</p><h1>{project.title}<button className="icon-button rename-button" onClick={onRename} aria-label="Renommer cette photo"><Pencil size={16}/></button></h1><p>{project.sample ? "Photo d’exemple · toutes les propositions sont conservées" : "Votre photo originale · conservée sur cet appareil"}</p></div><div className="editor-actions"><button className={`button outlined ${project.saved === version.id ? "is-kept" : ""}`} disabled={busy} onClick={() => void onChange(item => { item.saved = version.id; })}><Heart size={17} fill={project.saved === version.id ? "currentColor" : "none"}/>{project.saved === version.id ? "Version gardée" : "Garder"}</button><button id="photo-download" className="button dark" disabled={busy} onClick={onDownload}><Download size={17}/>{busy ? "Un instant…" : index === 0 ? "Télécharger l’original" : "Télécharger en HD"}</button></div></div>
     {project.editUntil && <div className={`edit-deadline ${expired ? "expired" : ""}`}><Clock3 size={18}/><span>{expired ? "La période de retouche est terminée. Vos versions restent disponibles." : `Retouches ouvertes jusqu’au ${dateText(project.editUntil, true)}.`}</span>{expired && <button onClick={onRenew}>Reprendre avec 1 crédit démo <ArrowRight size={15}/></button>}</div>}
     <div className="editor-grid"><section className="image-panel"><div className="result-status"><span><Check size={16}/>{version.label}</span><small>{index + 1} / {project.versions.length}</small></div>
@@ -209,15 +198,11 @@ function PhotoEditor({ project, source, busy, now, history, onChange, onDownload
 
 function VideoProject({ project, source, onDownload, onRename, busy }: { project: DemoProject; source: Source; onDownload: () => void; onRename: () => void; busy: boolean }) {
   const [unreadable, setUnreadable] = useState(false);
-  return <main className="video-project-main"><button className="text-action back-to-projects" onClick={() => go("studio")}><ArrowLeft size={16}/> Mes photos et vidéos</button><div className="video-title"><div><p className="eyebrow">{project.sample ? "LA VISITE EN IMAGES" : "VOTRE VIDÉO"}</p><h1>{project.title}</h1></div><button className="icon-button" aria-label="Renommer cette vidéo" onClick={onRename}><Pencil size={18}/></button></div><div className="video-preview-player"><video src={source(project)} controls playsInline preload="metadata" poster={project.sample ? asset("visite/sejour.png") : undefined} onError={() => setUnreadable(true)}/></div>{unreadable && <p className="file-error" role="alert">Ce format ne peut pas être lu par ce navigateur. Votre fichier est conservé et peut être téléchargé pour l’ouvrir sur votre appareil.</p>}
+  return <main className="video-project-main"><button className="text-action back-to-projects" onClick={() => go("studio")}><ArrowLeft size={16}/> Mes photos</button><div className="video-title"><div><p className="eyebrow">{project.sample ? "LA VISITE EN IMAGES" : "VOTRE VIDÉO"}</p><h1>{project.title}</h1></div><button className="icon-button" aria-label="Renommer cette vidéo" onClick={onRename}><Pencil size={18}/></button></div><div className="video-preview-player"><video src={source(project)} controls playsInline preload="metadata" poster={project.sample ? asset("visite/sejour.png") : undefined} onError={() => setUnreadable(true)}/></div>{unreadable && <p className="file-error" role="alert">Ce format ne peut pas être lu par ce navigateur. Votre fichier est conservé et peut être téléchargé pour l’ouvrir sur votre appareil.</p>}
     <div className="video-project-bottom"><p>{project.sample ? "10 secondes · séjour, cuisine, chambre" : project.fileName}</p><button className="button dark" disabled={busy} onClick={onDownload}><Download size={17}/> Télécharger la vidéo</button></div>
     {project.sample && <><div className="video-coming-soon"><Film size={21}/><p>Une <strong>maquette animée à partir de photos fictives</strong>, pour explorer l’ambiance d’une visite. Le travelling IA continu reste à tester avec un moteur vidéo connecté.</p></div><section className="video-source-images"><h2>Les images de la visite</h2><div>{[["sejour", "Le séjour"], ["cuisine", "La cuisine"], ["chambre", "La chambre"]].map(([file, label]) => <figure key={file}><Image src={asset(`visite/${file}.png`)} alt={label} width={480} height={270}/><figcaption>{label}</figcaption></figure>)}</div></section></>}
     {!project.sample && <div className="video-coming-soon"><Film size={21}/><p>Votre vidéo est prête à être consultée. La génération et les outils de montage seront disponibles après connexion du moteur vidéo.</p></div>}
   </main>;
-}
-
-function Credits({ library }: { library: DemoLibrary }) {
-  return <main className="work-credits"><p className="eyebrow">VOTRE COMPTE DE DÉMONSTRATION</p><h1>Simple, jusqu’au dernier crédit.</h1><p className="credits-intro">Gardez une version, puis téléchargez-la lorsque le résultat vous plaît.</p><div className="credit-summary"><div><span>Votre solde de démonstration</span><strong>{library.credits}<small>crédits</small></strong><p>Ces crédits permettent d’essayer le parcours. Ils n’ont aucune valeur monétaire.</p></div><div><span className="receipt-icon"><Sparkles size={26}/></span><h2>{library.freeUsed ? "Votre photo offerte a été utilisée." : "Votre première photo est offerte."}</h2><p>{library.freeUsed ? "Retrouvez-la dans votre atelier avec toutes ses versions." : "Le premier téléchargement d’une photo d’exemple est offert. Aucun crédit de démo ne sera déduit."}</p><button className="text-action" onClick={() => go("studio")}>Retour à l’atelier <ArrowRight size={17}/></button></div></div><div className="credit-rules"><article><Download size={23}/><h2>1 photo, 1 crédit</h2><p>Le crédit est utilisé au premier téléchargement HD. Garder une version ne débite rien.</p></article><article><Clock3 size={23}/><h2>7 jours pour ajuster</h2><p>La période commence au premier téléchargement. Après l’échéance, reprendre les retouches demande un nouveau crédit.</p></article><article><History size={23}/><h2>Tout reste à vous</h2><p>Les anciennes versions restent disponibles. Les télécharger à nouveau ne consomme pas de nouveau crédit.</p></article></div><section className="credit-ledger"><div className="collection-title"><h2>Votre activité</h2><span>{library.events.length} {library.events.length === 1 ? "opération" : "opérations"}</span></div>{library.events.length ? library.events.map(event => <div className="credit-event" key={event.id}><span><strong>{event.label}</strong><small>{event.project} · {dateText(event.at, true)}</small></span><b>{event.amount === 0 ? "Offerte" : `${event.amount} crédit`}</b></div>) : <p>Aucun crédit utilisé. Votre premier projet vous attend.</p>}</section><div className="credit-pricing-link"><p>À la recherche des prix ? Les formules sont sur la page publique des tarifs.</p><Link href="/demo/tarifs/" className="button outlined">Découvrir les tarifs <ArrowUpRight size={17}/></Link></div><p className="credits-footnote">Les achats et la facturation réelle ne sont pas activés dans cette démonstration.</p></main>;
 }
 
 function ImportDialog({ kind, onClose, onImport }: { kind: MediaKind; onClose: () => void; onImport: (files: File[]) => Promise<void> }) {

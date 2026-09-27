@@ -9,6 +9,7 @@ export type Project = {
   title: string;
   created: number;
   source: 'example' | 'photo';
+  property?: string;
   photoKey?: string;
   selected: number;
   saved: number | null;
@@ -27,7 +28,7 @@ export function readStudio(value: unknown): StudioData {
   if (![1, 2].includes(data.schema!) || !Array.isArray(data.projects) || !Number.isInteger(data.creditsUsed) || data.creditsUsed! < 0) throw new Error('Invalid local studio');
   for (const p of data.projects) {
     const count = p.source === 'example' ? 4 : 1;
-    if (typeof p.id !== 'string' || typeof p.title !== 'string' || !Number.isFinite(p.created) || !['example', 'photo'].includes(p.source) || (p.source === 'photo' && typeof p.photoKey !== 'string') || !Number.isInteger(p.selected) || p.selected < 0 || p.selected >= count || (p.saved !== null && (!Number.isInteger(p.saved) || p.saved < 0 || p.saved >= count)) || typeof p.request !== 'string' || ![p.firstDownloadedAt, p.windowStartedAt].every(t => t === null || (typeof t === 'number' && Number.isFinite(t))) || !Number.isInteger(p.downloadCount) || p.downloadCount < 0) throw new Error('Invalid project');
+    if (typeof p.id !== 'string' || typeof p.title !== 'string' || !Number.isFinite(p.created) || !['example', 'photo'].includes(p.source) || (p.source === 'photo' && typeof p.photoKey !== 'string') || !Number.isInteger(p.selected) || p.selected < 0 || p.selected >= count || (p.saved !== null && (!Number.isInteger(p.saved) || p.saved < 0 || p.saved >= count)) || typeof p.request !== 'string' || ![p.firstDownloadedAt, p.windowStartedAt].every(t => t === null || (typeof t === 'number' && Number.isFinite(t))) || !Number.isInteger(p.downloadCount) || p.downloadCount < 0 || (p.property !== undefined && (typeof p.property !== 'string' || p.property.length > 100))) throw new Error('Invalid project');
   }
   if (new Set(data.projects.map(p => p.id)).size !== data.projects.length) throw new Error('Duplicate project');
   if (data.schema === 1) {
@@ -73,3 +74,6 @@ export function renewEditWindow(data: StudioData, id: string, now: number): { da
     data: { ...data, creditsUsed: data.creditsUsed + 1, projects: data.projects.map(p => p.id === id ? { ...p, windowStartedAt: now } : p) },
   };
 }
+
+/** Le logement d'une photo ; les photos enregistrées avant les logements vont dans « Mon logement ». */
+export const logementOf = (project: Pick<Project, 'property'>) => project.property?.trim() || 'Mon logement';
