@@ -2,22 +2,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, CheckCircle2, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
+import { BriefAssistant } from "./brief-assistant";
 import "./studio-screens.css";
 
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 const IDEES = ["Plus de lumière", "Ranger et désencombrer", "Changer toute la déco", "Faire le lit"];
-const ASSISTANT_QUESTIONS = [
-  { label: "Quel rendu veux-tu ?", options: ["Réaliste et fidèle", "Chaleureux", "Luxe contemporain", "Minimaliste"] },
-  { label: "Quel mouvement de caméra ?", options: ["Lent et élégant", "Visite dynamique", "Vue type drone", "Gros plans sur les détails"] },
-  { label: "Que doit absolument préserver l’IA ?", options: ["La disposition des pièces", "Les meubles principaux", "Les fenêtres et la lumière", "Tout le logement à l’identique"] },
-  { label: "Quel format veux-tu préparer ?", options: ["Un plan de 5 secondes", "Une séquence de 10 secondes", "Une visite de 30 secondes", "Je ne sais pas encore"] },
-] as const;
-function buildAssistantPrompt(request: string, answers: string[]) {
-  const [style, camera, preserve, format] = answers;
-  return `Créer une vidéo immobilière professionnelle à partir des photos fournies. Demande du client : « ${request.trim()} ». Rendu : ${style.toLowerCase()}. Caméra : ${camera.toLowerCase()}. Préserver impérativement ${preserve.toLowerCase()}, sans inventer de nouvelles pièces ni déformer les volumes. Format souhaité : ${format.toLowerCase()}. Mouvement continu, transitions naturelles, lumière cohérente, mobilier stable d’une image à l’autre, aucun texte incrusté et aucun effet artificiel. Priorité à la fidélité du logement et à une présentation élégante adaptée à une annonce immobilière.`;
-}
 /* Les logements de la personne. Les exemples ne comptent pas comme un logement à choisir. */
 export const logementsDe = (library: DemoLibrary, avecExemples = true) => {
   const noms = new Map<string, number>();
@@ -33,9 +24,9 @@ function statut(p: DemoProject, now: number) {
 }
 
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
-export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExample, onOpen }: {
+export function PhotoList({ library, source, now, busy, onCreate, onVideo, onPlan, onExample, onOpen }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: (logement?: string) => void; onVideo: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
+  onCreate: (logement?: string) => void; onVideo: () => void; onPlan: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
 }) {
   const [filtre, setFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
@@ -80,6 +71,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
         <p>Choisissez une photo de votre logement, dites ce que vous voulez changer. {library.freeUsed ? "" : "La première photo est offerte."}</p>
         <div className="st-actions">
           <button className="button dark st-big" onClick={() => onCreate()}><Sparkles size={18}/> {library.freeUsed ? "Créer ma première retouche" : "Créer ma première retouche, offerte"}</button>
+          <button className="button outlined" onClick={onPlan}><Film size={17}/> Préparer une visite vidéo</button>
         </div>
       </div>
     </section>
@@ -89,7 +81,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
   return <main className="st-main">
     <div className="st-head">
       <div><p className="eyebrow">MES PHOTOS</p><h1>Vos photos, par logement.</h1><p>Touchez une photo pour ouvrir sa retouche et toutes ses versions.</p></div>
-      <div className="st-actions"><button className="button dark" onClick={() => onCreate(filtre || undefined)}><Plus size={18}/> Nouvelle retouche</button><button className="button outlined" onClick={onVideo}><Film size={17}/> Ajouter une vidéo</button></div>
+      <div className="st-actions"><button className="button dark" onClick={() => onCreate(filtre || undefined)}><Plus size={18}/> Nouvelle retouche</button><button className="button outlined" onClick={onPlan}><Film size={17}/> Préparer une vidéo</button><button className="button outlined" onClick={onVideo}><Film size={17}/> Ajouter une vidéo</button></div>
     </div>
     <div className="st-toolbar">
       <div className="st-tabs" role="group" aria-label="Choisir un logement">
@@ -116,10 +108,6 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const [nouveau, setNouveau] = useState(initial && !logements.includes(initial) ? initial : "");
   const [fichier, setFichier] = useState<File | null>(null);
   const [demande, setDemande] = useState("");
-  const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantStep, setAssistantStep] = useState(0);
-  const [assistantAnswers, setAssistantAnswers] = useState<string[]>([]);
-  const [assistantPrompt, setAssistantPrompt] = useState("");
   const [erreur, setErreur] = useState("");
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
@@ -128,7 +116,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const apercu = useMemo(() => fichier ? URL.createObjectURL(fichier) : "", [fichier]);
   useEffect(() => () => { if (apercu) URL.revokeObjectURL(apercu); }, [apercu]);
   const logement = choix === "__nouveau" ? nouveau.trim() : choix;
-  const premiere = !library.projects.length;
+  const premiere = !library.projects.some(project => !project.sample);
   function recevoir(liste: File[]) {
     const image = liste.find(f => f.type.startsWith("image/"));
     if (!image) { setErreur("Choisissez une photo (JPG, PNG ou WebP)."); return; }
@@ -172,12 +160,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       <fieldset className="st-step"><legend><span>3</span> Ce que vous voulez changer <em>facultatif</em></legend>
         <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={2000} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
         <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => d ? `${d}, ${i.toLowerCase()}` : i)}><Plus size={13}/> {i}</button>)}</div>
-        <button type="button" className="st-assistant-trigger" onClick={() => { setAssistantOpen(true); setAssistantStep(0); setAssistantAnswers([]); setAssistantPrompt(""); }}><Sparkles size={16}/> M’aider à préciser ma demande</button>
-        {assistantOpen && <div className="st-assistant" aria-label="Assistant de création vidéo">
-          <div className="st-assistant-head"><div><span className="st-assistant-kicker">ASSISTANT DE CRÉATION · {assistantStep < ASSISTANT_QUESTIONS.length ? `${assistantStep + 1}/${ASSISTANT_QUESTIONS.length}` : "BRIEF PRÊT"}</span><h3>{assistantStep < ASSISTANT_QUESTIONS.length ? ASSISTANT_QUESTIONS[assistantStep].label : "Votre brief Higgsfield est prêt."}</h3></div><button type="button" aria-label="Fermer l’assistant" onClick={() => setAssistantOpen(false)}><X size={17}/></button></div>
-          {assistantStep < ASSISTANT_QUESTIONS.length ? <><p className="st-assistant-help">Une réponse suffit. L’assistant assemblera ensuite un prompt complet.</p><div className="st-assistant-options">{ASSISTANT_QUESTIONS[assistantStep].options.map(option => <button type="button" key={option} onClick={() => { const next = [...assistantAnswers, option]; setAssistantAnswers(next); if (next.length === ASSISTANT_QUESTIONS.length) setAssistantPrompt(buildAssistantPrompt(demande || "présenter le logement avec élégance", next)); setAssistantStep(next.length); }}>{option}<ArrowRight size={15}/></button>)}</div></> : <><div className="st-prompt-ready"><CheckCircle2 size={19}/><span>Prompt structuré pour Higgsfield</span></div><p className="st-generated-prompt">{assistantPrompt}</p><div className="st-assistant-actions"><button type="button" className="button dark" onClick={() => { setDemande(assistantPrompt); setAssistantOpen(false); }}>Utiliser ce brief</button><button type="button" className="button outlined" onClick={() => { setAssistantStep(0); setAssistantAnswers([]); setAssistantPrompt(""); }}>Recommencer</button></div></>}
-          <small className="st-assistant-note">Aperçu local : les clés ChatGPT/Gemini et Higgsfield seront connectées avant la mise en ligne.</small>
-        </div>}
+        <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>
       </fieldset>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">

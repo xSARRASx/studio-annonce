@@ -77,6 +77,7 @@
 .st-ideas button:hover{border-color:#b7c3a4}
 .st-assistant-trigger{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 14px;border:1px solid #cbd6bb;border-radius:10px;background:#eef3e8;color:#50653d;font-size:13px;cursor:pointer}
 .st-assistant-trigger:hover{background:#e5eddd;border-color:#aebf9e}
+.st-assistant-back{border:0;background:none;color:#64765a;font-size:12px;cursor:pointer;margin-top:12px;padding:5px 0}
 .st-assistant{margin-top:18px;border:1px solid #ccd7bf;border-radius:15px;background:linear-gradient(135deg,#f4f7ef,#fbfaf4);padding:19px 20px;color:#30372a}
 .st-assistant-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
 .st-assistant-head button{display:grid;place-items:center;border:0;background:transparent;color:#69745d;cursor:pointer;padding:4px}
