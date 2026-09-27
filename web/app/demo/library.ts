@@ -19,7 +19,7 @@ export const isExpired = (project: DemoProject, now = Date.now()) => project.edi
 export function sampleProject(kind: MediaKind): DemoProject {
   const now = Date.now();
   if (kind === "video") return {
-    id: "example-tour", title: "Une visite en douceur", property: "Appartement d’exemple", kind, sample: true,
+    id: "example-tour", title: "Une visite en douceur", property: "Appartement Lumière", kind, sample: true,
     createdAt: now, updatedAt: now, selected: "tour", draft: "",
     versions: [{ id: "tour", label: "Maquette animée", src: asset("visite-guidee-demo.mp4"), note: "Séjour, cuisine, chambre · montage de photos fictives, sans génération vidéo." }],
   };

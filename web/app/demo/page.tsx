@@ -109,7 +109,7 @@ export default function StudioDemo() {
       <aside className={`sidebar ${menu ? "is-open" : ""}`}><Brand onClick={() => nav("")}/><button className="close-menu icon-button" aria-label="Fermer le menu" onClick={() => setMenu(false)}><X/></button>
         <div className="sidebar-section-label">VOTRE ESPACE</div>
         <nav aria-label="Navigation du studio">
-          <button className={["studio", "photo", "video"].includes(screen) ? "active" : ""} onClick={() => nav("studio")}><FolderOpen size={19}/> Mes photos <span>{library.projects.length || ""}</span></button>
+          <button className={["studio", "photo", "video"].includes(screen) ? "active" : ""} onClick={() => nav("studio")}><FolderOpen size={19}/> Mes photos <span>{library.projects.filter(p => !p.sample).length || ""}</span></button>
           <button className={screen === "nouvelle" ? "active" : ""} onClick={() => nav("nouvelle")}><Plus size={19}/> Nouvelle retouche</button>
           <button className={screen === "facturation" ? "active" : ""} onClick={() => nav("facturation")}><Wallet size={19}/> Facturation</button>
         </nav>
@@ -120,7 +120,7 @@ export default function StudioDemo() {
         <header className="workspace-header"><button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu"><Menu/></button><div className="breadcrumb">Mon studio <ChevronRight size={13}/><strong>{screen === "facturation" ? "Facturation" : screen === "nouvelle" ? "Nouvelle retouche" : "Mes photos"}</strong></div><button className="workspace-credit" onClick={() => nav("facturation")}><span className="status-dot"/>{library.credits} crédits démo</button></header>
         {notice && <div className="notice work-notice" role="status"><Info size={18}/><p>{notice}</p><button aria-label="Fermer le message" onClick={() => setNotice("")}><X size={18}/></button></div>}
         {error ? <main className="projects-main"><div className="storage-failure" role="alert"><Info size={28}/><h1>Votre espace est préservé.</h1><p>{error}</p><button className="button dark" onClick={() => void refresh()}>Réessayer</button></div></main> : loading ? <main className="projects-main"><div className="library-loading" role="status">Ouverture de votre studio…</div></main> : <>
-          {screen === "studio" && <PhotoList library={library} source={source} now={now} busy={busy} onCreate={logement => go(logement ? `nouvelle/${encodeURIComponent(logement)}` : "nouvelle")} onVideo={() => setUpload("video")} onExample={() => void example("photo")} onOpen={item => go(`${item.kind}/${item.id}`)}/>}
+          {screen === "studio" && <PhotoList library={library} source={source} now={now} busy={busy} onCreate={logement => go(logement ? `nouvelle/${encodeURIComponent(logement)}` : "nouvelle")} onVideo={() => setUpload("video")} onExample={kind => void example(kind)} onOpen={item => go(`${item.kind}/${item.id}`)}/>}
           {screen === "nouvelle" && <CreateView key={id || "nouvelle"} library={library} busy={busy} initial={id ? decodeURIComponent(id) : undefined} onCancel={() => go("studio")} onExample={() => void example("photo")} onCreate={async (files, logement, demande) => {
             const projects = await importedProjects(files, "photo");
             for (const item of projects) { item.property = logement; item.draft = demande; }

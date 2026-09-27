@@ -249,3 +249,10 @@ paiement, synchronisation site/mobile.
 - Anciennes adresses conservées : `#versions` et `#historique` mènent à Mes photos, `#credits` à Facturation ;
   sur l'appli, `/atelier` et `/versions` affichent Mes photos.
 - Appli : chaque photo porte un `property` (logement), facultatif pour les anciennes sauvegardes (`logementOf`).
+
+- **Appareil photo** : sur téléphone, la page Nouvelle retouche du site propose « Prendre une photo » (caméra arrière, `capture="environment"`) ; sur ordinateur le bouton est masqué. Dans l'appli, « Prendre une photo » passe en premier.
+
+### 27/09 · Une photo à la fois, et plus de « logement d'exemple » à choisir
+- Page « Nouvelle retouche » (site) : **une seule photo par retouche**. Une nouvelle photo choisie remplace la précédente. On peut aussi la retirer, la reprendre ou en choisir une autre. Le bouton dit toujours « Créer la retouche ».
+- Les exemples (le salon, la visite vidéo) ne sont **plus proposés comme logement** dans la création, ni sur le site ni dans l'appli. La visite vidéo d'exemple est rangée dans le même logement que le salon (« Appartement Lumière »), au lieu d'un « Appartement d'exemple » à part qui prêtait à confusion.
+- **Suite (Martin : « l'exemple est aussi là, dans la liste »)** : les exemples ne forment plus un logement nulle part. Dans « Mes photos », ils ont leur partie à eux, **« Exemples »**, tout en bas et toujours présente, avec une phrase qui dit à quoi ils servent (ils ne comptent pas dans vos photos, ils ne coûtent rien). Sur le site il y a deux cartes : « Le salon » (photo, 4 versions) et « La visite » (vidéo, bientôt). Dans l'appli, il y a une carte « Le salon ». Chaque carte affiche « Ouvrir l'exemple » ou « Rouvrir ». Les onglets, les groupes par logement et le compteur « Mes photos » ne comptent que vos vraies photos.

@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Building2, ChevronRight, CheckCircle2, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronRight, CheckCircle2, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Search, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 import "./studio-screens.css";
 
@@ -18,9 +18,10 @@ function buildAssistantPrompt(request: string, answers: string[]) {
   const [style, camera, preserve, format] = answers;
   return `Créer une vidéo immobilière professionnelle à partir des photos fournies. Demande du client : « ${request.trim()} ». Rendu : ${style.toLowerCase()}. Caméra : ${camera.toLowerCase()}. Préserver impérativement ${preserve.toLowerCase()}, sans inventer de nouvelles pièces ni déformer les volumes. Format souhaité : ${format.toLowerCase()}. Mouvement continu, transitions naturelles, lumière cohérente, mobilier stable d’une image à l’autre, aucun texte incrusté et aucun effet artificiel. Priorité à la fidélité du logement et à une présentation élégante adaptée à une annonce immobilière.`;
 }
-export const logementsDe = (library: DemoLibrary) => {
+/* Les logements de la personne. Les exemples ne comptent pas comme un logement à choisir. */
+export const logementsDe = (library: DemoLibrary, avecExemples = true) => {
   const noms = new Map<string, number>();
-  for (const p of library.projects) noms.set(p.property, Math.max(noms.get(p.property) || 0, p.updatedAt));
+  for (const p of library.projects) if (avecExemples || !p.sample) noms.set(p.property, Math.max(noms.get(p.property) || 0, p.updatedAt));
   return [...noms.entries()].sort((a, b) => b[1] - a[1]).map(([nom]) => nom);
 };
 function statut(p: DemoProject, now: number) {
@@ -34,18 +35,39 @@ function statut(p: DemoProject, now: number) {
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
 export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExample, onOpen }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: (logement?: string) => void; onVideo: () => void; onExample: () => void; onOpen: (p: DemoProject) => void;
+  onCreate: (logement?: string) => void; onVideo: () => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
 }) {
   const [filtre, setFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
-  const logements = logementsDe(library);
+  const logements = logementsDe(library, false);
+  const miennes = library.projects.filter(p => !p.sample);
+  const exemples = library.projects.filter(p => p.sample).sort((a, b) => b.updatedAt - a.updatedAt);
   const q = recherche.toLocaleLowerCase("fr");
   const groupes = logements.filter(l => !filtre || l === filtre).map(l => ({
     nom: l,
-    photos: library.projects.filter(p => p.property === l && `${p.title} ${p.property}`.toLocaleLowerCase("fr").includes(q)).sort((a, b) => b.updatedAt - a.updatedAt),
+    photos: miennes.filter(p => p.property === l && `${p.title} ${p.property}`.toLocaleLowerCase("fr").includes(q)).sort((a, b) => b.updatedAt - a.updatedAt),
   })).filter(g => g.photos.length);
+  const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
+    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
+    <span className="st-row-main"><strong>{p.title}</strong><small>{p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}</small></span>
+    <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
+    <ChevronRight size={20} className="st-chevron"/>
+  </button></li>;
+  /* Les exemples ne sont pas un logement : ils ont leur partie à eux, toujours la même, tout en bas. */
+  const vus = new Set(exemples.map(p => p.kind));
+  const cartesExemples = [
+    { kind: "photo" as const, image: "salon-deco-complete.png", titre: "Le salon", type: "Photo", texte: "Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions." },
+    { kind: "video" as const, image: "visite/sejour.png", titre: "La visite", type: "Vidéo", texte: "Une courte visite du logement montée à partir de photos. La vidéo arrive bientôt." },
+  ];
+  const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
+    <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Deux exemples tout prêts, pour voir ce que le studio sait faire. Ils ne comptent pas dans vos photos et ne coûtent rien.</p></div>
+    <div className="st-examples-grid">{cartesExemples.map(c => <button key={c.kind} className="st-ex-card" disabled={busy} onClick={() => onExample(c.kind)}>
+      <span className="st-ex-img"><Image src={asset(c.image)} alt="" fill sizes="(max-width: 700px) 90vw, 320px" unoptimized/><span className="st-ex-type">{c.kind === "video" ? <Film size={12}/> : <Images size={12}/>} {c.type}</span></span>
+      <span className="st-ex-body"><strong>{c.titre}</strong><small>{c.texte}</small><span className="st-ex-go">{vus.has(c.kind) ? "Rouvrir" : "Ouvrir l’exemple"} <ArrowRight size={14}/></span></span>
+    </button>)}</div>
+  </section>;
 
-  if (!library.projects.length) return <main className="st-main">
+  if (!miennes.length) return <main className="st-main">
     <section className="st-first">
       <div className="st-first-art" aria-hidden="true">
         <div className="st-first-card st-c1"><Image src={asset("salon-avant.png")} alt="" fill sizes="220px" unoptimized/></div>
@@ -58,10 +80,10 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
         <p>Choisissez une photo de votre logement, dites ce que vous voulez changer. {library.freeUsed ? "" : "La première photo est offerte."}</p>
         <div className="st-actions">
           <button className="button dark st-big" onClick={() => onCreate()}><Sparkles size={18}/> {library.freeUsed ? "Créer ma première retouche" : "Créer ma première retouche, offerte"}</button>
-          <button className="button outlined" disabled={busy} onClick={onExample}>Voir le salon d’exemple</button>
         </div>
       </div>
     </section>
+    {partieExemples}
   </main>;
 
   return <main className="st-main">
@@ -71,21 +93,16 @@ export function PhotoList({ library, source, now, busy, onCreate, onVideo, onExa
     </div>
     <div className="st-toolbar">
       <div className="st-tabs" role="group" aria-label="Choisir un logement">
-        <button aria-pressed={!filtre} onClick={() => setFiltre("")}>Tous <span>{library.projects.length}</span></button>
-        {logements.map(l => <button key={l} aria-pressed={filtre === l} onClick={() => setFiltre(l)}><Building2 size={14}/> {l} <span>{library.projects.filter(p => p.property === l).length}</span></button>)}
+        <button aria-pressed={!filtre} onClick={() => setFiltre("")}>Tous <span>{miennes.length}</span></button>
+        {logements.map(l => <button key={l} aria-pressed={filtre === l} onClick={() => setFiltre(l)}><Building2 size={14}/> {l} <span>{miennes.filter(p => p.property === l).length}</span></button>)}
       </div>
       <label className="st-search"><Search size={16}/><input aria-label="Rechercher une photo" placeholder="Rechercher…" value={recherche} onChange={e => setRecherche(e.target.value)}/></label>
     </div>
     {groupes.length ? groupes.map(g => <section key={g.nom} className="st-group" aria-label={g.nom}>
       <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "photos" : "photo"}</span><button className="text-action" onClick={() => onCreate(g.nom)}><Plus size={15}/> Ajouter une photo</button></div>
-      <ul className="st-list">{g.photos.map(p => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
-        <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
-        <span className="st-row-main"><strong>{p.title}</strong><small>{p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}{p.sample ? " · exemple" : ""}</small></span>
-        <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
-        <ChevronRight size={20} className="st-chevron"/>
-      </button></li>)}</ul>
+      <ul className="st-list">{g.photos.map(ligne)}</ul>
     </section>) : <div className="st-none"><Search size={22}/><p>Aucune photo ne correspond.</p><button className="text-action" onClick={() => { setFiltre(""); setRecherche(""); }}>Tout afficher</button></div>}
-    {!library.projects.some(p => p.sample && p.kind === "photo") && <button className="st-sample" disabled={busy} onClick={onExample}><span className="st-sample-img"><Image src={asset("salon-deco-complete.png")} alt="" fill sizes="80px"/></span><span><strong>Le salon d’exemple</strong><small>4 versions à comparer, pour voir ce qui est possible</small></span><ArrowUpRight size={18}/></button>}
+    {partieExemples}
   </main>;
 }
 
@@ -94,10 +111,10 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   library: DemoLibrary; busy: boolean; initial?: string;
   onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void;
 }) {
-  const logements = logementsDe(library);
+  const logements = logementsDe(library, false);
   const [choix, setChoix] = useState(initial && logements.includes(initial) ? initial : logements[0] || "__nouveau");
   const [nouveau, setNouveau] = useState(initial && !logements.includes(initial) ? initial : "");
-  const [fichiers, setFichiers] = useState<File[]>([]);
+  const [fichier, setFichier] = useState<File | null>(null);
   const [demande, setDemande] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantStep, setAssistantStep] = useState(0);
@@ -107,20 +124,21 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const apercus = useMemo(() => fichiers.slice(0, 6).map(f => URL.createObjectURL(f)), [fichiers]);
-  useEffect(() => () => apercus.forEach(url => URL.revokeObjectURL(url)), [apercus]);
+  const camera = useRef<HTMLInputElement>(null);
+  const apercu = useMemo(() => fichier ? URL.createObjectURL(fichier) : "", [fichier]);
+  useEffect(() => () => { if (apercu) URL.revokeObjectURL(apercu); }, [apercu]);
   const logement = choix === "__nouveau" ? nouveau.trim() : choix;
   const premiere = !library.projects.length;
   function recevoir(liste: File[]) {
-    const images = liste.filter(f => f.type.startsWith("image/"));
-    if (!images.length) { setErreur("Choisissez des photos (JPG, PNG ou WebP)."); return; }
-    setErreur(""); setFichiers(existants => [...existants, ...images].slice(0, 20));
+    const image = liste.find(f => f.type.startsWith("image/"));
+    if (!image) { setErreur("Choisissez une photo (JPG, PNG ou WebP)."); return; }
+    setErreur(""); setFichier(image);
   }
   async function creer(e: React.FormEvent) {
     e.preventDefault();
-    if (!fichiers.length || !logement || envoi) return;
+    if (!fichier || !logement || envoi) return;
     setEnvoi(true); setErreur("");
-    try { await onCreate(fichiers, logement, demande.trim()); }
+    try { await onCreate([fichier], logement, demande.trim()); }
     catch (cause) { setErreur(storageError(cause)); setEnvoi(false); }
   }
   return <main className="st-main st-create">
@@ -136,15 +154,19 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
         </div>
         {choix === "__nouveau" && <label className="st-field">Nom du logement<input id="st-logement" value={nouveau} onChange={e => setNouveau(e.target.value)} maxLength={100} placeholder="Ex. : Appartement Nice, Studio Lyon" autoFocus/></label>}
       </fieldset>
-      <fieldset className="st-step"><legend><span>2</span> Vos photos</legend>
-        <div className={`st-drop ${glisse ? "on" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
-          {fichiers.length ? <div className="st-previews">{apercus.map((src, i) => <span key={src} className="st-prev">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt=""/><button type="button" aria-label={`Retirer ${fichiers[i].name}`} onClick={() => setFichiers(f => f.filter((_, j) => j !== i))}><X size={13}/></button></span>)}
-            {fichiers.length > 6 && <span className="st-more">+{fichiers.length - 6}</span>}
-            <button type="button" className="st-add-more" onClick={() => input.current?.click()}><Plus size={20}/></button></div>
-          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong>Glissez vos photos ici</strong><small>ou</small><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir sur cet appareil</button><small>Jusqu’à 20 photos, même prises au téléphone.</small></>}
-          <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
+      <fieldset className="st-step"><legend><span>2</span> Votre photo</legend>
+        <div className={`st-drop ${glisse ? "on" : ""} ${fichier ? "st-drop-full" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
+          {fichier ? <div className="st-single">
+            <span className="st-single-img">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={apercu} alt="Votre photo"/>
+              <button type="button" aria-label="Retirer la photo" onClick={() => setFichier(null)}><X size={14}/></button>
+            </span>
+            <div className="st-pick"><button type="button" className="button outlined st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Reprendre la photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir une autre photo</button></div>
+          </div>
+          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez votre photo ici</strong><strong className="st-camera">Prenez la pièce en photo</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Une photo à la fois, même prise au téléphone.</small></>}
+          <input ref={camera} id="st-camera" type="file" accept="image/*" capture="environment" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
+          <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
         </div>
       </fieldset>
       <fieldset className="st-step"><legend><span>3</span> Ce que vous voulez changer <em>facultatif</em></legend>
@@ -159,8 +181,8 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       </fieldset>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichiers.length || !logement}>{envoi ? "Création…" : fichiers.length > 1 ? `Créer ${fichiers.length} retouches` : "Créer la retouche"} <ArrowRight size={18}/></button>
-        <span>{!fichiers.length ? "Ajoutez au moins une photo." : !logement ? "Donnez un nom au logement." : "Vous paierez seulement la photo que vous garderez."}</span>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement}>{envoi ? "Création…" : "Créer la retouche"} <ArrowRight size={18}/></button>
+        <span>{!fichier ? "Ajoutez votre photo." : !logement ? "Donnez un nom au logement." : "Vous paierez seulement la photo que vous garderez."}</span>
       </div>
     </form>
     <button className="st-example-link" disabled={busy} onClick={onExample}>Pas de photo sous la main ? Essayer avec le salon d’exemple <ArrowRight size={15}/></button>
