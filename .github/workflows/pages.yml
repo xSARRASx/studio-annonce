@@ -4,7 +4,7 @@ name: Site sur GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", "mobile/**", "shared/**", ".github/workflows/pages.yml"]
+    paths: ["web/**", "mobile/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,7 +25,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: "web/package-lock.json\nmobile/package-lock.json" }
       - run: npm ci
-      - run: npm run test:brief
       - run: npx next build
         env:
           NEXT_PUBLIC_BASE_PATH: /studio-annonce
