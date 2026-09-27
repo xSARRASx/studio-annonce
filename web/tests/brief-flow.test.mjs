@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildQuestions, buildBrief, recoverBriefSource } from '../../shared/brief-flow.ts';
+import { buildQuestions, buildBrief, recoverBriefSource, readBriefAnswer, toggleBriefChoice } from '../../shared/brief-flow.ts';
+
+test('Les anciens brouillons à une carte sont migrés sans changer le texte libre', () => {
+  const detail = '  Garder les rideaux.\nPuis ajouter des plantes.  ';
+  assert.deepEqual(readBriefAnswer({ choice: 'Chaleureuse', detail }), { choices: ['Chaleureuse'], detail });
+  assert.deepEqual(readBriefAnswer({ choice: '', detail }), { choices: [], detail });
+  assert.deepEqual(readBriefAnswer(null), { choices: [], detail: '' });
+});
+
+test('Le tableau actuel est prioritaire même vide et ignore les valeurs invalides ou répétées', () => {
+  assert.deepEqual(readBriefAnswer({ choices: [], choice: 'Ancien choix', detail: 'Conserver ceci.' }), { choices: [], detail: 'Conserver ceci.' });
+  assert.deepEqual(readBriefAnswer({ choices: ['Vue drone', null, '', '  ', 5, 'Mouvements doux', 'Vue drone'], choice: 'Ancien choix', detail: 42 }), { choices: ['Vue drone', 'Mouvements doux'], detail: '' });
+});
+
+test('Une carte supplémentaire conserve les autres cartes et toutes les précisions', () => {
+  const detail = '  Lent autour de la table.\nPuis en hauteur.  ';
+  const original = { choices: ['Vue drone'], detail };
+  const added = toggleBriefChoice(original, 'Mouvements doux');
+  assert.deepEqual(added, { choices: ['Vue drone', 'Mouvements doux'], detail });
+  assert.deepEqual(original, { choices: ['Vue drone'], detail });
+  assert.deepEqual(toggleBriefChoice(added, 'Vue drone'), { choices: ['Mouvements doux'], detail });
+  assert.deepEqual(toggleBriefChoice(undefined, 'Vue drone'), { choices: ['Vue drone'], detail: '' });
+  assert.deepEqual(toggleBriefChoice({ choice: 'Vue drone', detail }, 'Mouvements doux'), added);
+});
+
+test('Le brief affiche chaque carte cochée avec le texte libre exact', () => {
+  const request = 'Une visite drone de la maison';
+  const detail = '  Drone dans le jardin, puis mouvement doux dans le salon.\nAucune coupe brusque.  ';
+  const questions = buildQuestions('video', request);
+  const brief = buildBrief('video', request, questions, {
+    'video-camera': { choices: ['Vue drone', 'Mouvements doux'], detail },
+  });
+  assert.ok(brief.includes('Choix : Vue drone\nChoix : Mouvements doux'));
+  assert.ok(brief.includes(`Précision : ${detail}`));
+  assert.equal(recoverBriefSource('video', brief), request);
+});
 
 test('Les questions de base restent présentes, quelle que soit la demande', () => {
   const expected = {

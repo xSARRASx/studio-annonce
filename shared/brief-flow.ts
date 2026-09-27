@@ -1,6 +1,6 @@
 /** Shared local demo rules: prepares a brief without calling an AI provider. */
 export type BriefKind = 'photo' | 'video' | 'image';
-export type BriefAnswer = { choice: string; detail: string };
+export type BriefAnswer = { choices: string[]; detail: string };
 export type BriefAnswers = Record<string, BriefAnswer>;
 export type BriefOption = { label: string; detail: string; icon: string };
 export type BriefQuestion = {
@@ -12,6 +12,27 @@ export type BriefQuestion = {
   core: boolean;
   options: readonly BriefOption[];
 };
+
+/** Read current answers and migrate the earlier single-card draft format. */
+export function readBriefAnswer(value: unknown): BriefAnswer {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { choices: [], detail: '' };
+  const input = value as Record<string, unknown>;
+  const candidates = Array.isArray(input.choices) ? input.choices : [input.choice];
+  const choices = [...new Set(candidates.filter((choice): choice is string => typeof choice === 'string' && !!choice.trim()))];
+  return { choices, detail: typeof input.detail === 'string' ? input.detail : '' };
+}
+
+/** Toggle one card while retaining every other selection and the exact free text. */
+export function toggleBriefChoice(answer: BriefAnswer | undefined, label: string): BriefAnswer {
+  const current = readBriefAnswer(answer);
+  if (!label.trim()) return current;
+  return {
+    choices: current.choices.includes(label)
+      ? current.choices.filter(choice => choice !== label)
+      : [...current.choices, label],
+    detail: current.detail,
+  };
+}
 
 const option = (label: string, detail: string, icon: string): BriefOption => ({ label, detail, icon });
 const question = (id: string, short: string, label: string, help: string, placeholder: string, options: BriefOption[], core = true): BriefQuestion => ({ id, short, label, help, placeholder, options, core });
@@ -187,11 +208,11 @@ export function buildBrief(kind: BriefKind, request: string, questions: BriefQue
   if (context?.trim()) lines.push('', 'CONTEXTE', context);
   lines.push('', 'CHOIX ET PRÉCISIONS');
   for (const item of questions) {
-    const answer = answers[item.id];
+    const answer = readBriefAnswer(answers[item.id]);
     lines.push('', item.label);
-    if (answer?.choice.trim()) lines.push(`Choix : ${answer.choice}`);
-    if (answer?.detail.trim()) lines.push(`Précision : ${answer.detail}`);
-    if (!answer?.choice.trim() && !answer?.detail.trim()) lines.push('Non précisé.');
+    for (const choice of answer.choices) lines.push(`Choix : ${choice}`);
+    if (answer.detail.trim()) lines.push(`Précision : ${answer.detail}`);
+    if (!answer.choices.length && !answer.detail.trim()) lines.push('Non précisé.');
   }
   lines.push('', BRIEF_END[kind]);
   return lines.join('\n');

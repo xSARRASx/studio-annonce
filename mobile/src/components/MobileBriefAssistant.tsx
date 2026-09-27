@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { buildBrief, buildQuestions, recoverBriefSource, type BriefAnswers, type BriefKind } from '../../../shared/brief-flow';
+import { buildBrief, buildQuestions, readBriefAnswer, recoverBriefSource, toggleBriefChoice, type BriefAnswers, type BriefKind } from '../../../shared/brief-flow';
 import { useLocalDraft } from '../lib/use-local-draft';
 
 type Session = { sourceRequest: string; sourceContext: string; answers: BriefAnswers; step: number; lastApplied: string };
@@ -11,7 +11,10 @@ function readSession(value: unknown): Session {
   const saved = value as Partial<Session>;
   const answers: BriefAnswers = {};
   if (saved.answers && typeof saved.answers === 'object') for (const [id, answer] of Object.entries(saved.answers).slice(0, 30)) {
-    if (answer && typeof answer === 'object') answers[id.slice(0, 100)] = { choice: typeof answer.choice === 'string' ? answer.choice.slice(0, 500) : '', detail: typeof answer.detail === 'string' ? answer.detail.slice(0, 1000) : '' };
+    if (answer && typeof answer === 'object') {
+      const restored = readBriefAnswer(answer);
+      answers[id.slice(0, 100)] = { choices: [...new Set(restored.choices.slice(0, 30).map(choice => choice.slice(0, 500)))], detail: restored.detail.slice(0, 1000) };
+    }
   }
   return {
     sourceRequest: typeof saved.sourceRequest === 'string' ? saved.sourceRequest.slice(0, 20000) : '',
@@ -38,13 +41,16 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
   const step = Math.min(draft.step, questions.length);
   const complete = step === questions.length;
   const current = questions[step];
-  const answer = current ? draft.answers[current.id] : undefined;
-  const answered = !!(answer?.choice.trim() || answer?.detail.trim());
+  const answer = current ? readBriefAnswer(draft.answers[current.id]) : undefined;
+  const answered = !!(answer?.choices.length || answer?.detail.trim());
   const sourceChanged = (requestSource !== sourceRequest && request !== draft.lastApplied) || context !== draft.sourceContext;
   const editedPreparedText = kind === 'photo' && !!draft.lastApplied && request !== draft.lastApplied && requestSource !== request;
   const brief = complete ? buildBrief(kind, sourceRequest, questions, draft.answers, draft.sourceContext) : '';
   const tooLong = brief.length > 20000;
-  const missing = questions.findIndex(question => !draft.answers[question.id]?.choice.trim() && !draft.answers[question.id]?.detail.trim());
+  const missing = questions.findIndex(question => {
+    const response = readBriefAnswer(draft.answers[question.id]);
+    return !response.choices.length && !response.detail.trim();
+  });
   const name = kind === 'photo' ? 'photo' : kind === 'video' ? 'vidéo' : 'création d’image';
 
   useEffect(() => { if (open) scroll.current?.scrollTo({ y: 0, animated: false }); }, [open, step]);
@@ -57,8 +63,11 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
     if (sourceChanged) refreshSource();
     setOpen(true);
   }
-  function changeAnswer(values: Partial<{ choice: string; detail: string }>) {
-    setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: { ...(previous.answers[current.id] || { choice: '', detail: '' }), ...values } } }));
+  function changeDetail(detail: string) {
+    setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: { ...readBriefAnswer(previous.answers[current.id]), detail } } }));
+  }
+  function toggleChoice(label: string) {
+    setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: toggleBriefChoice(readBriefAnswer(previous.answers[current.id]), label) } }));
   }
   function advance() {
     Keyboard.dismiss();
@@ -90,8 +99,8 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
           <Text style={styles.help}>{complete ? 'Vos choix et vos précisions sont réunis. Touchez une réponse pour l’ajuster.' : current.help}</Text>
           {complete ? <>
             <View style={styles.recap}>{questions.map((question, index) => {
-              const item = draft.answers[question.id];
-              return <Pressable key={question.id} accessibilityRole="button" accessibilityLabel={`Modifier ${question.short}`} onPress={() => { setDraft(previous => ({ ...previous, step: index })); setEditing(true); }} style={styles.recapCard}><View style={{ flex: 1, gap: 5 }}><Text style={styles.eyebrow}>{question.short}</Text>{!!item?.choice && <Text style={styles.optionTitle}>{item.choice}</Text>}{!!item?.detail && <Text style={styles.small}>{item.detail}</Text>}{!item?.choice && !item?.detail && <Text style={styles.small}>À préciser</Text>}</View><Text style={styles.recapEdit}>Modifier</Text></Pressable>;
+              const item = readBriefAnswer(draft.answers[question.id]);
+              return <Pressable key={question.id} accessibilityRole="button" accessibilityLabel={`Modifier ${question.short}`} onPress={() => { setDraft(previous => ({ ...previous, step: index })); setEditing(true); }} style={styles.recapCard}><View style={{ flex: 1, gap: 5 }}><Text style={styles.eyebrow}>{question.short}</Text>{item.choices.map(choice => <Text key={choice} style={styles.optionTitle}>• {choice}</Text>)}{!!item.detail && <Text style={styles.small}>{item.detail}</Text>}{!item.choices.length && !item.detail && <Text style={styles.small}>À préciser</Text>}</View><Text style={styles.recapEdit}>Modifier</Text></Pressable>;
             })}</View>
             <Pressable accessibilityRole="button" aria-expanded={showText} accessibilityState={{ expanded: showText }} onPress={() => setShowText(value => !value)} style={styles.disclosure}><Text style={styles.link}>{showText ? 'Masquer le texte complet −' : 'Voir le texte complet +'}</Text></Pressable>
             {showText && <Text selectable style={styles.fullBrief}>{brief}</Text>}
@@ -99,11 +108,12 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
             {missing !== -1 ? <Pressable accessibilityRole="button" onPress={() => setDraft(previous => ({ ...previous, step: missing }))} style={styles.primary}><Text style={styles.primaryText}>Compléter les réponses →</Text></Pressable> : <Pressable accessibilityRole="button" aria-disabled={tooLong || sourceChanged} accessibilityState={{ disabled: tooLong || sourceChanged }} disabled={tooLong || sourceChanged} onPress={apply} style={[styles.primary, (tooLong || sourceChanged) && { opacity: .4 }]}><Text style={styles.primaryText}>{editedPreparedText ? 'Remplacer par cette demande' : kind === 'photo' ? 'Utiliser cette demande' : 'Utiliser cette description'} ✓</Text></Pressable>}
             <Pressable accessibilityRole="button" onPress={() => { setDraft(previous => ({ ...previous, answers: {}, step: 0 })); setEditing(false); }} style={styles.back}><Text style={styles.link}>Recommencer les réponses</Text></Pressable>
           </> : <>
+            <Text style={styles.small}>Plusieurs choix possibles. Recliquez pour retirer un choix.</Text>
             <View style={styles.options}>{current.options.map(option => {
-              const selected = answer?.choice === option.label;
-              return <Pressable key={option.label} accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected }} onPress={() => changeAnswer({ choice: selected ? '' : option.label })} style={[styles.option, selected && styles.optionSelected]}><View style={styles.optionTop}><Text style={styles.optionSymbol}>{selected ? '✓' : '○'}</Text><Text style={[styles.optionTag, selected && { color: '#607146' }]}>{selected ? 'Choisi' : 'Choisir'}</Text></View><Text style={styles.optionTitle}>{option.label}</Text><Text style={styles.optionDetail}>{option.detail}</Text></Pressable>;
+              const selected = answer?.choices.includes(option.label) || false;
+              return <Pressable key={option.label} accessibilityRole="checkbox" accessibilityLabel={option.label} aria-checked={selected} accessibilityState={{ checked: selected }} onPress={() => toggleChoice(option.label)} style={[styles.option, selected && styles.optionSelected]}><View style={styles.optionTop}><Text style={styles.optionSymbol}>{selected ? '✓' : '□'}</Text><Text style={[styles.optionTag, selected && { color: '#607146' }]}>{selected ? 'Choisi' : 'Choisir'}</Text></View><Text style={styles.optionTitle}>{option.label}</Text><Text style={styles.optionDetail}>{option.detail}</Text></Pressable>;
             })}</View>
-            <View style={styles.custom}><Text style={styles.customLabel}>Votre réponse ou une précision</Text><TextInput accessibilityLabel={`Votre réponse libre : ${current.short}`} value={answer?.detail || ''} onChangeText={detail => changeAnswer({ detail })} placeholder={current.placeholder} placeholderTextColor="#858ca2" maxLength={1000} multiline style={styles.input}/><Text style={styles.small}>Écrivez seulement, choisissez une carte, ou faites les deux.</Text></View>
+            <View style={styles.custom}><Text style={styles.customLabel}>Votre réponse ou une précision</Text><TextInput accessibilityLabel={`Votre réponse libre : ${current.short}`} value={answer?.detail || ''} onChangeText={changeDetail} placeholder={current.placeholder} placeholderTextColor="#858ca2" maxLength={1000} multiline style={styles.input}/><Text style={styles.small}>Écrivez ici, choisissez une ou plusieurs cartes, ou faites les deux.</Text></View>
             <Pressable accessibilityRole="button" aria-disabled={!answered} accessibilityState={{ disabled: !answered }} disabled={!answered} onPress={advance} style={[styles.primary, !answered && { opacity: .4 }]}><Text style={styles.primaryText}>{editing ? 'Valider ma réponse' : step === questions.length - 1 ? 'Voir ma demande' : 'Continuer'} →</Text></Pressable>
             {(step > 0 || editing) && <Pressable accessibilityRole="button" onPress={() => { Keyboard.dismiss(); setDraft(previous => ({ ...previous, step: editing ? questions.length : step - 1 })); setEditing(false); }} style={styles.back}><Text style={styles.link}>← {editing ? 'Retour au récapitulatif' : 'Question précédente'}</Text></Pressable>}
           </>}
