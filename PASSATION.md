@@ -251,3 +251,7 @@ paiement, synchronisation site/mobile.
 - Appli : chaque photo porte un `property` (logement), facultatif pour les anciennes sauvegardes (`logementOf`).
 
 - **Appareil photo** : sur téléphone, la page Nouvelle retouche du site propose « Prendre une photo » (caméra arrière, `capture="environment"`) ; sur ordinateur le bouton est masqué. Dans l'appli, « Prendre une photo » passe en premier.
+
+### 27/09 · Une photo à la fois, et plus de « logement d'exemple » à choisir
+- Page « Nouvelle retouche » (site) : **une seule photo par retouche**. Une nouvelle photo choisie remplace la précédente. On peut aussi la retirer, la reprendre ou en choisir une autre. Le bouton dit toujours « Créer la retouche ».
+- Les exemples (le salon, la visite vidéo) ne sont **plus proposés comme logement** dans la création, ni sur le site ni dans l'appli. La visite vidéo d'exemple est rangée dans le même logement que le salon (« Appartement Lumière »), au lieu d'un « Appartement d'exemple » à part qui prêtait à confusion.

@@ -8,9 +8,10 @@ import "./studio-screens.css";
 
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 const IDEES = ["Plus de lumière", "Ranger et désencombrer", "Changer toute la déco", "Faire le lit"];
-export const logementsDe = (library: DemoLibrary) => {
+/* Les logements de la personne. Les exemples ne comptent pas comme un logement à choisir. */
+export const logementsDe = (library: DemoLibrary, avecExemples = true) => {
   const noms = new Map<string, number>();
-  for (const p of library.projects) noms.set(p.property, Math.max(noms.get(p.property) || 0, p.updatedAt));
+  for (const p of library.projects) if (avecExemples || !p.sample) noms.set(p.property, Math.max(noms.get(p.property) || 0, p.updatedAt));
   return [...noms.entries()].sort((a, b) => b[1] - a[1]).map(([nom]) => nom);
 };
 function statut(p: DemoProject, now: number) {
@@ -84,30 +85,30 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   library: DemoLibrary; busy: boolean; initial?: string;
   onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void;
 }) {
-  const logements = logementsDe(library);
+  const logements = logementsDe(library, false);
   const [choix, setChoix] = useState(initial && logements.includes(initial) ? initial : logements[0] || "__nouveau");
   const [nouveau, setNouveau] = useState(initial && !logements.includes(initial) ? initial : "");
-  const [fichiers, setFichiers] = useState<File[]>([]);
+  const [fichier, setFichier] = useState<File | null>(null);
   const [demande, setDemande] = useState("");
   const [erreur, setErreur] = useState("");
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
-  const apercus = useMemo(() => fichiers.slice(0, 6).map(f => URL.createObjectURL(f)), [fichiers]);
-  useEffect(() => () => apercus.forEach(url => URL.revokeObjectURL(url)), [apercus]);
+  const apercu = useMemo(() => fichier ? URL.createObjectURL(fichier) : "", [fichier]);
+  useEffect(() => () => { if (apercu) URL.revokeObjectURL(apercu); }, [apercu]);
   const logement = choix === "__nouveau" ? nouveau.trim() : choix;
   const premiere = !library.projects.length;
   function recevoir(liste: File[]) {
-    const images = liste.filter(f => f.type.startsWith("image/"));
-    if (!images.length) { setErreur("Choisissez des photos (JPG, PNG ou WebP)."); return; }
-    setErreur(""); setFichiers(existants => [...existants, ...images].slice(0, 20));
+    const image = liste.find(f => f.type.startsWith("image/"));
+    if (!image) { setErreur("Choisissez une photo (JPG, PNG ou WebP)."); return; }
+    setErreur(""); setFichier(image);
   }
   async function creer(e: React.FormEvent) {
     e.preventDefault();
-    if (!fichiers.length || !logement || envoi) return;
+    if (!fichier || !logement || envoi) return;
     setEnvoi(true); setErreur("");
-    try { await onCreate(fichiers, logement, demande.trim()); }
+    try { await onCreate([fichier], logement, demande.trim()); }
     catch (cause) { setErreur(storageError(cause)); setEnvoi(false); }
   }
   return <main className="st-main st-create">
@@ -123,16 +124,19 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
         </div>
         {choix === "__nouveau" && <label className="st-field">Nom du logement<input id="st-logement" value={nouveau} onChange={e => setNouveau(e.target.value)} maxLength={100} placeholder="Ex. : Appartement Nice, Studio Lyon" autoFocus/></label>}
       </fieldset>
-      <fieldset className="st-step"><legend><span>2</span> Vos photos</legend>
-        <div className={`st-drop ${glisse ? "on" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
-          {fichiers.length ? <div className="st-previews">{apercus.map((src, i) => <span key={src} className="st-prev">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt=""/><button type="button" aria-label={`Retirer ${fichiers[i].name}`} onClick={() => setFichiers(f => f.filter((_, j) => j !== i))}><X size={13}/></button></span>)}
-            {fichiers.length > 6 && <span className="st-more">+{fichiers.length - 6}</span>}
-            <button type="button" className="st-add-more st-camera" aria-label="Prendre une autre photo" onClick={() => camera.current?.click()}><Camera size={20}/></button><button type="button" className="st-add-more" aria-label="Ajouter d’autres photos" onClick={() => input.current?.click()}><Plus size={20}/></button></div>
-          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez vos photos ici</strong><strong className="st-camera">Prenez la pièce en photo</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Jusqu’à 20 photos, même prises au téléphone.</small></>}
+      <fieldset className="st-step"><legend><span>2</span> Votre photo</legend>
+        <div className={`st-drop ${glisse ? "on" : ""} ${fichier ? "st-drop-full" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
+          {fichier ? <div className="st-single">
+            <span className="st-single-img">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={apercu} alt="Votre photo"/>
+              <button type="button" aria-label="Retirer la photo" onClick={() => setFichier(null)}><X size={14}/></button>
+            </span>
+            <div className="st-pick"><button type="button" className="button outlined st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Reprendre la photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir une autre photo</button></div>
+          </div>
+          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez votre photo ici</strong><strong className="st-camera">Prenez la pièce en photo</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Une photo à la fois, même prise au téléphone.</small></>}
           <input ref={camera} id="st-camera" type="file" accept="image/*" capture="environment" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
-          <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
+          <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
         </div>
       </fieldset>
       <fieldset className="st-step"><legend><span>3</span> Ce que vous voulez changer <em>facultatif</em></legend>
@@ -141,8 +145,8 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       </fieldset>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichiers.length || !logement}>{envoi ? "Création…" : fichiers.length > 1 ? `Créer ${fichiers.length} retouches` : "Créer la retouche"} <ArrowRight size={18}/></button>
-        <span>{!fichiers.length ? "Ajoutez au moins une photo." : !logement ? "Donnez un nom au logement." : "Vous paierez seulement la photo que vous garderez."}</span>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement}>{envoi ? "Création…" : "Créer la retouche"} <ArrowRight size={18}/></button>
+        <span>{!fichier ? "Ajoutez votre photo." : !logement ? "Donnez un nom au logement." : "Vous paierez seulement la photo que vous garderez."}</span>
       </div>
     </form>
     <button className="st-example-link" disabled={busy} onClick={onExample}>Pas de photo sous la main ? Essayer avec le salon d’exemple <ArrowRight size={15}/></button>

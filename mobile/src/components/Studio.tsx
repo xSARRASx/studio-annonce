@@ -143,7 +143,7 @@ export function PhotosScreen() {
 export function CreateScreen() {
   const params = useLocalSearchParams<{ logement?: string }>();
   const { projects, add, freeUsed, startExample } = useStudio();
-  const logements = [...new Set(projects.map(logementOf))];
+  const logements = [...new Set(projects.filter(p => p.source !== 'example').map(logementOf))];
   const [choix, setChoix] = useState(params.logement && logements.includes(params.logement) ? params.logement : logements[0] || '');
   const [nouveau, setNouveau] = useState(params.logement && !logements.includes(params.logement) ? params.logement : '');
   const [demande, setDemande] = useState('');
