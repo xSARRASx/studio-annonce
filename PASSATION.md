@@ -256,3 +256,15 @@ paiement, synchronisation site/mobile.
 - Page « Nouvelle retouche » (site) : **une seule photo par retouche**. Une nouvelle photo choisie remplace la précédente. On peut aussi la retirer, la reprendre ou en choisir une autre. Le bouton dit toujours « Créer la retouche ».
 - Les exemples (le salon, la visite vidéo) ne sont **plus proposés comme logement** dans la création, ni sur le site ni dans l'appli. La visite vidéo d'exemple est rangée dans le même logement que le salon (« Appartement Lumière »), au lieu d'un « Appartement d'exemple » à part qui prêtait à confusion.
 - **Suite (Martin : « l'exemple est aussi là, dans la liste »)** : les exemples ne forment plus un logement nulle part. Dans « Mes photos », ils ont leur partie à eux, **« Exemples »**, tout en bas et toujours présente, avec une phrase qui dit à quoi ils servent (ils ne comptent pas dans vos photos, ils ne coûtent rien). Sur le site il y a deux cartes : « Le salon » (photo, 4 versions) et « La visite » (vidéo, bientôt). Dans l'appli, il y a une carte « Le salon ». Chaque carte affiche « Ouvrir l'exemple » ou « Rouvrir ». Les onglets, les groupes par logement et le compteur « Mes photos » ne comptent que vos vraies photos.
+
+## 12. Travail à deux agents (Claude + Codex) · règles décidées le 27/09/2026
+- **Branche commune : `codex-travail`.** Les deux agents travaillent dessus et y poussent. `main` = ce qui est en ligne (GitHub Pages se publie à chaque push sur `main`, et seulement sur `main`).
+- Avant de travailler : récupérer `codex-travail` et lire les derniers commits. Après : un commit clair, poussé sur `codex-travail`, avec le numéro, les fichiers touchés et les vérifications faites.
+- Ne rien supprimer sans demande explicite. Éviter de toucher aux mêmes fichiers qu'un autre agent au même moment.
+- **Aucune fusion dans `main` ni publication sans l'accord de Martin.**
+- ⚠️ Avant ces règles, Claude poussait directement sur `main`. Les commits `a2ce5e1` (appareil photo), `3b2d68c` (une photo par retouche) et `2ad1918` (exemples rangés à part) sont donc **déjà en ligne**. Ils ont été ramenés dans `codex-travail` par la fusion `6527a71`.
+
+### Assistant de création Higgsfield (Codex, `477f80b`)
+- Sur la page « Nouvelle retouche », à l'étape 3, le bouton « M'aider à préciser ma demande » ouvre un assistant. Il pose 4 questions (rendu, mouvement de caméra, ce qu'il faut préserver, format), puis assemble un brief vidéo complet pour Higgsfield. « Utiliser ce brief » le recopie dans la demande. C'est un aperçu local, sans appel à une IA pour l'instant.
+- **Correctif (Claude)** : après la 4ᵉ réponse, l'assistant reposait la 4ᵉ question et le brief ne s'affichait jamais, parce que l'étape n'avançait pas. C'est corrigé et testé dans le navigateur (4 clics → « Votre brief Higgsfield est prêt. »).
+- **Question ouverte pour Martin** : l'assistant prépare un brief **vidéo**, alors qu'il se trouve sur la page de retouche **photo**. Faut-il le laisser là, le déplacer vers la future création vidéo, ou lui faire poser aussi des questions adaptées aux photos ?
