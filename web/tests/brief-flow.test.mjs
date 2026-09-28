@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildQuestions, buildBrief, recoverBriefSource, readBriefAnswer, toggleBriefChoice } from '../../shared/brief-flow.ts';
+import { videoVisitContext } from '../../shared/video-visit.ts';
 
 test('Les anciens brouillons à une carte sont migrés sans changer le texte libre', () => {
   const detail = '  Garder les rideaux.\nPuis ajouter des plantes.  ';
@@ -106,6 +107,27 @@ test('Le brief conserve le choix de carte et le texte libre mot pour mot', () =>
   assert.ok(brief.includes('Sources : salon, cuisine.'));
   assert.ok(questions.every(item => brief.includes(item.label)));
   assert.match(brief, /ne garantissent pas.*trajet continu/);
+});
+
+test('La visite garde les consignes de rangement et refuse les faux passages même sans trajet fourni', () => {
+  const context = videoVisitContext(['Piscine', 'Salon', 'Chambre'], 'Faire le lit et retirer les valises.', 'Piscine → baie du salon ; coupe vers la chambre.');
+  const brief = buildBrief('video', 'Visite de la maison', buildQuestions('video', 'Visite de la maison'), {}, context);
+  assert.ok(brief.indexOf('1. Piscine') < brief.indexOf('2. Salon'));
+  assert.ok(brief.indexOf('2. Salon') < brief.indexOf('3. Chambre'));
+  assert.match(brief, /Faire le lit et retirer les valises/);
+  assert.match(brief, /coupe vers la chambre/);
+  assert.match(brief, /ne jamais traverser un mur/);
+  assert.match(videoVisitContext(['Piscine', 'Salon'], '', ''), /vraies portes, baies et escaliers visibles/);
+  assert.match(videoVisitContext(['Piscine', 'Salon'], '', ''), /faire les lits visibles/);
+});
+
+test('Un brief vidéo enregistré avant les nouvelles consignes garde une idée récupérable', () => {
+  const request = 'Ma visite de 30 secondes';
+  const current = buildBrief('video', request, buildQuestions('video', request), {});
+  const ending = 'Ce brief ne constitue pas une vidéo générée. La durée cible et les mouvements doivent être adaptés aux possibilités du modèle vidéo choisi. Des photos seules ne garantissent pas la géométrie réelle ni un trajet continu entre les pièces : vérifier les raccords avant de promettre une visite sans coupure. Pour un logement réel, ne pas inventer de passages ou d’équipements absents des sources.';
+  const older = current.slice(0, current.lastIndexOf('\n\n')) + `\n\n${ending}`;
+  assert.equal(recoverBriefSource('video', older), request);
+  assert.equal(recoverBriefSource('video', current), request);
 });
 
 test('Une réponse libre seule fonctionne et une ancienne réponse hors parcours est exclue', () => {

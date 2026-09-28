@@ -178,8 +178,9 @@ const BRIEF_INTRO: Record<BriefKind, string> = {
 const BRIEF_END: Record<BriefKind, string> = {
   photo: 'Respecter les éléments à préserver et les changements explicitement demandés. Signaler un aménagement virtuel si le contenu du lieu est transformé.',
   image: 'La scène est une création fictive. Ne pas la présenter comme la photographie d’un logement réel. Aucun fichier à joindre n’est nécessaire.',
-  video: 'Ce brief ne constitue pas une vidéo générée. La durée cible et les mouvements doivent être adaptés aux possibilités du modèle vidéo choisi. Des photos seules ne garantissent pas la géométrie réelle ni un trajet continu entre les pièces : vérifier les raccords avant de promettre une visite sans coupure. Pour un logement réel, ne pas inventer de passages ou d’équipements absents des sources.',
+  video: 'Ce brief ne constitue pas une vidéo générée. Préparer et valider d’abord les photos rangées, notamment les lits et surfaces visibles, puis animer des plans courts et vérifier les raccords. La durée cible et les mouvements doivent être adaptés au modèle choisi. Des photos seules ne garantissent pas la géométrie réelle ni un trajet continu entre les pièces : passer par une ouverture réellement montrée ou faire une coupe de montage. Pour un logement réel, ne jamais traverser un mur ni inventer de passages ou d’équipements absents des sources.',
 };
+const PREVIOUS_VIDEO_END = 'Ce brief ne constitue pas une vidéo générée. La durée cible et les mouvements doivent être adaptés aux possibilités du modèle vidéo choisi. Des photos seules ne garantissent pas la géométrie réelle ni un trajet continu entre les pièces : vérifier les raccords avant de promettre une visite sans coupure. Pour un logement réel, ne pas inventer de passages ou d’équipements absents des sources.';
 
 /**
  * Recover only the idea from our own prepared text for a new questionnaire.
@@ -191,8 +192,12 @@ export function recoverBriefSource(kind: BriefKind, text: string): string {
   if (!text.startsWith(prefix)) return text;
   const choicesMarker = '\n\nCHOIX ET PRÉCISIONS\n';
   const choicesAt = text.indexOf(choicesMarker, prefix.length);
-  const finalMarker = `\n\n${BRIEF_END[kind]}`;
-  const endingAt = text.lastIndexOf(finalMarker);
+  let finalMarker = `\n\n${BRIEF_END[kind]}`;
+  let endingAt = text.lastIndexOf(finalMarker);
+  if (endingAt < 0 && kind === 'video') {
+    finalMarker = `\n\n${PREVIOUS_VIDEO_END}`;
+    endingAt = text.lastIndexOf(finalMarker);
+  }
   if (choicesAt < 0 || endingAt < choicesAt + choicesMarker.length) return text;
 
   const contextAt = text.indexOf('\n\nCONTEXTE\n', prefix.length);

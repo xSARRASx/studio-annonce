@@ -32,6 +32,16 @@
 .st-video-thumb{position:relative;width:54px;height:47px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#e2e5db}
 .st-video-thumb img{object-fit:cover}
 .st-video-hint{font-size:12px;color:#727b6c;line-height:1.6;margin:14px 0 0}
+.st-video-order{margin-top:18px;padding:15px;border:1px solid #dce4d2;border-radius:12px;background:#f7faf2}
+.st-video-order>strong{display:block;margin-bottom:9px;font-size:13px;color:#405139}
+.st-video-order ol{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto}
+.st-video-order li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid #e5ebdc;font-size:12px;color:#4f5b48}
+.st-video-order li>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-video-order li>div{display:flex;gap:4px;flex-shrink:0}
+.st-video-order button{display:grid;place-items:center;width:30px;height:30px;border:1px solid #d4dfc8;border-radius:7px;background:#fffefa;color:#557348;cursor:pointer}
+.st-video-order button:disabled{opacity:.35;cursor:default}
+.st-video-prep-note{font-size:13px;line-height:1.65;color:#5d6955;margin:0 0 17px}
+.st-video-plan #video-cleanup{margin-bottom:17px}
 .st-video-empty{display:flex;align-items:center;gap:13px;flex-wrap:wrap;background:#f4f6ee;border-radius:11px;padding:16px;color:#64735a}
 .st-video-empty p{font-size:13px;line-height:1.6;flex:1;min-width:180px}
 .st-video-empty button{display:inline-flex;gap:6px;align-items:center;white-space:nowrap;font-size:13px}

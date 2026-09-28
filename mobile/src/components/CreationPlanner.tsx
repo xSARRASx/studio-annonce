@@ -6,15 +6,18 @@ import { Button, Screen, useStudio } from './Studio';
 import { logementOf } from '../lib/studio-model';
 import { useLocalDraft } from '../lib/use-local-draft';
 import { suggestionState } from '../../../shared/idea-suggestions';
+import { videoVisitContext } from '../../../shared/video-visit';
 
 type PlannerKind = 'image' | 'video';
-type PlannerDraft = { idea: string; brief: string; briefSource: string; selectedIds: string[] };
-const emptyDraft: PlannerDraft = { idea: '', brief: '', briefSource: '', selectedIds: [] };
+type PlannerDraft = { idea: string; cleanup: string; route: string; brief: string; briefSource: string; selectedIds: string[] };
+const emptyDraft: PlannerDraft = { idea: '', cleanup: '', route: '', brief: '', briefSource: '', selectedIds: [] };
 function readDraft(value: unknown): PlannerDraft {
   if (!value || typeof value !== 'object') throw new Error('Invalid creation draft');
   const draft = value as Partial<PlannerDraft>;
   return {
     idea: typeof draft.idea === 'string' ? draft.idea.slice(0, 4000) : '',
+    cleanup: typeof draft.cleanup === 'string' ? draft.cleanup.slice(0, 2500) : '',
+    route: typeof draft.route === 'string' ? draft.route.slice(0, 2500) : '',
     brief: typeof draft.brief === 'string' ? draft.brief.slice(0, 20000) : '',
     briefSource: typeof draft.briefSource === 'string' ? draft.briefSource.slice(0, 20000) : '',
     selectedIds: Array.isArray(draft.selectedIds) ? [...new Set(draft.selectedIds.filter((id): id is string => typeof id === 'string'))].slice(0, 500) : [],
@@ -48,7 +51,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
   const photos = projects.filter(project => project.source === 'photo');
   const selected = draft.selectedIds.map(id => photos.find(project => project.id === id)).filter((project): project is (typeof photos)[number] => !!project);
   const matching = photos.filter(project => normalize(`${project.title} ${logementOf(project)}`).includes(normalize(search.trim())));
-  const context = kind === 'video' && selected.length ? `Photos sources, dans l’ordre choisi : ${selected.map((project, index) => `${index + 1}. ${project.title} (${logementOf(project)})`).join(' ; ')}.` : '';
+  const context = kind === 'video' ? videoVisitContext(selected.map(project => `${project.title} (${logementOf(project)}) — photo originale`), draft.cleanup, draft.route) : '';
   const source = `${draft.idea}\n${context}`;
   const staleBrief = !!draft.brief && source !== draft.briefSource;
 
@@ -62,6 +65,16 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
 
   function togglePhoto(id: string) {
     setDraft(previous => ({ ...previous, selectedIds: previous.selectedIds.includes(id) ? previous.selectedIds.filter(value => value !== id) : [...previous.selectedIds, id] }));
+  }
+  function movePhoto(id: string, direction: -1 | 1) {
+    setDraft(previous => {
+      const from = previous.selectedIds.indexOf(id);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= previous.selectedIds.length) return previous;
+      const selectedIds = [...previous.selectedIds];
+      [selectedIds[from], selectedIds[to]] = [selectedIds[to], selectedIds[from]];
+      return { ...previous, selectedIds };
+    });
   }
   function applyBrief(brief: string) {
     setDraft(previous => ({ ...previous, brief, briefSource: source }));
@@ -102,9 +115,19 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
           })}
           {!matching.length && <Text style={styles.small}>Aucune photo ne correspond à cette recherche.</Text>}
           {matching.length > limit && <Button title={`Voir plus de photos · ${matching.length - limit} restantes`} secondary onPress={() => setLimit(value => value + 12)}/>}
-          <Text style={styles.small}>Les numéros suivent votre sélection. Pour déplacer une photo à la fin, retirez-la puis sélectionnez-la à nouveau.</Text>
+          {selected.length > 1 && <View style={styles.order}><Text style={styles.photoTitle}>Ordre de la visite</Text>{selected.map((project, index) => <View key={project.id} style={styles.orderRow}><Text numberOfLines={1} style={styles.orderTitle}>{index + 1}. {project.title}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Monter ${project.title}`} accessibilityState={{ disabled: index === 0 }} disabled={index === 0} onPress={() => movePhoto(project.id, -1)} style={[styles.orderButton, index === 0 && styles.orderButtonDisabled]}><Text style={styles.orderButtonText}>↑</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Descendre ${project.title}`} accessibilityState={{ disabled: index === selected.length - 1 }} disabled={index === selected.length - 1} onPress={() => movePhoto(project.id, 1)} style={[styles.orderButton, index === selected.length - 1 && styles.orderButtonDisabled]}><Text style={styles.orderButtonText}>↓</Text></Pressable></View>)}</View>}
           <Button title="Ajouter une photo au studio" secondary onPress={() => router.navigate({ pathname: '/nouvelle', params: { retour: 'visite', logement: undefined } })}/>
         </> : <View style={styles.emptyPhotos}><Text style={styles.small}>Vous pouvez préparer votre idée tout de suite, puis ajouter les photos de votre logement.</Text><Button title="Ajouter une photo" secondary onPress={() => router.navigate({ pathname: '/nouvelle', params: { retour: 'visite', logement: undefined } })}/></View>}
+      </View>}
+
+      {kind === 'video' && <View style={styles.panel}>
+        <View style={styles.sectionHeading}><Text style={styles.number}>3</Text><Text style={styles.section}>Préparer la visite</Text></View>
+        <Text style={styles.small}>Décrivez ce qui doit être rangé avant l’animation et les vrais passages entre pièces. Dans cet aperçu, vos photos ne sont pas retouchées automatiquement.</Text>
+        <Text style={styles.label}>À ranger ou à retoucher</Text>
+        <TextInput accessibilityLabel="À ranger ou à retoucher avant la vidéo" value={draft.cleanup} onChangeText={cleanup => setDraft(previous => ({ ...previous, cleanup }))} maxLength={2500} multiline placeholder="Ex. : faire le lit, retirer les valises, dégager l’îlot de cuisine…" placeholderTextColor="#89917d" style={[styles.input, styles.prepInput]}/>
+        <Text style={styles.label}>Portes réelles et ordre des pièces</Text>
+        <TextInput accessibilityLabel="Portes réelles et ordre des pièces" value={draft.route} onChangeText={route => setDraft(previous => ({ ...previous, route }))} maxLength={2500} multiline placeholder="Ex. : piscine → baie du séjour → cuisine → escalier. Si une porte n’est pas visible, faire une coupe." placeholderTextColor="#89917d" style={[styles.input, styles.prepInput]}/>
+        <Text style={styles.small}>Une ouverture non visible ne sera pas supposée exister dans le brief.</Text>
       </View>}
 
       <MobileBriefAssistant kind={kind} request={draft.idea} context={context} onUse={applyBrief} storageKey={`studio-annonce.mobile.assistant.${kind}-plan.v1`}/>
@@ -112,7 +135,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
       {!!draft.brief && <View style={styles.panel}>
         <Text style={styles.readyLabel}>✓ VOTRE DESCRIPTION EST PRÊTE</Text>
         <Text style={styles.section}>{kind === 'image' ? 'Votre image prend forme.' : 'Votre visite a une direction.'}</Text>
-        {staleBrief && <Text style={styles.warning}>Votre idée ou les photos ont changé depuis ce texte. Reprenez l’aide pour l’actualiser, ou ajustez la description.</Text>}
+        {staleBrief && <Text style={styles.warning}>Votre idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’aide pour actualiser le brief, ou ajustez la description.</Text>}
         <Pressable accessibilityRole="button" aria-expanded={showBrief} accessibilityState={{ expanded: showBrief }} onPress={() => setShowBrief(value => !value)} style={styles.disclosure}><Text style={styles.disclosureText}>{showBrief ? 'Masquer la description −' : 'Relire et modifier la description +'}</Text></Pressable>
         {showBrief && <TextInput accessibilityLabel={kind === 'image' ? 'Description de l’image modifiable' : 'Description de la vidéo modifiable'} value={draft.brief} onChangeText={brief => setDraft(previous => ({ ...previous, brief }))} maxLength={20000} multiline style={[styles.input, { minHeight: 240 }]}/>}
       </View>}
@@ -125,4 +148,5 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
 
 const styles = StyleSheet.create({
   back: { fontSize: 13, color: '#748164', paddingVertical: 6 }, panel: { backgroundColor: '#fffefa', borderWidth: 1, borderColor: '#e0e5d8', borderRadius: 17, padding: 18, gap: 13 }, sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 }, number: { width: 27, height: 27, lineHeight: 27, borderRadius: 14, textAlign: 'center', backgroundColor: '#343d2f', color: '#fffefa', fontSize: 12, overflow: 'hidden' }, section: { flex: 1, fontSize: 18, lineHeight: 25, fontWeight: '500', color: '#394331', letterSpacing: -.3 }, label: { fontSize: 13, color: '#728163', lineHeight: 20 }, input: { minHeight: 145, padding: 14, borderWidth: 1, borderColor: '#d1d9c6', borderRadius: 11, color: '#3e4935', fontSize: 16, lineHeight: 23, textAlignVertical: 'top', backgroundColor: '#fffefa' }, small: { fontSize: 12, color: '#828b77', lineHeight: 19 }, examples: { gap: 8, marginTop: 3 }, example: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 14, borderWidth: 1, borderColor: '#e0e4f4', backgroundColor: '#f0f2fc' }, exampleSage: { backgroundColor: '#f0f4e8', borderColor: '#e2e8d7' }, exampleSand: { backgroundColor: '#f6f1e5', borderColor: '#ebe3d4' }, exampleLabel: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '500', color: '#6b7590' }, exampleArrow: { fontSize: 18, color: '#929daf' }, search: { minHeight: 48, fontSize: 15, color: '#49543f', paddingHorizontal: 13, borderWidth: 1, borderColor: '#d4deca', borderRadius: 10 }, count: { fontSize: 11, color: '#809265', lineHeight: 18 }, photoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 11, borderWidth: 1, borderColor: '#e4e8dc', backgroundColor: '#fffefa' }, selected: { backgroundColor: '#eff5e7', borderColor: '#a4b789' }, photo: { width: 54, height: 57, borderRadius: 7, resizeMode: 'cover' }, photoMissing: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8ebdf' }, photoTitle: { fontSize: 13, lineHeight: 19, fontWeight: '500', color: '#526047' }, selectionMark: { fontSize: 14, color: '#809468' }, emptyPhotos: { gap: 13, backgroundColor: '#f3f5ed', padding: 14, borderRadius: 11 }, readyLabel: { fontSize: 10, fontWeight: '600', color: '#7a9563', letterSpacing: 1.1 }, warning: { fontSize: 12, lineHeight: 20, color: '#86724e', backgroundColor: '#f6eedf', padding: 13, borderRadius: 10 }, disclosure: { paddingVertical: 9 }, disclosureText: { fontSize: 13, lineHeight: 21, color: '#6f8260', fontWeight: '500' }, next: { padding: 20, backgroundColor: '#edf1fa', borderWidth: 1, borderColor: '#dfe5f4', borderRadius: 16, gap: 10 }, nextTitle: { color: '#64749a', fontSize: 16, fontWeight: '500', lineHeight: 23 }, nextText: { color: '#8590a8', fontSize: 12, lineHeight: 21 }, storage: { color: '#8c967f', fontSize: 11, lineHeight: 18, textAlign: 'center' },
+  prepInput: { minHeight: 100 }, order: { gap: 5, padding: 13, backgroundColor: '#f4f7ef', borderRadius: 11, borderWidth: 1, borderColor: '#dbe4d0' }, orderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 5, borderTopWidth: 1, borderColor: '#e2e9d9' }, orderTitle: { flex: 1, fontSize: 12, color: '#526047' }, orderButton: { width: 33, height: 33, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#d3dfc7', borderRadius: 7, backgroundColor: '#fffefa' }, orderButtonDisabled: { opacity: .35 }, orderButtonText: { fontSize: 18, color: '#587149' },
 });
