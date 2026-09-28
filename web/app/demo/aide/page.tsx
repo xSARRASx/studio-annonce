@@ -15,7 +15,7 @@ const topics = [
     id: "commencer",
     title: "Prendre ses marques",
     questions: [
-      { question: "Par où commencer ?", answer: "Ouvrez le studio : vous arrivez dans votre liste de photos et vidéos. Ajoutez votre première photo, puis ouvrez-la pour accéder à son atelier. Chaque photo a son propre historique. Le salon d’exemple permet de découvrir le parcours et de comparer des versions déjà préparées." },
+      { question: "Par où commencer ?", answer: "Ouvrez le studio : Mes créations rassemble vos photos et vidéos par logement. Le bouton Créer présente quatre possibilités : Retoucher une photo, Créer une image à partir d’une idée, Photos → vidéo et Vidéo → photos. Choisissez un outil, décrivez votre demande, puis utilisez l’assistant si vous voulez de l’aide. Chaque question accepte plusieurs choix et vos propres précisions." },
       { question: "Est-ce que la démo retouche mes photos ?", answer: "Pas encore. Vous pouvez explorer l’interface, importer un fichier pour en voir l’aperçu et consulter les exemples. La génération automatique n’est pas connectée : saisir une demande ne produit pas une nouvelle retouche de votre photo. Aucun crédit réel n’est consommé dans cette démonstration." },
       { question: "Quelles photos donneront une bonne base ?", answer: "Choisissez une photo nette, prise de jour, avec une vue assez large de la pièce. Gardez l’appareil droit et évitez les très grands angles qui déforment les murs. Formulez une demande précise : par exemple éclaircir le salon, enlever un objet ou essayer un autre mobilier. Vérifiez toujours le résultat avant de l’utiliser dans une annonce." },
     ],
@@ -45,6 +45,7 @@ const topics = [
     title: "Vidéo & application mobile",
     questions: [
       { question: "Puis-je déjà créer une visite vidéo ?", answer: "La démo permet de découvrir un projet vidéo et son aperçu. La maquette de visite est un montage d’images fictives animées. La génération vidéo automatique n’est pas connectée, et nous ne promettons pas encore un trajet continu de caméra à travers les pièces. Cette capacité devra être testée sur un même logement avant d’être proposée." },
+      { question: "Comment passer de photos à une vidéo, ou l’inverse ?", answer: "Dans Créer, Photos → vidéo permet de choisir ou d’ajouter des photos, puis de préparer la demande avec l’assistant. Aucune vidéo n’est encore générée automatiquement. Vidéo → photos extrait réellement des images de votre vidéo sur cet appareil : choisissez les instants à garder et enregistrez-les dans Mes créations. Vos précisions de retouche sont conservées avec chaque image ; leur application par IA reste à connecter." },
       { question: "L’application sera-t-elle sur iPhone et Android ?", answer: "Les deux plateformes font partie du projet. L’aperçu mobile conserve déjà vos projets localement pour les retrouver après rechargement. Le site web et l’aperçu mobile ont pour l’instant des espaces séparés, sans synchronisation entre eux. L’application n’est pas encore publiée sur les stores ; le compte partagé et le fonctionnement sur de vrais téléphones restent à valider avant sa sortie." },
     ],
   },

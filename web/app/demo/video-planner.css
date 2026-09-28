@@ -56,3 +56,5 @@
 @media(max-width:500px){.st-video-plan .st-step{padding:18px}.st-video-photos{grid-template-columns:1fr}.st-video-next{padding:17px}.st-video-next>span{margin-left:0}.st-video-photo-tools{align-items:stretch;flex-direction:column}.st-video-selected-filter{align-self:flex-start;min-height:38px}.studio-demo .st-video-plan .st-step h2{flex-wrap:wrap}.st-video-optional{margin-left:0}}
 
 .st-video-changed{padding:12px 14px;border-radius:10px;background:#faf1dd;color:#78602d;font-size:13px;line-height:1.6}
+.st-video-upload{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:18px 0}
+.st-video-upload>span{font-size:12px;color:#75806b;line-height:1.5;max-width:280px}

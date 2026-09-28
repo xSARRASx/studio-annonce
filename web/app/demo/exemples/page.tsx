@@ -49,7 +49,7 @@ export default function ExamplesPage() {
           <Link href="/demo/exemples/" aria-current="page">Exemples</Link>
           <Link href="/demo/tarifs/">Tarifs</Link>
         </nav>
-        <Link className="button dark small" href="/demo/">Le studio <ArrowUpRight size={16}/></Link>
+        <Link className="button dark small" href="/demo/#studio">Le studio <ArrowUpRight size={16}/></Link>
       </header>
 
       <main className="examples-main">
@@ -83,7 +83,7 @@ export default function ExamplesPage() {
 
         <section className="examples-next">
           <div><span className="section-kicker">À VOUS D’IMAGINER</span><h2>Et si c’était votre logement&nbsp;?</h2><p>Ces images montrent le principe. Dans le studio, décrivez le changement que vous souhaitez.</p></div>
-          <Link className="button dark" href="/demo/">Découvrir le studio <ArrowUpRight size={18}/></Link>
+          <Link className="button dark" href="/demo/#studio">Découvrir le studio <ArrowUpRight size={18}/></Link>
         </section>
         <p className="examples-note">Images fictives créées pour la démonstration. La retouche automatique n’est pas encore activée.</p>
       </main>

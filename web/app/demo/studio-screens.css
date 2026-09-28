@@ -1,5 +1,9 @@
 /* Studio : liste par logement, page de création, facturation. */
 .st-main{max-width:1180px;margin:0 auto;padding:40px 5% 70px}
+.st-optional-property{border:1px solid #e1e5d9;border-radius:12px;background:#fafbf6;margin:20px 0;padding:0 18px}
+.st-optional-property>summary{display:flex;align-items:center;gap:11px;list-style:none;cursor:pointer;padding:17px 0;color:#5d6a50;font-size:14px}
+.st-optional-property>summary::-webkit-details-marker{display:none}.st-optional-property>summary>span{flex:1}.st-optional-property>summary small{display:block;font-size:11px;color:#7a8271;margin-top:5px}.st-optional-property>summary>svg{flex-shrink:0}.st-optional-property[open]>summary>svg:last-child{transform:rotate(180deg)}
+.st-optional-property>p{font-size:12px;color:#747d69;line-height:1.6;margin:15px 0}.st-optional-property .st-homes{margin-top:4px}
 .studio-demo .st-main h1{font-size:clamp(28px,3vw,38px);letter-spacing:-1.2px;line-height:1.15;margin:10px 0 8px}
 .st-main>.st-head p:last-child,.st-first-copy>p:not(.section-kicker){font-size:15px;color:#6b7262;line-height:1.6}
 .st-actions{display:flex;gap:10px;flex-wrap:wrap}

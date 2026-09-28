@@ -1,17 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { ArrowRight, CheckCircle2, ChevronDown, Film, Images, Info, Search, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, ChevronDown, Film, Images, Info, Search, Sparkles, Upload, X } from "lucide-react";
 import { BriefAssistant } from "./brief-assistant";
-import { type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
+import { storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
+import { CreationBack } from "./creation-hub";
+import { UNASSIGNED_PROPERTY } from "./studio-screens";
 import "./video-planner.css";
 
 const STORAGE_KEY = "studio-annonce.video-plan.v1";
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 const searchText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
 
-export function VideoPlanner({ library, source, onPhoto }: { library: DemoLibrary; source: Source; onPhoto: () => void }) {
+export function VideoPlanner({ library, source, onBack, onAddPhotos }: { library: DemoLibrary; source: Source; onBack: () => void; onAddPhotos: (files: File[], property: string) => Promise<DemoProject[]> }) {
   const [property, setProperty] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idea, setIdea] = useState("");
@@ -21,11 +23,14 @@ export function VideoPlanner({ library, source, onPhoto }: { library: DemoLibrar
   const [photoSearch, setPhotoSearch] = useState("");
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [importError, setImportError] = useState("");
+  const input = useRef<HTMLInputElement>(null);
   const photos = library.projects.filter(project => project.kind === "photo" && !project.sample);
   const properties = [...new Set(photos.map(project => project.property))];
-  const currentProperty = properties.includes(property) ? property : properties[0] || "";
-  const available = photos.filter(project => project.property === currentProperty);
-  const selected = available.filter(project => selectedIds.includes(project.id)).sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id));
+  const currentProperty = properties.includes(property) ? property : "";
+  const available = currentProperty ? photos.filter(project => project.property === currentProperty) : photos;
+  const selected = photos.filter(project => selectedIds.includes(project.id)).sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id));
   const search = searchText(photoSearch.trim());
   const visiblePhotos = available.filter(project => (!selectedOnly || selectedIds.includes(project.id)) && (!search || searchText(project.title).includes(search)));
 
@@ -57,19 +62,33 @@ export function VideoPlanner({ library, source, onPhoto }: { library: DemoLibrar
   function toggle(id: string) {
     setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
   }
+  async function addPhotos(files: File[]) {
+    const logement = currentProperty || UNASSIGNED_PROPERTY;
+    if (!files.length || adding) return;
+    setAdding(true); setImportError("");
+    try {
+      const projects = await onAddPhotos(files, logement);
+      setSelectedIds(ids => [...ids, ...projects.map(project => project.id)]);
+      setPhotoSearch(""); setSelectedOnly(false);
+    } catch (cause) { setImportError(storageError(cause)); }
+    finally { setAdding(false); }
+  }
   const context = selected.length
-    ? `Photos sources choisies, dans cet ordre : ${selected.map(project => project.title).join(" ; ")}. Logement : ${currentProperty}.`
+    ? `Photos sources choisies, dans cet ordre : ${selected.map(project => `${project.title}${project.property !== UNASSIGNED_PROPERTY ? ` (${project.property})` : ""}`).join(" ; ")}.`
     : "Aucune photo source choisie. La vidéo est à imaginer à partir de la demande.";
 
   return <main className="st-main st-video-plan">
-    <p className="eyebrow">VISITE VIDÉO · APERÇU</p>
-    <h1>Racontez votre logement en images.</h1>
-    <p className="st-video-intro">Partez d’une idée, avec ou sans photos. L’assistant vous aide à choisir les bases de la vidéo, puis à préciser ce qui compte pour votre demande.</p>
+    <CreationBack onClick={onBack}/>
+    <p className="eyebrow">PRÉPARER UNE VIDÉO</p>
+    <h1>Photos → vidéo</h1>
+    <p className="st-video-intro">Choisissez vos photos, puis décrivez le mouvement souhaité. Vous pouvez aussi partir d’une idée, sans photo.</p>
 
     <section className="st-step" aria-labelledby="video-source-title">
-      <h2 id="video-source-title"><span className="st-step-number">1</span> Les photos du logement <span className="st-video-optional">Facultatif</span></h2>
-      {properties.length ? <>
-        <label className="st-video-property">Logement<select value={currentProperty} onChange={event => { setProperty(event.target.value); setSelectedIds([]); }}>{properties.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+      <h2 id="video-source-title"><span className="st-step-number">1</span> Vos photos <span className="st-video-optional">Facultatif</span></h2>
+      <div className="st-video-upload"><button type="button" className="button outlined" disabled={adding} onClick={() => input.current?.click()}><Upload size={17}/>{adding ? "Ajout en cours…" : "Ajouter des photos"}</button><span>Depuis votre appareil, sans quitter cette vidéo.</span><input ref={input} type="file" multiple hidden accept="image/jpeg,image/png,image/webp" onChange={event => { void addPhotos(Array.from(event.target.files || [])); event.target.value = ""; }}/></div>
+      {properties.length > 1 && <label className="st-video-property">Photos à afficher<select value={currentProperty} disabled={adding} onChange={event => setProperty(event.target.value)}><option value="">Tous les logements</option>{properties.map(name => <option key={name} value={name}>{name}</option>)}</select></label>}
+      {importError && <p className="st-error" role="alert">{importError}</p>}
+      {available.length ? <>
         <div className="st-video-photo-tools">
           <div className="st-video-search">
             <label htmlFor="video-photo-search">Retrouver une photo</label>
@@ -77,10 +96,10 @@ export function VideoPlanner({ library, source, onPhoto }: { library: DemoLibrar
           </div>
           <button type="button" className="st-video-selected-filter" aria-pressed={selectedOnly} onClick={() => setSelectedOnly(value => !value)}><CheckCircle2 size={16}/>Sélection uniquement <span>{selected.length}</span></button>
         </div>
-        <p className="st-video-photo-count" role="status">{selected.length} photo{selected.length > 1 ? "s" : ""} choisie{selected.length > 1 ? "s" : ""} sur {available.length}<span>{visiblePhotos.length} affichée{visiblePhotos.length > 1 ? "s" : ""}</span></p>
+        <p className="st-video-photo-count" role="status">{selected.length} photo{selected.length > 1 ? "s" : ""} choisie{selected.length > 1 ? "s" : ""} sur {photos.length}<span>{visiblePhotos.length} affichée{visiblePhotos.length > 1 ? "s" : ""}</span></p>
         {visiblePhotos.length ? <div className="st-video-photos" aria-label="Photos à inclure dans la visite">{visiblePhotos.map(project => <button type="button" key={project.id} aria-pressed={selectedIds.includes(project.id)} onClick={() => toggle(project.id)}><span className="st-video-thumb"><Image src={source(project)} alt="" fill sizes="120px" unoptimized/></span><span>{project.title}</span>{selectedIds.includes(project.id) && <span className="st-video-selection-order" aria-label={`Position ${selected.findIndex(item => item.id === project.id) + 1}`}>{selected.findIndex(item => item.id === project.id) + 1}</span>}</button>)}</div> : <div className="st-video-no-results"><Search size={22}/><p>{photoSearch.trim() ? "Aucune photo ne correspond à votre recherche." : "Aucune photo sélectionnée pour le moment."}</p><button type="button" className="text-action" onClick={() => { setPhotoSearch(""); setSelectedOnly(false); }}>Afficher toutes les photos</button></div>}
         <p className="st-video-hint">Les numéros suivent votre ordre de sélection. La recherche conserve tous vos choix. Vous pouvez aussi continuer sans photo.</p>
-      </> : <div className="st-video-empty"><Images size={23}/><p>Une idée suffit pour préparer votre vidéo. Vous pouvez aussi ajouter des photos pour guider le résultat.</p><button type="button" className="text-action" onClick={onPhoto}>Ajouter une photo <ArrowRight size={15}/></button></div>}
+      </> : <div className="st-video-empty"><Images size={23}/><p>Les photos ajoutées apparaîtront ici. Une idée seule suffit aussi pour préparer votre vidéo.</p></div>}
     </section>
 
     <section className="st-step" aria-labelledby="video-idea-title">

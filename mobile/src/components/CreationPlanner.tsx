@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { MobileBriefAssistant } from './MobileBriefAssistant';
 import { Button, Screen, useStudio } from './Studio';
 import { logementOf } from '../lib/studio-model';
@@ -39,6 +39,8 @@ export function VideoPlanScreen() { return <CreationPlanner kind="video"/>; }
 
 function CreationPlanner({ kind }: { kind: PlannerKind }) {
   const { projects, uris } = useStudio();
+  const { importedPhoto } = useLocalSearchParams<{ importedPhoto?: string }>();
+  const appliedImport = useRef<string | undefined>(undefined);
   const { draft, setDraft, ready, notice, saved } = useLocalDraft(`studio-annonce.mobile.${kind}-plan.v1`, emptyDraft, readDraft);
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(12);
@@ -49,6 +51,14 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
   const context = kind === 'video' && selected.length ? `Photos sources, dans l’ordre choisi : ${selected.map((project, index) => `${index + 1}. ${project.title} (${logementOf(project)})`).join(' ; ')}.` : '';
   const source = `${draft.idea}\n${context}`;
   const staleBrief = !!draft.brief && source !== draft.briefSource;
+
+  useEffect(() => {
+    if (kind !== 'video' || !ready || !importedPhoto || appliedImport.current === importedPhoto || !projects.some(project => project.id === importedPhoto && project.source === 'photo')) return;
+    appliedImport.current = importedPhoto;
+    setDraft(previous => previous.selectedIds.includes(importedPhoto) ? previous : { ...previous, selectedIds: [...previous.selectedIds, importedPhoto] });
+    // Consume the navigation instruction so deselecting the photo stays respected after reload.
+    router.setParams({ importedPhoto: undefined });
+  }, [kind, ready, importedPhoto, projects, setDraft]);
 
   function togglePhoto(id: string) {
     setDraft(previous => ({ ...previous, selectedIds: previous.selectedIds.includes(id) ? previous.selectedIds.filter(value => value !== id) : [...previous.selectedIds, id] }));
@@ -64,8 +74,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
     });
   }
 
-  return <Screen title={kind === 'image' ? 'Créer une image' : 'Préparer une vidéo'} subtitle={kind === 'image' ? 'Un lieu, une ambiance ou un visuel à imaginer. Aucun fichier nécessaire.' : 'Une idée, un point de vue, un rythme. Vos photos peuvent guider la visite.'}>
-    <Pressable accessibilityRole="button" onPress={() => router.navigate('/')}><Text style={styles.back}>← Mes photos</Text></Pressable>
+  return <Screen title={kind === 'image' ? 'Créer une image' : 'Photos → vidéo'} subtitle={kind === 'image' ? 'Un lieu, une ambiance ou un visuel à imaginer. Aucun fichier nécessaire.' : 'Transformez vos photos en idée de vidéo. Choisissez la vue, le trajet et le rythme.'} back="create">
     {!ready ? <ActivityIndicator accessibilityLabel="Chargement du brouillon" color="#6478a8"/> : <>
       <View style={styles.panel}>
         <View style={styles.sectionHeading}><Text style={styles.number}>1</Text><Text style={styles.section}>Votre idée</Text></View>
@@ -94,7 +103,8 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
           {!matching.length && <Text style={styles.small}>Aucune photo ne correspond à cette recherche.</Text>}
           {matching.length > limit && <Button title={`Voir plus de photos · ${matching.length - limit} restantes`} secondary onPress={() => setLimit(value => value + 12)}/>}
           <Text style={styles.small}>Les numéros suivent votre sélection. Pour déplacer une photo à la fin, retirez-la puis sélectionnez-la à nouveau.</Text>
-        </> : <View style={styles.emptyPhotos}><Text style={styles.small}>Vous pouvez préparer votre idée tout de suite, puis ajouter les photos de votre logement.</Text><Button title="Ajouter une photo" secondary onPress={() => router.navigate('/nouvelle')}/></View>}
+          <Button title="Ajouter une photo au studio" secondary onPress={() => router.navigate({ pathname: '/nouvelle', params: { retour: 'visite', logement: undefined } })}/>
+        </> : <View style={styles.emptyPhotos}><Text style={styles.small}>Vous pouvez préparer votre idée tout de suite, puis ajouter les photos de votre logement.</Text><Button title="Ajouter une photo" secondary onPress={() => router.navigate({ pathname: '/nouvelle', params: { retour: 'visite', logement: undefined } })}/></View>}
       </View>}
 
       <MobileBriefAssistant kind={kind} request={draft.idea} context={context} onUse={applyBrief} storageKey={`studio-annonce.mobile.assistant.${kind}-plan.v1`}/>
@@ -107,7 +117,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
         {showBrief && <TextInput accessibilityLabel={kind === 'image' ? 'Description de l’image modifiable' : 'Description de la vidéo modifiable'} value={draft.brief} onChangeText={brief => setDraft(previous => ({ ...previous, brief }))} maxLength={20000} multiline style={[styles.input, { minHeight: 240 }]}/>}
       </View>}
 
-      <View style={styles.next}><Text style={styles.nextTitle}>✦ {kind === 'image' ? 'Imaginez librement.' : 'Votre brief reste modifiable.'}</Text><Text style={styles.nextText}>{kind === 'image' ? 'Une image créée de toutes pièces est une scène fictive. Pour améliorer une photo réelle, utilisez Nouvelle retouche.' : 'Le moteur vidéo et l’estimation du coût seront connectés ici. Une visite longue peut nécessiter plusieurs plans et un montage.'}</Text><Text style={styles.nextText}>Pour le moment, cet aperçu prépare une description. Aucune image ni vidéo n’est générée.</Text></View>
+      <View style={styles.next}><Text style={styles.nextTitle}>✦ {kind === 'image' ? 'Imaginez librement.' : 'Votre brief reste modifiable.'}</Text><Text style={styles.nextText}>{kind === 'image' ? 'Une image créée de toutes pièces est une scène fictive. Pour améliorer une photo réelle, choisissez « Retoucher une photo ».' : 'Le moteur vidéo et l’estimation du coût seront connectés ici. Une visite longue peut nécessiter plusieurs plans et un montage.'}</Text><Text style={styles.nextText}>Pour le moment, cet aperçu prépare une description. Aucune image ni vidéo n’est générée.</Text></View>
       <Text accessibilityLiveRegion="polite" style={notice ? styles.warning : styles.storage}>{notice || (saved ? 'Brouillon enregistré sur cet appareil.' : 'Enregistrement du brouillon…')}</Text>
     </>}
   </Screen>;

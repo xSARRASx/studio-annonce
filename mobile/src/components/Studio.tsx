@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path } from 'react-native-svg';
 import { downloadState, emptyStudio, logementOf, readStudio, renewEditWindow, simulateDownload, type Project, type StudioData } from '../lib/studio-model';
 import { loadState, photoUri, saveState, storePhoto } from '../lib/studio-storage';
 import { MobileBriefAssistant } from './MobileBriefAssistant';
+import { OptionalPropertyPicker } from './OptionalPropertyPicker';
 
 export const colors = { ink: '#30372a', cream: '#f8f7f2', sage: '#e9edde', muted: '#69725f' };
 export const versions = [
@@ -20,7 +21,7 @@ export type LocalPhotoAsset = Pick<ImagePicker.ImagePickerAsset, 'uri' | 'fileNa
 type StudioState = {
   projects: Project[]; now: number; ready: boolean; storageNotice: string; uris: Record<string, string>;
   credits: number; creditsUsed: number; freeUsed: boolean; startExample: () => string; add: (asset: LocalPhotoAsset, property: string, request: string) => Promise<string>;
-  update: (id: string, values: Partial<Pick<Project, 'selected' | 'saved' | 'request' | 'title'>>) => void;
+  update: (id: string, values: Partial<Pick<Project, 'selected' | 'saved' | 'request' | 'title' | 'property'>>) => Promise<boolean>;
   download: (id: string) => Receipt | null;
   renew: (id: string) => Receipt | null;
 };
@@ -57,9 +58,13 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
   }, []);
   function commit(next: StudioData) {
     current.current = next; setData(next);
-    if (writable.current) writeQueue.current = writeQueue.current.then(() => saveState(next)).catch(() => {
+    if (!writable.current) return Promise.resolve(false);
+    const saved = writeQueue.current.then(async () => { await saveState(next); return true; }).catch(() => {
       setStorageNotice('Enregistrement local impossible. Gardez cet écran ouvert pour conserver les dernières modifications de cette session.');
+      return false;
     });
+    writeQueue.current = saved.then(() => undefined);
+    return saved;
   }
   function startExample() {
     const id = 'salon-demo';
@@ -77,8 +82,10 @@ export function StudioProvider({ children }: { children: React.ReactNode }) {
     commit({ ...current.current, projects: [project, ...current.current.projects] });
     return id;
   }
-  function update(id: string, values: Partial<Pick<Project, 'selected' | 'saved' | 'request' | 'title'>>) {
-    commit({ ...current.current, projects: current.current.projects.map(p => p.id === id ? { ...p, ...values } : p) });
+  function update(id: string, values: Partial<Pick<Project, 'selected' | 'saved' | 'request' | 'title' | 'property'>>) {
+    if (!current.current.projects.some(project => project.id === id)) return Promise.resolve(false);
+    const patch = 'property' in values ? { ...values, property: values.property?.trim().slice(0, 100) || 'Sans logement' } : values;
+    return commit({ ...current.current, projects: current.current.projects.map(p => p.id === id ? { ...p, ...patch } : p) });
   }
   function download(id: string) {
     const result = simulateDownload(current.current, id, Date.now());
@@ -119,49 +126,54 @@ export function Logo() {
 export function Button({ title, onPress, secondary = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) {
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, secondary && s.secondary, { opacity: disabled ? .4 : pressed ? .7 : 1 }]}><Text style={[s.buttonText, secondary && { color: colors.ink }]}>{title}</Text></Pressable>;
 }
-export function Screen({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+export function Screen({ title, subtitle, children, back }: { title: string; subtitle: string; children: React.ReactNode; back?: 'create' | 'library' }) {
   const { ready, storageNotice } = useStudio();
-  return <SafeAreaView edges={['top', 'left', 'right']} style={s.safe}><View style={s.header}><Logo/><Text style={s.badge}>DÉMO</Text></View><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}><Text accessibilityRole="header" style={s.title}>{title}</Text><Text style={s.subtitle}>{subtitle}</Text>{!!storageNotice && <Text accessibilityLiveRegion="polite" style={s.warning}>{storageNotice}</Text>}{ready ? children : <View style={s.empty}><ActivityIndicator color={colors.ink}/><Text style={s.body}>Vos photos reprennent leur place…</Text></View>}</ScrollView></KeyboardAvoidingView></SafeAreaView>;
+  return <SafeAreaView edges={['top', 'left', 'right']} style={s.safe}><View style={s.header}><Logo/><Text style={s.badge}>DÉMO</Text></View><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>{back && <Pressable accessibilityRole="button" onPress={() => router.navigate(back === 'create' ? '/creer' : '/')} style={{ alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center' }}><Text style={s.backLink}>← {back === 'create' ? 'Tous les outils de création' : 'Mes créations'}</Text></Pressable>}<Text accessibilityRole="header" style={s.title}>{title}</Text><Text style={s.subtitle}>{subtitle}</Text>{!!storageNotice && <Text accessibilityLiveRegion="polite" style={s.warning}>{storageNotice}</Text>}{ready ? children : <View style={s.empty}><ActivityIndicator color={colors.ink}/><Text style={s.body}>Vos créations reprennent leur place…</Text></View>}</ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
 function Photo({ source, label, small = false }: { source: ImageSourcePropType | undefined; label: string; small?: boolean }) {
   return source ? <Image source={source} accessibilityLabel={label} style={small ? s.thumbnail : s.photo}/> : <View style={[small ? s.thumbnail : s.photo, s.photoMissing]}><Text style={s.small}>{small ? 'Photo' : 'Photo locale indisponible'}</Text></View>;
 }
-function CreativeLinks() {
-  return <View style={s.creativeLinks}><Text style={s.eyebrow}>UNE AUTRE ENVIE ?</Text><View style={s.creativeRow}><Pressable accessibilityRole="button" onPress={() => router.navigate('/creer-image')} style={s.creativeCard}><Text style={s.creativeSymbol}>✦</Text><Text style={s.creativeTitle}>Créer une image</Text><Text style={s.small}>À partir d’une idée, sans photo.</Text><Text style={s.creativeLink}>Imaginer →</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.navigate('/video-photos')} style={[s.creativeCard, s.creativeFrames]}><Text style={s.creativeSymbol}>▤</Text><Text style={s.creativeTitle}>Photos depuis vidéo</Text><Text style={s.small}>Choisir les meilleurs instants.</Text><Text style={s.creativeLink}>Extraire →</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.navigate('/visite')} style={[s.creativeCard, s.creativeVideo]}><Text style={s.creativeSymbol}>▷</Text><Text style={s.creativeTitle}>Préparer une vidéo</Text><Text style={s.small}>Définir la vue, le trajet et le rythme.</Text><Text style={s.creativeLink}>Me guider →</Text></Pressable></View></View>;
-}
 export function PhotosScreen() {
-  const { projects, startExample, freeUsed } = useStudio();
+  const { projects, startExample } = useStudio();
   const miennes = projects.filter(p => p.source !== 'example');
   const exemples = projects.filter(p => p.source === 'example');
   const logements = [...new Set(miennes.map(logementOf))];
   /* Les exemples ne sont pas un logement : ils ont leur petite partie à eux, tout en bas. */
   const partieExemples = <View style={s.examples}><Text style={s.section}>Exemples</Text><Text style={s.muted}>Un exemple tout prêt, pour voir ce que le studio sait faire. Il ne compte pas dans vos photos et ne coûte rien.</Text><Pressable accessibilityRole="button" accessibilityLabel="Ouvrir l’exemple du salon" onPress={() => { const id = startExample(); router.push({ pathname: '/retouche', params: { id } }); }} style={s.exampleCard}><View><Image source={versions[3].image} style={s.cover}/><View style={s.imageTag}><Text style={s.imageTagText}>PHOTO</Text></View></View><View style={s.cardBody}><Text style={s.cardTitle}>Le salon</Text><Text style={s.muted}>Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions.</Text><Text style={s.rowTitle}>{exemples.length ? 'Rouvrir ›' : 'Ouvrir l’exemple ›'}</Text></View></Pressable></View>;
-  if (!miennes.length) return <Screen title="Mes photos" subtitle="Votre studio est prêt.">
-    <View style={s.importCard}><Text style={s.eyebrow}>VOTRE PREMIÈRE RETOUCHE</Text><Text style={s.importTitle}>Tout commence avec une photo.</Text><Text style={s.body}>Choisissez une photo de votre logement et dites ce que vous voulez changer.</Text><Button title={freeUsed ? 'Créer ma première retouche' : 'Créer ma première retouche · offerte'} onPress={() => router.navigate('/nouvelle')}/></View>
-    <CreativeLinks/>
+  if (!miennes.length) return <Screen title="Mes créations" subtitle="Votre studio est prêt.">
+    <View style={s.importCard}><Text style={s.eyebrow}>VOTRE PREMIÈRE CRÉATION</Text><Text style={s.importTitle}>Une photo, une vidéo, une idée.</Text><Text style={s.body}>Choisissez ce que vous voulez créer. Vos photos enregistrées et leurs versions vous attendront ici.</Text><Button title="Commencer ma première création" onPress={() => router.navigate('/creer')}/></View>
     {partieExemples}
   </Screen>;
   const groupes = logements.map(l => ({ nom: l, photos: miennes.filter(p => logementOf(p) === l) }));
-  return <Screen title="Mes photos" subtitle="Touchez une photo pour ouvrir sa retouche et ses versions.">
-    <Button title="+ Nouvelle retouche" onPress={() => router.navigate('/nouvelle')}/>
-    <CreativeLinks/>
-    {groupes.map(g => <View key={g.nom} style={{ gap: 10 }}><View style={s.sectionHeading}><Text style={s.section}>{g.nom}</Text><Text style={s.count}>{g.photos.length}</Text></View>{g.photos.map(p => <ProjectRow key={p.id} project={p}/>)}<Pressable accessibilityRole="button" onPress={() => router.navigate({ pathname: '/nouvelle', params: { logement: g.nom } })}><Text style={s.backLink}>+ Ajouter une photo à ce logement</Text></Pressable></View>)}
+  return <Screen title="Mes créations" subtitle="Retrouvez vos projets par logement. Touchez-en un pour le reprendre.">
+    <Button title="+ Créer" onPress={() => router.navigate('/creer')}/>
+    {groupes.map(g => <View key={g.nom} style={{ gap: 10 }}><View style={s.sectionHeading}><Text style={s.section}>{g.nom}</Text><Text style={s.count}>{g.photos.length}</Text></View>{g.photos.map(p => <ProjectRow key={p.id} project={p}/>)}<Pressable accessibilityRole="button" onPress={() => router.navigate({ pathname: '/nouvelle', params: { logement: g.nom, retour: undefined } })}><Text style={s.backLink}>+ Ajouter une photo à ce logement</Text></Pressable></View>)}
     {partieExemples}
   </Screen>;
 }
-/* Nouvelle retouche : le logement, la photo, l'idée. Une page à rouvrir à chaque fois. */
+/* Nouvelle retouche : une photo, une idée, et un rangement facultatif. */
 export function CreateScreen() {
-  const params = useLocalSearchParams<{ logement?: string }>();
-  const { projects, add, freeUsed, startExample } = useStudio();
+  const params = useLocalSearchParams<{ logement?: string; retour?: string }>();
+  const pathname = usePathname();
+  const { projects, ready, add, freeUsed, startExample } = useStudio();
   const logements = [...new Set(projects.filter(p => p.source !== 'example').map(logementOf))];
-  const [choix, setChoix] = useState(params.logement && logements.includes(params.logement) ? params.logement : logements[0] || '');
-  const [nouveau, setNouveau] = useState(params.logement && !logements.includes(params.logement) ? params.logement : '');
+  const [logement, setLogement] = useState(params.logement && params.logement !== 'Sans logement' ? params.logement : '');
+  const [photo, setPhoto] = useState<LocalPhotoAsset | null>(null);
   const [demande, setDemande] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const logement = choix ? choix : nouveau.trim();
+  const appliedProperty = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!params.logement) { appliedProperty.current = undefined; return; }
+    if (!ready || pathname !== '/nouvelle' || appliedProperty.current === params.logement) return;
+    appliedProperty.current = params.logement;
+    setLogement(params.logement === 'Sans logement' ? '' : params.logement);
+    // Apply only an explicit property handoff. Merely switching tabs keeps the draft intact.
+    router.setParams({ logement: undefined });
+  }, [params.logement, ready, pathname]);
+
   async function pick(camera: boolean) {
-    if (!logement) { setNotice('Choisissez ou nommez d’abord le logement.'); return; }
     setBusy(true); setNotice('');
     try {
       if (camera) {
@@ -170,18 +182,32 @@ export function CreateScreen() {
       }
       const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: .9, allowsEditing: false };
       const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-      if (!result.canceled && result.assets[0]) { const id = await add(result.assets[0], logement, demande.trim()); setDemande(''); router.push({ pathname: '/retouche', params: { id } }); }
+      if (!result.canceled && result.assets[0]) setPhoto(result.assets[0]);
     } catch (error) { setNotice(error instanceof Error && error.message.startsWith('Choisissez') ? error.message : 'La photo n’a pas pu être conservée sur cet appareil. Vérifiez l’espace disponible puis réessayez.'); }
     finally { setBusy(false); }
   }
-  return <Screen title={projects.some(p => p.source !== 'example') ? 'Nouvelle retouche' : 'Votre première retouche'} subtitle={freeUsed ? 'Une photo, une idée, et c’est parti.' : 'Votre première photo retouchée est offerte.'}>
-    <View style={s.panel}><Text style={s.eyebrow}>1 · LE LOGEMENT</Text><View style={s.suggestions}>{logements.map(l => <Pressable key={l} accessibilityRole="radio" accessibilityState={{ checked: choix === l }} onPress={() => setChoix(l)} style={[s.chip, choix === l && s.chipActive]}><Text style={[s.chipText, choix === l && s.chipTextActive]}>{l}</Text></Pressable>)}<Pressable accessibilityRole="radio" accessibilityState={{ checked: !choix }} onPress={() => setChoix('')} style={[s.chip, !choix && s.chipActive]}><Text style={[s.chipText, !choix && s.chipTextActive]}>+ Nouveau logement</Text></Pressable></View>{!choix && <TextInput accessibilityLabel="Nom du logement" value={nouveau} onChangeText={setNouveau} maxLength={100} placeholder="Ex. : Appartement Nice" placeholderTextColor="#7e8775" style={s.field}/>}</View>
+  async function create() {
+    if (!photo || busy) return;
+    setBusy(true); setNotice('');
+    try {
+      const id = await add(photo, logement.trim() || 'Sans logement', demande.trim());
+      const returnToVideo = params.retour === 'visite';
+      setPhoto(null); setDemande(''); setLogement('');
+      router.setParams({ logement: undefined, retour: undefined });
+      if (returnToVideo) router.navigate({ pathname: '/visite', params: { importedPhoto: id } });
+      else router.push({ pathname: '/retouche', params: { id } });
+    } catch (error) { setNotice(error instanceof Error && error.message.startsWith('Choisissez') ? error.message : 'La photo n’a pas pu être conservée sur cet appareil. Vérifiez l’espace disponible puis réessayez.'); }
+    finally { setBusy(false); }
+  }
+  return <Screen title="Retoucher une photo" subtitle={freeUsed ? 'Une photo, une idée, et c’est parti.' : 'Votre première photo retouchée est offerte.'} back="create">
+    {params.retour === 'visite' && <Text style={s.notice}>Ajoutez la photo : elle sera sélectionnée dans votre vidéo et vous retrouverez votre demande.</Text>}
+    <View style={s.panel}><Text style={s.eyebrow}>1 · VOTRE PHOTO</Text>{photo && <Photo source={{ uri: photo.uri }} label="La photo choisie"/>}<Button title={busy ? 'Ouverture…' : photo ? 'Reprendre une photo' : 'Prendre une photo'} disabled={busy} onPress={() => void pick(true)}/><Button title={photo ? 'Choisir une autre photo' : 'Choisir dans mes photos'} secondary disabled={busy} onPress={() => void pick(false)}/><Text style={s.small}>Une seule photo par retouche.</Text></View>
     <View style={s.panel}><Text style={s.eyebrow}>2 · CE QUE VOUS VOULEZ CHANGER · FACULTATIF</Text><TextInput accessibilityLabel="Votre demande de retouche" value={demande} onChangeText={setDemande} maxLength={20000} placeholder="Ex. : plus de lumière, enlève le bazar…" placeholderTextColor="#7e8775" multiline style={s.input}/><View style={s.suggestions}>{['Plus de lumière', 'Désencombrer', 'Changer toute la déco'].map(text => <Pressable key={text} accessibilityRole="button" onPress={() => setDemande(d => d ? `${d}, ${text.toLowerCase()}` : text)} style={s.suggestion}><Text style={s.small}>+ {text}</Text></Pressable>)}</View></View>
     <MobileBriefAssistant kind="photo" request={demande} onUse={setDemande} storageKey="studio-annonce.mobile.assistant.photo-new.v1"/>
-    <View style={s.panel}><Text style={s.eyebrow}>3 · LA PHOTO</Text><Button title={busy ? 'Ajout en cours…' : 'Prendre une photo'} disabled={busy || !logement} onPress={() => void pick(true)}/><Button title="Choisir dans mes photos" secondary disabled={busy || !logement} onPress={() => void pick(false)}/><Text style={s.small}>{logement ? `Elle sera rangée dans « ${logement} ».` : 'Nommez le logement pour continuer.'}</Text></View>
+    <OptionalPropertyPicker value={logement} properties={logements} onChange={setLogement}/>
+    <Button title={busy ? 'Enregistrement…' : params.retour === 'visite' ? 'Ajouter à ma vidéo' : 'Ouvrir ma retouche'} disabled={busy || !photo} onPress={() => void create()}/>
     {!!notice && <Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>}
     <Pressable accessibilityRole="button" onPress={() => { const id = startExample(); router.push({ pathname: '/retouche', params: { id } }); }}><Text style={s.backLink}>Pas de photo sous la main ? Voir le salon d’exemple ›</Text></Pressable>
-    <CreativeLinks/>
   </Screen>;
 }
 function ProjectRow({ project, history = false }: { project: Project; history?: boolean }) {
@@ -202,19 +228,36 @@ function PhotoEditor({ id }: { id: string }) {
   const [original, setOriginal] = useState(false);
   const [notice, setNotice] = useState('');
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  if (!project) return <Screen title="Retrouvons votre photo." subtitle="Ouvrez une photo depuis Mes photos."><Button title="Retour à mes photos" onPress={() => router.replace('/')}/></Screen>;
+  const [propertyDraft, setPropertyDraft] = useState<string | null>(null);
+  const [propertyBusy, setPropertyBusy] = useState(false);
+  const [propertySaveFailed, setPropertySaveFailed] = useState(false);
+  const [propertyNotice, setPropertyNotice] = useState('');
+  if (!project) return <Screen title="Retrouvons votre photo." subtitle="Ouvrez une photo depuis Mes créations."><Button title="Retour à mes créations" onPress={() => router.replace('/')}/></Screen>;
   const images = projectImages(project, uris);
   const selected = project.selected;
   const shown = original ? 0 : selected;
   const window = downloadState(project, now);
+  const currentProperty = logementOf(project);
+  const propertyValue = propertyDraft ?? (currentProperty === 'Sans logement' ? '' : currentProperty);
+  const nextProperty = propertyValue.trim() || 'Sans logement';
   function triggerDownload() {
     const result = download(project!.id);
     if (result) setReceipt(result);
     else setNotice('Vos crédits de démonstration sont utilisés. Aucun achat ni paiement n’est proposé dans cet aperçu.');
   }
-  return <Screen title="Votre photo" subtitle={project.title}>
-    <Pressable accessibilityRole="button" onPress={() => router.replace('/')}><Text style={s.backLink}>← Mes photos · {logementOf(project)}</Text></Pressable>
+  return <Screen title="Votre photo" subtitle={`${project.title} · ${logementOf(project)}`} back="library">
     <View style={s.card}><View style={s.resultHeading}><Text style={s.resultLabel}>{images[shown].label}</Text><Text style={s.muted}>{shown + 1} / {images.length}</Text></View><Photo source={images[shown].image} label={images[shown].label}/><View style={s.cardBody}><Button title={original ? 'Revoir ma version' : 'Comparer avec l’original'} secondary disabled={selected === 0} onPress={() => setOriginal(!original)}/>{project.source === 'example' && selected >= 2 && <Text style={s.small}>Aménagement virtuel · Exemple de décoration</Text>}</View></View>
+    {project.source === 'photo' && <View style={{ gap: 10 }}>
+      <OptionalPropertyPicker value={propertyValue} properties={projects.filter(item => item.source === 'photo').map(logementOf)} onChange={value => { setPropertyDraft(value); setPropertyNotice(''); setPropertySaveFailed(false); }}/>
+      {(nextProperty !== currentProperty || propertyBusy || propertySaveFailed) && <Button title={propertyBusy ? 'Enregistrement…' : 'Enregistrer le rangement'} disabled={propertyBusy} onPress={() => {
+        setPropertyBusy(true); setPropertyNotice(''); setPropertySaveFailed(false);
+        void update(project.id, { property: nextProperty }).then(saved => {
+          setPropertySaveFailed(!saved);
+          setPropertyNotice(saved ? `Rangement enregistré : ${nextProperty}.` : 'Le rangement est modifié pour cette session. L’enregistrement sur cet appareil n’a pas abouti.');
+        }).finally(() => setPropertyBusy(false));
+      }}/>}
+      {!!propertyNotice && <Text accessibilityLiveRegion="polite" style={s.notice}>{propertyNotice}</Text>}
+    </View>}
     {images.length > 1 && <View style={s.panel}><Text style={s.section}>Toutes les versions · {images.length}</Text>{images.map((item, i) => <Pressable key={item.label} accessibilityRole="button" accessibilityState={{ selected: selected === i }} accessibilityLabel={`Afficher ${item.label}`} onPress={() => { setOriginal(false); update(project.id, { selected: i }); }} style={[s.versionRow, selected === i && s.selected]}><Photo source={item.image} label={item.label} small/><View style={{ flex: 1, gap: 4 }}><Text style={s.eyebrow}>{i === 0 ? 'LE POINT DE DÉPART' : `VERSION ${i}`}</Text><Text style={s.rowTitle}>{item.label}</Text><Text style={s.rowStatus}>{project.saved === i ? '♥ Version gardée' : selected === i ? 'Affichée' : 'Afficher'}</Text></View></Pressable>)}</View>}
     {window.deadline !== null && <View style={[s.deadline, window.expired && s.deadlineExpired]}><Text style={s.eyebrow}>{window.expired ? 'DÉLAI TERMINÉ' : 'VOS 7 JOURS DE RETOUCHE'}</Text><Text style={s.section}>{window.expired ? 'Votre photo reste disponible.' : `Jusqu’au ${deadlineLabel(window.deadline)}`}</Text><Text style={s.small}>{window.expired ? 'Relancer les modifications demande un nouveau crédit de démonstration.' : 'Les téléchargements suivants ne relancent pas ce délai.'}</Text>{window.expired && <Button title="Réactiver les retouches · 1 crédit démo" disabled={credits === 0} onPress={() => { const result = renew(project.id); if (result) setReceipt(result); }}/>}</View>}
     <View style={s.panel}><Text style={s.section}>{images.length === 1 ? 'Votre idée pour cette photo' : 'Un autre ajustement ?'}</Text><TextInput accessibilityLabel="Votre demande de retouche" value={project.request} onChangeText={request => update(project.id, { request })} maxLength={20000} editable={!window.expired} placeholder="Ex. : une décoration plus chaleureuse…" placeholderTextColor="#7e8775" multiline style={[s.input, window.expired && { opacity: .55 }]}/>{!window.expired && <View style={s.suggestions}>{['Plus de lumière', 'Changer la décoration', 'Désencombrer'].map(text => <Pressable key={text} accessibilityRole="button" onPress={() => update(project.id, { request: text })} style={s.suggestion}><Text style={s.small}>{text}</Text></Pressable>)}</View>}<>{!window.expired && <MobileBriefAssistant kind="photo" request={project.request} onUse={request => update(project.id, { request })} storageKey={`studio-annonce.mobile.assistant.photo.${project.id}.v1`}/>}</><Button title={window.expired ? 'Retouches à réactiver' : 'Préparer cette retouche'} disabled={!project.request.trim() || window.expired} onPress={() => setNotice('Votre demande est conservée avec cette photo. La génération IA sera connectée plus tard ; aucune nouvelle image n’a été créée.')}/><Text style={s.small}>Votre demande est gardée localement. Génération IA à venir.</Text></View>
@@ -227,9 +270,9 @@ export function HistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { projects, uris, update } = useStudio();
   const project = projects.find(p => p.id === id);
-  if (!project) return <Screen title="Retrouvons cet historique." subtitle="Choisissez une photo dans vos historiques."><Button title="Retour à mes photos" onPress={() => router.replace('/')}/></Screen>;
+  if (!project) return <Screen title="Retrouvons cet historique." subtitle="Choisissez une photo dans Mes créations."><Button title="Retour à mes créations" onPress={() => router.replace('/')}/></Screen>;
   const images = projectImages(project, uris);
-  return <Screen title="Toutes les versions" subtitle={project.title}><Pressable accessibilityRole="button" onPress={() => router.replace('/')}><Text style={s.backLink}>← Mes photos</Text></Pressable><View style={s.historyIntro}><Text style={s.eyebrow}>{images.length} {images.length === 1 ? 'IMAGE CONSERVÉE' : 'IMAGES CONSERVÉES'}</Text><Text style={s.body}>Touchez une version pour la voir en grand.</Text></View>{images.map((item, i) => <Pressable key={item.label} accessibilityRole="button" accessibilityState={{ selected: project.selected === i }} accessibilityLabel={`Afficher ${item.label}${project.saved === i ? ', version gardée' : ''}`} onPress={() => { update(project.id, { selected: i }); router.push({ pathname: '/retouche', params: { id: project.id } }); }} style={[s.versionRow, project.selected === i && s.selected]}><Photo source={item.image} label={item.label} small/><View style={{ flex: 1, gap: 5 }}><Text style={s.eyebrow}>{i === 0 ? 'VOTRE POINT DE DÉPART' : `VERSION ${i}`}</Text><Text style={s.rowTitle}>{item.label}</Text><Text style={s.rowStatus}>{project.saved === i ? '♥ Version gardée' : project.selected === i ? 'Version affichée' : 'Ouvrir cette version'}</Text></View><Text style={s.arrow}>›</Text></Pressable>)}<Text style={s.small}>L’original et toutes les propositions sont conservés. Chaque photo possède son propre historique.</Text></Screen>;
+  return <Screen title="Toutes les versions" subtitle={project.title} back="library"><View style={s.historyIntro}><Text style={s.eyebrow}>{images.length} {images.length === 1 ? 'IMAGE CONSERVÉE' : 'IMAGES CONSERVÉES'}</Text><Text style={s.body}>Touchez une version pour la voir en grand.</Text></View>{images.map((item, i) => <Pressable key={item.label} accessibilityRole="button" accessibilityState={{ selected: project.selected === i }} accessibilityLabel={`Afficher ${item.label}${project.saved === i ? ', version gardée' : ''}`} onPress={() => { update(project.id, { selected: i }); router.push({ pathname: '/retouche', params: { id: project.id } }); }} style={[s.versionRow, project.selected === i && s.selected]}><Photo source={item.image} label={item.label} small/><View style={{ flex: 1, gap: 5 }}><Text style={s.eyebrow}>{i === 0 ? 'VOTRE POINT DE DÉPART' : `VERSION ${i}`}</Text><Text style={s.rowTitle}>{item.label}</Text><Text style={s.rowStatus}>{project.saved === i ? '♥ Version gardée' : project.selected === i ? 'Version affichée' : 'Ouvrir cette version'}</Text></View><Text style={s.arrow}>›</Text></Pressable>)}<Text style={s.small}>L’original et toutes les propositions sont conservés. Chaque photo possède son propre historique.</Text></Screen>;
 }
 const PACKS = [['À l’unité', '1,90 €', '1 photo'], ['Pack 5', '8,90 €', '1,78 € la photo'], ['Pack 10', '14,90 €', '1,49 € la photo'], ['Pack 25', '29,90 €', '1,20 € la photo']];
 export function AccountScreen() {

@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Clock3, Film, Images, Plus, ShieldCheck, Upload, X } from "lucide-react";
-import { logementsDe } from "./studio-screens";
+import { logementsDe, OptionalProperty, UNASSIGNED_PROPERTY } from "./studio-screens";
 import { storageError, type DemoLibrary } from "./library";
 import { BriefAssistant } from "./brief-assistant";
+import { CreationBack } from "./creation-hub";
 import "./video-frames.css";
 
 type ExtractedFrame = { id: string; time: number; file: File; url: string; selected: boolean };
@@ -48,14 +49,15 @@ async function frameAt(video: HTMLVideoElement, time: number, index: number) {
   return { id: crypto.randomUUID(), time, file, url: URL.createObjectURL(file), selected: true } satisfies ExtractedFrame;
 }
 
-export function VideoFrames({ library, busy, onCancel, onCreate }: {
+export function VideoFrames({ library, busy, active, onCancel, onCreate }: {
   library: DemoLibrary;
   busy: boolean;
+  active: boolean;
   onCancel: () => void;
   onCreate: (files: File[], logement: string, videoName: string, request: string) => Promise<void>;
 }) {
   const logements = logementsDe(library, false);
-  const [choix, setChoix] = useState(logements[0] || "__nouveau");
+  const [choix, setChoix] = useState("");
   const [nouveau, setNouveau] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
@@ -67,8 +69,10 @@ export function VideoFrames({ library, busy, onCancel, onCreate }: {
   const video = useRef<HTMLVideoElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const urls = useRef(new Set<string>());
-  const logement = choix === "__nouveau" ? nouveau.trim() : choix;
+  const logement = (choix === "__nouveau" ? nouveau.trim() : choix) || UNASSIGNED_PROPERTY;
   const selected = frames.filter(frame => frame.selected);
+
+  useEffect(() => { if (!active) video.current?.pause(); }, [active]);
 
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -126,20 +130,12 @@ export function VideoFrames({ library, busy, onCancel, onCreate }: {
   }
 
   return <main className="st-main vf-main">
-    <button className="text-action st-back" onClick={onCancel}>← Mes photos</button>
-    <p className="eyebrow">PHOTOS DEPUIS UNE VIDÉO</p>
-    <h1>Choisissez les meilleurs instants.</h1>
+    <CreationBack onClick={onCancel}/>
+    <p className="eyebrow">EXTRAIRE LES MEILLEURS INSTANTS</p>
+    <h1>Vidéo → photos</h1>
     <p className="vf-intro">Ajoutez une vidéo du logement. Le studio en extrait six images, puis vous gardez seulement celles qui mettent les pièces en valeur.</p>
 
-    <section className="vf-step"><div className="vf-step-title"><span>1</span><div><h2>Dans quel logement ?</h2><p>Les photos seront rangées avec les autres.</p></div></div>
-      <div className="st-homes" role="radiogroup" aria-label="Logement">
-        {logements.map(name => <button type="button" role="radio" aria-checked={choix === name} key={name} onClick={() => setChoix(name)}>{name}</button>)}
-        <button type="button" role="radio" aria-checked={choix === "__nouveau"} onClick={() => setChoix("__nouveau")}><Plus size={16}/> Nouveau logement</button>
-      </div>
-      {choix === "__nouveau" && <label className="st-field">Nom du logement<input value={nouveau} onChange={event => setNouveau(event.target.value)} maxLength={100} placeholder="Ex. : Villa avec piscine"/></label>}
-    </section>
-
-    <section className="vf-step"><div className="vf-step-title"><span>2</span><div><h2>Ajoutez votre vidéo</h2><p>Le traitement reste sur cet appareil.</p></div></div>
+    <section className="vf-step"><div className="vf-step-title"><span>1</span><div><h2>Ajoutez votre vidéo</h2><p>Le traitement reste sur cet appareil.</p></div></div>
       {!videoUrl ? <button className="vf-drop" onClick={() => input.current?.click()}><span><Upload size={26}/></span><strong>Choisir une vidéo</strong><small>MP4, MOV ou WebM · 500 Mo maximum</small></button> : <div className="vf-video-wrap">
         <video ref={video} src={videoUrl} controls playsInline preload="metadata" onLoadedMetadata={event => { const value = event.currentTarget.duration; setDuration(Number.isFinite(value) ? value : 0); }} onError={() => setError("Cette vidéo ne peut pas être lue par votre navigateur.")}/>
         <div className="vf-video-meta"><span><Film size={16}/><strong>{videoFile?.name}</strong>{duration > 0 && <small>{timeLabel(duration)}</small>}</span><button aria-label="Retirer la vidéo" onClick={() => { clearFrames(); if (videoUrl) URL.revokeObjectURL(videoUrl); setVideoUrl(""); setVideoFile(null); setDuration(0); }}><X size={16}/> Changer</button></div>
@@ -148,18 +144,19 @@ export function VideoFrames({ library, busy, onCancel, onCreate }: {
       <input ref={input} hidden type="file" accept="video/mp4,video/quicktime,video/webm,video/*" onChange={event => { choose(event.target.files?.[0]); event.target.value = ""; }}/>
     </section>
 
-    {videoFile && <section className="vf-step"><div className="vf-step-title"><span>3</span><div><h2>Quel résultat voulez-vous ?</h2><p>Écrivez librement, puis demandez un peu d’aide si vous le souhaitez.</p></div></div>
+    {videoFile && <section className="vf-step"><div className="vf-step-title"><span>2</span><div><h2>Quel résultat voulez-vous ?</h2><p>Écrivez librement, puis demandez un peu d’aide si vous le souhaitez.</p></div></div>
       <label className="vf-request">Votre demande<textarea value={request} onChange={event => setRequest(event.target.value)} maxLength={20000} rows={4} placeholder="Ex. : rends les images plus lumineuses, enlève les objets qui traînent et garde un rendu naturel pour Airbnb…"/></label>
       <BriefAssistant kind="photo" request={request} onUse={setRequest}/>
-      <p className="vf-request-note">Ce brief sera appliqué à toutes les photos choisies. Vous pourrez ensuite ajuster chaque photo séparément.</p>
+      <p className="vf-request-note">Votre demande sera enregistrée avec chaque photo choisie. La retouche automatique reste à connecter.</p>
     </section>}
 
-    {frames.length > 0 && <section className="vf-step"><div className="vf-step-title"><span>4</span><div><h2>Gardez les bonnes photos</h2><p>Cliquez sur une image pour la sélectionner ou l’enlever.</p></div><strong className="vf-selection-count">{selected.length} / {frames.length}</strong></div>
+    {frames.length > 0 && <section className="vf-step"><div className="vf-step-title"><span>3</span><div><h2>Gardez les bonnes photos</h2><p>Cliquez sur une image pour la sélectionner ou l’enlever.</p></div><strong className="vf-selection-count">{selected.length} / {frames.length}</strong></div>
       <div className="vf-grid">{frames.map(frame => <button key={frame.id} className={`vf-frame ${frame.selected ? "selected" : ""}`} aria-pressed={frame.selected} onClick={() => setFrames(current => current.map(item => item.id === frame.id ? { ...item, selected: !item.selected } : item))}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={frame.url} alt={`Image à ${timeLabel(frame.time)}`}/><span className="vf-frame-time">{timeLabel(frame.time)}</span><span className="vf-check">{frame.selected ? <Check size={16}/> : <Plus size={16}/>}</span>
       </button>)}</div>
-      <div className="vf-save"><button className="button dark st-big" disabled={!selected.length || !logement || working || busy} onClick={() => void save()}>{working || busy ? "Enregistrement…" : `Ajouter ${selected.length} ${selected.length > 1 ? "photos" : "photo"} à « ${logement || "…"} »`}</button><p><ShieldCheck size={16}/> La vidéo reste locale. Les images sont enregistrées dans ce navigateur.</p></div>
+      <OptionalProperty options={logements} choice={choix} name={nouveau} onChoice={setChoix} onName={setNouveau} disabled={working || busy}/>
+      <div className="vf-save"><button className="button dark st-big" disabled={!selected.length || working || busy} onClick={() => void save()}>{working || busy ? "Enregistrement…" : `Ajouter ${selected.length} ${selected.length > 1 ? "photos" : "photo"} à mes créations`}</button><p><ShieldCheck size={16}/> La vidéo reste locale. Les images sont enregistrées dans ce navigateur.</p></div>
     </section>}
     {error && <p className="st-error" role="alert">{error}</p>}
   </main>;

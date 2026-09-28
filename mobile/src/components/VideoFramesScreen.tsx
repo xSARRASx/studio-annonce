@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Button, Screen, colors, useStudio } from './Studio';
 import { MobileBriefAssistant } from './MobileBriefAssistant';
+import { OptionalPropertyPicker } from './OptionalPropertyPicker';
 import { logementOf } from '../lib/studio-model';
 import { extractVideoFrame, getVideoDuration, releaseVideoFrame } from '../lib/video-frame-extractor';
 
@@ -21,8 +22,7 @@ function suggestedTimes(durationMs: number) {
 export function VideoFramesScreen() {
   const { projects, add } = useStudio();
   const logements = [...new Set(projects.filter(project => project.source !== 'example').map(logementOf))];
-  const [choix, setChoix] = useState<string | null>(null);
-  const [nouveau, setNouveau] = useState('');
+  const [logement, setLogement] = useState('');
   const [video, setVideo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [durationMs, setDurationMs] = useState(0);
   const [frames, setFrames] = useState<Frame[]>([]);
@@ -31,8 +31,6 @@ export function VideoFramesScreen() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const frameUris = useRef(new Set<string>());
-  const activeChoice = choix === null ? logements[0] || '' : choix;
-  const logement = activeChoice || nouveau.trim();
   const selected = frames.filter(frame => frame.selected);
 
   useEffect(() => () => {
@@ -79,13 +77,14 @@ export function VideoFramesScreen() {
   }
 
   async function save() {
-    if (!video || !selected.length || !logement || busy) return;
+    if (!video || !selected.length || busy) return;
     setBusy(true); setNotice('');
     try {
       const ids: string[] = [];
       for (const [index, frame] of selected.entries()) {
-        ids.push(await add({ uri: frame.uri, fileName: `photo-video-${String(index + 1).padStart(2, '0')}-${timeLabel(frame.timeMs).replace(':', '-')}.jpg`, mimeType: 'image/jpeg' }, logement, request.trim() || `Image extraite de la vidéo « ${video.fileName || 'ma vidéo'} » à ${timeLabel(frame.timeMs)}.`));
+        ids.push(await add({ uri: frame.uri, fileName: `photo-video-${String(index + 1).padStart(2, '0')}-${timeLabel(frame.timeMs).replace(':', '-')}.jpg`, mimeType: 'image/jpeg' }, logement.trim() || 'Sans logement', request.trim() || `Image extraite de la vidéo « ${video.fileName || 'ma vidéo'} » à ${timeLabel(frame.timeMs)}.`));
       }
+      releaseFrames(); setFrames([]); setVideo(null); setDurationMs(0); setInstant(''); setRequest(''); setLogement(''); setBusy(false);
       if (ids.length === 1) router.replace({ pathname: '/retouche', params: { id: ids[0] } });
       else router.replace('/');
     } catch { setNotice('Ces photos n’ont pas pu être enregistrées sur l’appareil. Vérifiez l’espace disponible puis réessayez.'); setBusy(false); }
@@ -95,18 +94,15 @@ export function VideoFramesScreen() {
   const customTime = customSeconds * 1000;
   const customValid = Number.isFinite(customTime) && customTime >= 0 && customTime < durationMs;
 
-  return <Screen title="Photos depuis une vidéo" subtitle="Choisissez les meilleurs instants, puis rangez-les avec les photos du logement.">
-    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>← Mes photos</Text></Pressable>
+  return <Screen title="Vidéo → photos" subtitle="Choisissez les meilleurs instants et retrouvez-les dans Mes créations." back="create">
 
-    <View style={styles.panel}><Text style={styles.kicker}>1 · LE LOGEMENT</Text><View style={styles.chips}>{logements.map(name => <Pressable key={name} accessibilityRole="radio" accessibilityState={{ checked: activeChoice === name }} onPress={() => setChoix(name)} style={[styles.chip, activeChoice === name && styles.chipActive]}><Text style={[styles.chipText, activeChoice === name && styles.chipTextActive]}>{name}</Text></Pressable>)}<Pressable accessibilityRole="radio" accessibilityState={{ checked: !activeChoice }} onPress={() => setChoix('')} style={[styles.chip, !activeChoice && styles.chipActive]}><Text style={[styles.chipText, !activeChoice && styles.chipTextActive]}>+ Nouveau logement</Text></Pressable></View>{!activeChoice && <TextInput accessibilityLabel="Nom du logement" value={nouveau} onChangeText={setNouveau} maxLength={100} placeholder="Ex. : Villa avec piscine" placeholderTextColor="#7e8775" style={styles.field}/>}</View>
-
-    <View style={styles.panel}><Text style={styles.kicker}>2 · LA VIDÉO</Text>{video ? <><View style={styles.videoInfo}><View style={styles.videoIcon}><Text style={styles.videoIconText}>▶</Text></View><View style={{ flex: 1 }}><Text numberOfLines={2} style={styles.cardTitle}>{video.fileName || 'Ma vidéo'}</Text><Text style={styles.small}>{timeLabel(durationMs)} · traitée sur cet appareil</Text></View></View><Button title={busy ? 'Extraction en cours…' : frames.length ? 'Recréer 6 propositions' : 'Extraire 6 photos'} disabled={busy} onPress={() => void extract(suggestedTimes(durationMs), true)}/><Button title="Choisir une autre vidéo" secondary disabled={busy} onPress={() => void pickVideo()}/></> : <><Text style={styles.body}>Choisissez une vidéo du logement. Six images bien réparties seront proposées automatiquement.</Text><Button title={busy ? 'Ouverture…' : 'Choisir une vidéo'} disabled={busy} onPress={() => void pickVideo()}/><Text style={styles.small}>MP4, MOV ou vidéo de la photothèque · 500 Mo maximum</Text></>}</View>
+    <View style={styles.panel}><Text style={styles.kicker}>1 · VOTRE VIDÉO</Text>{video ? <><View style={styles.videoInfo}><View style={styles.videoIcon}><Text style={styles.videoIconText}>▶</Text></View><View style={{ flex: 1 }}><Text numberOfLines={2} style={styles.cardTitle}>{video.fileName || 'Ma vidéo'}</Text><Text style={styles.small}>{timeLabel(durationMs)} · traitée sur cet appareil</Text></View></View><Button title={busy ? 'Extraction en cours…' : frames.length ? 'Recréer 6 propositions' : 'Extraire 6 photos'} disabled={busy} onPress={() => void extract(suggestedTimes(durationMs), true)}/><Button title="Choisir une autre vidéo" secondary disabled={busy} onPress={() => void pickVideo()}/></> : <><Text style={styles.body}>Choisissez une vidéo. Six images bien réparties seront proposées automatiquement.</Text><Button title={busy ? 'Ouverture…' : 'Choisir une vidéo'} disabled={busy} onPress={() => void pickVideo()}/><Text style={styles.small}>MP4, MOV ou vidéo de la photothèque · 500 Mo maximum</Text></>}</View>
 
     {!!video && <View style={styles.panel}><Text style={styles.kicker}>AJOUTER UN INSTANT PRÉCIS · FACULTATIF</Text><Text style={styles.small}>Entrez la seconde voulue, par exemple 12,5.</Text><View style={styles.customRow}><TextInput accessibilityLabel="Seconde de la vidéo" value={instant} onChangeText={setInstant} keyboardType="decimal-pad" placeholder="12,5" placeholderTextColor="#7e8775" style={[styles.field, { flex: 1 }]}/><Pressable accessibilityRole="button" accessibilityState={{ disabled: !customValid || busy }} disabled={!customValid || busy} onPress={() => void extract([customTime], false)} style={[styles.addButton, (!customValid || busy) && { opacity: .4 }]}><Text style={styles.addButtonText}>+ Ajouter</Text></Pressable></View></View>}
 
-    {!!video && <><View style={styles.panel}><Text style={styles.kicker}>3 · LE RÉSULTAT SOUHAITÉ</Text><Text style={styles.body}>Dites ce que vous voulez obtenir. Cette demande sera liée à toutes les photos choisies.</Text><TextInput accessibilityLabel="Votre demande pour les photos" value={request} onChangeText={setRequest} maxLength={20000} multiline placeholder="Ex. : plus lumineux, enlève les objets qui traînent, rendu naturel pour Airbnb…" placeholderTextColor="#7e8775" style={styles.request}/></View><MobileBriefAssistant kind="photo" request={request} onUse={setRequest} storageKey="studio-annonce.mobile.assistant.video-frames.v1"/></>}
+    {!!video && <><View style={styles.panel}><Text style={styles.kicker}>2 · LE RÉSULTAT SOUHAITÉ</Text><Text style={styles.body}>Dites ce que vous voulez obtenir. Cette demande sera liée à toutes les photos choisies.</Text><TextInput accessibilityLabel="Votre demande pour les photos" value={request} onChangeText={setRequest} maxLength={20000} multiline placeholder="Ex. : plus lumineux, enlève les objets qui traînent, rendu naturel pour Airbnb…" placeholderTextColor="#7e8775" style={styles.request}/></View><MobileBriefAssistant kind="photo" request={request} onUse={setRequest} storageKey="studio-annonce.mobile.assistant.video-frames.v1"/></>}
 
-    {!!frames.length && <View style={styles.panel}><View style={styles.frameHeader}><View><Text style={styles.kicker}>4 · VOS PHOTOS</Text><Text style={styles.small}>Touchez une photo pour la garder ou l’enlever.</Text></View><Text style={styles.count}>{selected.length} / {frames.length}</Text></View><View style={styles.grid}>{frames.map(frame => <Pressable key={frame.id} accessibilityRole="button" accessibilityState={{ selected: frame.selected }} accessibilityLabel={`Image à ${timeLabel(frame.timeMs)}`} onPress={() => setFrames(current => current.map(item => item.id === frame.id ? { ...item, selected: !item.selected } : item))} style={[styles.frame, frame.selected && styles.frameSelected]}><Image source={{ uri: frame.uri }} style={styles.image}/><Text style={styles.time}>{timeLabel(frame.timeMs)}</Text><Text style={[styles.check, frame.selected && styles.checkSelected]}>{frame.selected ? '✓' : '+'}</Text></Pressable>)}</View><Button title={busy ? 'Enregistrement…' : `Ajouter ${selected.length} ${selected.length > 1 ? 'photos' : 'photo'} à « ${logement || '…'} »`} disabled={busy || !selected.length || !logement} onPress={() => void save()}/><Text style={styles.small}>La vidéo n’est pas envoyée à un serveur. Les photos extraites sont enregistrées dans votre espace local avec votre demande.</Text></View>}
+    {!!frames.length && <View style={styles.panel}><View style={styles.frameHeader}><View><Text style={styles.kicker}>3 · VOS PHOTOS</Text><Text style={styles.small}>Touchez une photo pour la garder ou l’enlever.</Text></View><Text style={styles.count}>{selected.length} / {frames.length}</Text></View><View style={styles.grid}>{frames.map(frame => <Pressable key={frame.id} accessibilityRole="button" accessibilityState={{ selected: frame.selected }} accessibilityLabel={`Image à ${timeLabel(frame.timeMs)}`} onPress={() => setFrames(current => current.map(item => item.id === frame.id ? { ...item, selected: !item.selected } : item))} style={[styles.frame, frame.selected && styles.frameSelected]}><Image source={{ uri: frame.uri }} style={styles.image}/><Text style={styles.time}>{timeLabel(frame.timeMs)}</Text><Text style={[styles.check, frame.selected && styles.checkSelected]}>{frame.selected ? '✓' : '+'}</Text></Pressable>)}</View><OptionalPropertyPicker value={logement} properties={logements} onChange={setLogement}/><Button title={busy ? 'Enregistrement…' : `Ajouter ${selected.length} ${selected.length > 1 ? 'photos' : 'photo'}${logement.trim() ? ` à « ${logement.trim()} »` : ' à mes créations'}`} disabled={busy || !selected.length} onPress={() => void save()}/><Text style={styles.small}>La vidéo n’est pas envoyée à un serveur. Les photos extraites sont enregistrées dans votre espace local avec votre demande.</Text></View>}
     {!!notice && <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text>}
   </Screen>;
 }

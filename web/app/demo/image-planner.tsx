@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, CheckCircle2, ChevronDown, ImagePlus, Info, Lightbulb, Palette, Plus, Sparkles, Sun } from "lucide-react";
 import { BriefAssistant } from "./brief-assistant";
+import { CreationBack } from "./creation-hub";
 import { suggestionState } from "../../../shared/idea-suggestions";
 import "./image-planner.css";
 
@@ -13,7 +14,7 @@ const EXAMPLES = [
   { label: "Un visuel créatif", detail: "Une image originale pour raconter une idée.", text: "Crée une illustration éditoriale colorée d’une petite maison dans un jardin luxuriant, avec une composition simple et accueillante.", icon: Palette, tone: "lilac" },
 ] as const;
 
-export function ImagePlanner() {
+export function ImagePlanner({ onBack, onPhoto }: { onBack: () => void; onPhoto: () => void }) {
   const [idea, setIdea] = useState("");
   const [brief, setBrief] = useState("");
   const [briefIdea, setBriefIdea] = useState("");
@@ -48,6 +49,7 @@ export function ImagePlanner() {
   }
 
   return <main className="st-main st-image-plan">
+    <CreationBack onClick={onBack}/>
     <header className="ip-heading">
       <span className="ip-heading-icon" aria-hidden="true"><ImagePlus size={25} strokeWidth={1.7}/></span>
       <div><p className="eyebrow">À PARTIR D’UNE IDÉE</p><h1>Créer une image</h1></div>
@@ -87,7 +89,7 @@ export function ImagePlanner() {
 
     <aside className="ip-next" aria-label="À propos de la création d’images">
       <span className="ip-next-icon" aria-hidden="true"><Sparkles size={21}/></span>
-      <div><h2>Imaginez librement.</h2><p>Ces images seront des créations fictives. Pour améliorer la photo d’un logement existant, choisissez « Nouvelle retouche ».</p><p className="ip-connection">La génération IA sera disponible ici une fois connectée. Pour le moment, vous préparez votre description.</p></div>
+      <div><h2>Imaginez librement.</h2><p>Ces images seront des créations fictives. Vous avez déjà une photo du logement ? <button className="text-action" onClick={onPhoto}>Retoucher une photo</button></p><p className="ip-connection">La génération IA sera disponible ici une fois connectée. Pour le moment, vous préparez votre description.</p></div>
     </aside>
     <p className="ip-local"><Info size={14} aria-hidden="true"/> Le brouillon est conservé dans ce navigateur si son stockage est disponible. Aucune génération n’est lancée.</p>
   </main>;
