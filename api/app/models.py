@@ -37,6 +37,14 @@ class CodeConnexion(Base):
     utilise: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class TentativeConnexion(Base):
+    """Garde les codes erronés pour limiter les essais même entre deux processus web."""
+    __tablename__ = "tentatives_connexion"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(320), index=True)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant, index=True)
+
+
 class Jeton(Base):
     __tablename__ = "jetons"
     valeur: Mapped[str] = mapped_column(String(64), primary_key=True)

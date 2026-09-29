@@ -10,3 +10,4 @@ stripe==10.*
 imageio-ffmpeg==0.5.*
 psycopg[binary]==3.2.*
 email-validator==2.*
+a2wsgi==1.*

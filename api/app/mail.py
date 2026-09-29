@@ -1,14 +1,18 @@
-"""Envoi des mails (code de connexion). Sans SMTP configuré, le code s'affiche dans les journaux du serveur."""
+"""Envoi des codes de connexion par SMTP."""
 import smtplib
 from email.message import EmailMessage
 
 from .config import reglages
 
 
+def disponible() -> bool:
+    return bool(reglages.SMTP_HOST and reglages.SMTP_USER and reglages.SMTP_PASSWORD
+                and reglages.MAIL_FROM and "example.com" not in reglages.MAIL_FROM)
+
+
 def envoyer(destinataire: str, sujet: str, texte: str) -> None:
-    if not reglages.SMTP_HOST:
-        print(f"[mail non envoyé, SMTP absent] à {destinataire} : {sujet}\n{texte}")
-        return
+    if not disponible():
+        raise RuntimeError("Envoi des emails non configuré")
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = reglages.MAIL_FROM, destinataire, sujet
     msg.set_content(texte)

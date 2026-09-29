@@ -13,7 +13,7 @@ export default function PageCompte() {
     <div className="apparait space-y-8 max-w-3xl">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Mes crédits</h1>
-        <p className="text-fg-muted mt-1">1 crédit = 1 photo gardée en HD. Les essais sont illimités avant de garder, et 7 jours après.</p>
+        <p className="text-fg-muted mt-1">1 crédit = 1 photo gardée en HD. Jusqu&apos;à 30 essais par photo payante pendant une période de 7 jours.</p>
       </div>
       <Message texte={erreur} />
       <Carte className="flex items-center gap-4">

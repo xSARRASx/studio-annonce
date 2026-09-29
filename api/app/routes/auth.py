@@ -4,13 +4,13 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import reglages
 from ..db import session
-from ..mail import envoyer
-from ..models import CodeConnexion, Compte, Jeton, maintenant
+from ..mail import disponible as email_disponible, envoyer
+from ..models import CodeConnexion, Compte, Jeton, TentativeConnexion, maintenant
 
 routeur = APIRouter(prefix="/auth", tags=["connexion"])
 
@@ -26,21 +26,47 @@ class Verification(BaseModel):
 
 @routeur.post("/code")
 def demander_code(d: DemandeCode, s: Session = Depends(session)):
+    if not email_disponible() and not reglages.CODE_DANS_LA_REPONSE:
+        raise HTTPException(503, "La connexion par email n'est pas encore disponible.")
+    email = d.email.lower()
+    # expire_le = émission + 10 minutes ; cette borne couvre la dernière heure.
+    derniere_heure = maintenant() - timedelta(minutes=50)
+    demandes = s.scalar(select(func.count(CodeConnexion.id)).where(
+        CodeConnexion.email == email, CodeConnexion.expire_le >= derniere_heure)) or 0
+    if demandes >= 3:
+        raise HTTPException(429, "Trop de codes demandés pour cette adresse. Réessayez dans une heure.")
     code = f"{secrets.randbelow(1_000_000):06d}"
-    s.add(CodeConnexion(email=d.email.lower(), code=code, expire_le=maintenant() + timedelta(minutes=10)))
+    s.execute(update(CodeConnexion).where(CodeConnexion.email == email, CodeConnexion.utilise == 0)
+              .values(utilise=1))
+    s.add(CodeConnexion(email=email, code=code, expire_le=maintenant() + timedelta(minutes=10)))
+    if email_disponible():
+        try:
+            envoyer(email, "Votre code Studio Annonce", f"Votre code de connexion : {code}\nIl est valable 10 minutes.")
+        except Exception as erreur:
+            s.rollback()
+            raise HTTPException(503, "Le code n'a pas pu être envoyé. Réessayez plus tard.") from erreur
     s.commit()
-    envoyer(d.email, "Votre code Studio Annonce", f"Votre code de connexion : {code}\nIl est valable 10 minutes.")
-    if reglages.CODE_DANS_LA_REPONSE and not reglages.SMTP_HOST:
+    if reglages.CODE_DANS_LA_REPONSE and not email_disponible():
         return {"ok": True, "code_demo": code}
     return {"ok": True}
 
 
 @routeur.post("/verifier")
 def verifier(v: Verification, s: Session = Depends(session)):
+    if not email_disponible() and not reglages.CODE_DANS_LA_REPONSE:
+        raise HTTPException(503, "La connexion par email n'est pas encore disponible.")
     email = v.email.lower()
+    if len(v.code) != 6 or not v.code.isascii() or not v.code.isdigit():
+        raise HTTPException(400, "Code incorrect ou expiré.")
+    tentatives = s.scalar(select(func.count(TentativeConnexion.id)).where(
+        TentativeConnexion.email == email, TentativeConnexion.cree_le >= maintenant() - timedelta(minutes=10))) or 0
+    if tentatives >= 5:
+        raise HTTPException(429, "Trop de codes incorrects. Réessayez dans dix minutes.")
     c = s.execute(select(CodeConnexion).where(CodeConnexion.email == email, CodeConnexion.code == v.code,
                                                CodeConnexion.utilise == 0).order_by(CodeConnexion.id.desc())).scalars().first()
     if not c or c.expire_le < maintenant():
+        s.add(TentativeConnexion(email=email))
+        s.commit()
         raise HTTPException(400, "Code incorrect ou expiré.")
     c.utilise = 1
     compte = s.execute(select(Compte).where(Compte.email == email)).scalar_one_or_none()

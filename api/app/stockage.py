@@ -3,11 +3,15 @@ Le serveur ne garde jamais un fichier lourd chez lui : tout part au stockage, on
 from __future__ import annotations
 
 import os
+import hashlib
+import hmac
+import time
 from pathlib import Path
 
 from .config import reglages
 
 DOSSIER_LOCAL = Path(__file__).resolve().parent.parent / "stockage-local"
+DELAI_LIEN_LOCAL = 3600
 
 
 def _s3():
@@ -40,14 +44,30 @@ def lire(cle: str) -> bytes:
 
 
 def url_publique(cle: str) -> str:
-    """Adresse que le site ou l'appli affiche. En prod : le stockage ou son CDN, jamais notre serveur."""
+    """Adresse temporaire pour les fichiers locaux ; URL du stockage sinon."""
     if not cle:
         return ""
     if utilise_s3() and reglages.S3_PUBLIC_URL:
         return f"{reglages.S3_PUBLIC_URL.rstrip('/')}/{cle}"
     if utilise_s3() and reglages.AWS_REGION:
         return f"https://{reglages.S3_BUCKET}.s3.{reglages.AWS_REGION}.amazonaws.com/{cle}"
-    return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}"
+    expiration = int(time.time()) + DELAI_LIEN_LOCAL
+    signature = signer_lien_local(cle, expiration)
+    return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}?expiration={expiration}&signature={signature}"
+
+
+def signer_lien_local(cle: str, expiration: int) -> str:
+    message = f"{expiration}:{cle}".encode()
+    return hmac.new(reglages.SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+
+
+def chemin_local_signe(cle: str, expiration: int, signature: str) -> Path | None:
+    if expiration < int(time.time()) or not hmac.compare_digest(signer_lien_local(cle, expiration), signature):
+        return None
+    chemin = (DOSSIER_LOCAL / cle).resolve()
+    if not chemin.is_relative_to(DOSSIER_LOCAL.resolve()):
+        return None
+    return chemin
 
 
 def supprimer(cle: str) -> None:

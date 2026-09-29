@@ -37,7 +37,8 @@ class Reglages(BaseSettings):
     # Qui fabrique les images : "openai" (GPT Image, choix de Martin) ou "gemini".
     OPENAI_API_KEY: str = ""
     FOURNISSEUR_IMAGE: str = "openai"
-    MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"   # le modèle OpenAI fait pour la retouche précise
+    MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"
+    MODELE_OPENAI_ANALYSE: str = "gpt-5.4-mini"
     QUALITE_OPENAI_APERCU: str = "medium"
     QUALITE_OPENAI_HD: str = "high"
     MODELE_ANALYSE: str = "gemini-3.5-flash"

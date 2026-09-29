@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from .. import credits, gemini, images, retouche, stockage
+from .. import credits, images, retouche, stockage, vision
 from ..config import reglages
 from ..db import session
 from ..models import Compte, Logement, OperationPhoto, Photo, ReprisePhoto, Version, identifiant, maintenant
@@ -144,7 +144,9 @@ async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Com
 async def analyser(photo_id: str, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
     p = _photo_du_compte(s, compte, photo_id)
     if not p.analyse:
-        p.analyse = await gemini.analyser(stockage.lire(p.cle_originale))
+        if not vision.disponible():
+            raise HTTPException(503, "L'analyse photo n'est pas encore disponible.")
+        p.analyse = await vision.analyser(stockage.lire(p.cle_originale))
         s.commit()
     return _vue_photo(s, p)
 
@@ -156,6 +158,8 @@ class DemandeEssai(BaseModel):
 
 @routeur.post("/{photo_id}/essai")
 async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    if not vision.disponible() or not retouche.disponible():
+        raise HTTPException(503, "La retouche photo n'est pas encore disponible.")
     compte_id = compte.id
     compte = _verrouiller_compte(s, compte_id)
     p = _photo_du_compte(s, compte, photo_id)
@@ -185,7 +189,7 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
     jeton = _reserver(s, p, compte_id, "essai")
     try:
         if d.demande.strip():
-            consigne = await gemini.reformuler_demande(analyse, historique, d.demande.strip())
+            consigne = await vision.reformuler_demande(analyse, historique, d.demande.strip())
         else:
             consigne = (analyse or {}).get("consigne") or "Rends cette photo digne d'un photographe immobilier professionnel : lumière équilibrée, couleurs justes, netteté, verticales droites, sans rien changer d'autre."
         resultat = await retouche.retoucher(source, consigne)
@@ -261,6 +265,8 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     # Une HD déjà produite reste récupérable, même après les sept jours.
     if periode["expiree"] and not v.cle_hd:
         raise HTTPException(402, "La période est terminée. Reprenez explicitement la photo avant de produire une autre version HD.")
+    if not v.cle_hd and not retouche.disponible():
+        raise HTTPException(503, "La génération HD n'est pas encore disponible. Aucun crédit n'a été consommé.")
     if v.cle_hd:
         contenu = stockage.lire(v.cle_hd)
         cle_hd = v.cle_hd

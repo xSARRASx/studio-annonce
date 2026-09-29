@@ -1,6 +1,10 @@
-"""Choisit qui retouche : OpenAI (GPT Image) par défaut, Gemini en secours. L'analyse reste chez Gemini."""
+"""Choisit le fournisseur de retouche configuré."""
 from .config import reglages
 from . import gemini, openai_images
+
+
+def disponible() -> bool:
+    return bool(reglages.OPENAI_API_KEY if reglages.FOURNISSEUR_IMAGE == "openai" else reglages.GEMINI_API_KEY)
 
 
 async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes:

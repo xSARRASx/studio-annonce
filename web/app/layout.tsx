@@ -6,7 +6,7 @@ const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Studio Annonce",
-  description: "Vos photos de logement, retouchées par l'IA en une minute. Payez seulement ce que vous gardez.",
+  description: "Découvrez Studio Annonce : préparez vos photos immobilières et explorez le studio en démonstration.",
 };
 export const viewport: Viewport = { themeColor: "#0b0b0f" };
 

@@ -12,12 +12,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [compte, setCompte] = useState<Compte | null>(null);
 
   useEffect(() => {
-    if (!jeton()) { routeur.replace("/"); return; }
+    if (!jeton()) { routeur.replace("/connexion"); return; }
     let annule = false;
     const actualiser = () => {
       api<Compte>("/compte").then((valeur) => { if (!annule) setCompte(valeur); }).catch((erreur: ErreurApi) => {
         // Une panne après un téléchargement ne doit pas déconnecter l'utilisateur.
-        if (!annule && erreur.statut === 401) { poserJeton(null); routeur.replace("/"); }
+        if (!annule && erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion"); }
       });
     };
     actualiser();
@@ -39,7 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span>{compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}</span>
               {compte?.photo_offerte_disponible && <span className="text-xs text-accent">+1 offerte</span>}
             </Link>
-            <button onClick={() => { poserJeton(null); routeur.replace("/"); }} className="size-9 grid place-items-center rounded-full text-fg-muted hover:text-fg hover:bg-surface-2" title="Se déconnecter">
+            <button onClick={() => { poserJeton(null); routeur.replace("/connexion"); }} className="size-9 grid place-items-center rounded-full text-fg-muted hover:text-fg hover:bg-surface-2" title="Se déconnecter">
               <LogOut className="size-4" />
             </button>
           </nav>

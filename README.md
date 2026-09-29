@@ -1,9 +1,9 @@
 # Studio Annonce
 
-Prototype photo immobilier web et mobile. La démonstration est accessible sur [studioannonce.fr](https://studioannonce.fr/) depuis le 29 septembre 2026 ; le domaine redirige vers `/demo/`. Cette publication statique est distincte de l'application branchée à l'API.
+Prototype photo immobilier web et mobile. [studioannonce.fr](https://studioannonce.fr/) sert le studio de démonstration. L'API FastAPI répond sur [studioannonce.fr/api/sante](https://studioannonce.fr/api/sante) depuis le 29 septembre 2026 ; les services nécessitant des fournisseurs externes restent fermés tant qu'ils ne sont pas configurés et vérifiés.
 
 - [Démonstration publique](https://studioannonce.fr/demo/) et [aperçu mobile interactif](https://studioannonce.fr/mobile-preview/).
-- [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages publiées, vérifications et limites de la connexion serveur.
+- [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages, API, vérifications et fonctions encore indisponibles.
 
 - [Site et studio](http://127.0.0.1:3173/demo/) — `cd web && npm run dev -- --hostname 127.0.0.1 --port 3173`.
 - [Aperçu iPhone/Android](http://127.0.0.1:3173/mobile-preview/) — nécessite aussi `cd mobile && npx expo start --web --localhost --port 8173`.
@@ -11,28 +11,6 @@ Prototype photo immobilier web et mobile. La démonstration est accessible sur [
 - [Visites vidéo : préparation et contrôles à connecter](VIDEO-VISITES.md).
 - Tests bibliothèque : `cd web && npm run test:library` (Node 26.5 utilisé pour la vérification).
 
-Les photos sont conservées localement dans la démo. Les comptes, la retouche automatique, le paiement et la synchronisation serveur ne sont pas connectés à cet aperçu. La maquette vidéo intégrée est un montage de photos fictives.
+Les photos sont conservées localement dans la démo. Cette interface n'utilise pas encore l'API : comptes, retouche automatique, paiement et synchronisation ne sont pas connectés à cet aperçu. La maquette vidéo intégrée est un montage de photos fictives. La page `/connexion/` vérifie l'état de l'API et oriente vers la démo tant que l'envoi des codes email est désactivé.
 
-## Documentation initiale conservée
-
-Les consignes de déploiement ci-dessous viennent de l'état initial du dépôt. Elles ne prouvent ni un hébergement actif ni une configuration prête à recevoir des clients. Consulter le plan de lancement avant toute ouverture commerciale.
-
-Photos retouchées par IA et vidéos pub pour annonces immobilières.
-
-- `api/` : le cerveau, en Python (FastAPI). Comptes, photos, retouches, crédits, vidéos.
-- `web/` : le site (Next.js). À venir.
-- `mobile/` : l'application iPhone et Android (Expo). À venir.
-
-Aucune clé ni secret dans ce dépôt : tout vit dans le `.env` du serveur (voir `api/.env.example`).
-
-## Mise en ligne (première version, pour voir le site)
-
-- **Cerveau** : Render, via le fichier `render.yaml` (New + > Blueprint > ce dépôt). Une seule
-  variable à coller à la main : `GEMINI_API_KEY`. La base Postgres est créée par le Blueprint.
-- **Site** : Vercel (Add New > Project > ce dépôt), dossier racine `web`, une variable :
-  `NEXT_PUBLIC_API_URL` = l'adresse Render du cerveau (ex. `https://studio-annonce-api.onrender.com`).
-- `CODE_DANS_LA_REPONSE=true` affiche le code de connexion à l'écran tant qu'il n'y a pas de SMTP.
-  **À passer à `false` avant d'ouvrir le site au public.**
-- Sur l'offre gratuite de Render, les images déposées vivent sur le disque du serveur et
-  disparaissent à chaque redémarrage : c'est prévu pour regarder, pas pour les vrais clients.
-  Le stockage durable (Amazon S3 ou Cloudflare R2) se branche par les variables `S3_*` + `AWS_REGION` ou `R2_ACCOUNT_ID`.
+`api/` contient FastAPI, les comptes, les photos et les crédits ; `web/` contient Next.js ; `mobile/` contient l'aperçu Expo. Aucune clé ne doit entrer dans Git : voir `api/.env.example` pour les variables du serveur. Le déploiement actif est sur N0C. `render.yaml` documente une autre option d'hébergement et ne décrit pas le service en ligne actuel.

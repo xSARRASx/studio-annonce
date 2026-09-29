@@ -36,7 +36,9 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
             patch.object(photos.stockage, "url_publique", side_effect=lambda k: f"/test/{k}"),
             patch.object(photos.images, "apercu_filigrane", return_value=b"apercu"),
             patch.object(photos.retouche, "retoucher", new=AsyncMock(return_value=self.hd)),
-            patch.object(photos.gemini, "reformuler_demande", new=AsyncMock(return_value="Une vraie consigne")),
+            patch.object(photos.retouche, "disponible", return_value=True),
+            patch.object(photos.vision, "disponible", return_value=True),
+            patch.object(photos.vision, "reformuler_demande", new=AsyncMock(return_value="Une vraie consigne")),
         ]
         for p in self.patches:
             p.start()

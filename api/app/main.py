@@ -1,9 +1,10 @@
 """Le cerveau de Studio Annonce. Lancer : uvicorn app.main:app --reload"""
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-from . import stockage
+from . import mail, retouche, stockage, vision
+from .config import reglages
 from .db import Base, moteur
 from .routes import auth, compte, logements, photos
 
@@ -15,11 +16,22 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 for r in (auth, logements, photos, compte):
     app.include_router(r.routeur)
 
-if not stockage.utilise_s3():  # en local seulement : en prod, les fichiers sont servis par le stockage, jamais par nous
+if not stockage.utilise_s3():
     stockage.DOSSIER_LOCAL.mkdir(exist_ok=True)
-    app.mount("/fichiers", StaticFiles(directory=stockage.DOSSIER_LOCAL), name="fichiers")
+
+    @app.get("/fichiers/{cle:path}", include_in_schema=False)
+    def fichier_local(cle: str, expiration: int = Query(...), signature: str = Query(...)):
+        chemin = stockage.chemin_local_signe(cle, expiration, signature)
+        if not chemin or not chemin.is_file():
+            raise HTTPException(404, "Fichier introuvable.")
+        return FileResponse(chemin)
 
 
 @app.get("/sante")
 def sante():
-    return {"ok": True}
+    return {
+        "ok": True,
+        "connexion_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
+        "retouche_disponible": vision.disponible() and retouche.disponible(),
+        "paiement_disponible": False,
+    }

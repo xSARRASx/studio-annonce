@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import io
+import math
 
 import httpx
 from PIL import Image
@@ -20,19 +21,29 @@ def _cle() -> str:
 
 
 def _taille_sortie(image_jpeg: bytes, bord_max: int) -> str:
-    """Même cadrage que l'original : on garde son ratio, le grand côté vaut bord_max, multiples de 16."""
+    """Conserver le ratio et respecter le minimum de pixels exigé par GPT Image 2.5."""
     with Image.open(io.BytesIO(image_jpeg)) as im:
         l, h = im.size
-    echelle = bord_max / max(l, h)
-    arrondi = lambda v: max(16, int(round(v * echelle / 16)) * 16)
-    return f"{arrondi(l)}x{arrondi(h)}"
+    ratio = l / h
+    if not 1 / 3 <= ratio <= 3:
+        raise ValueError("Le cadrage de cette photo est trop panoramique pour la retouche IA.")
+    grand = max(l, h)
+    petit = min(l, h)
+    cible = max(bord_max, math.ceil(math.sqrt(655_360 * grand / petit) / 16) * 16)
+    while True:
+        autre = max(math.ceil(cible / 3 / 16) * 16, round((cible * petit / grand) / 16) * 16)
+        if cible * autre >= 655_360:
+            break
+        cible += 16
+    if cible > 3840 or cible * autre > 8_294_400:
+        raise ValueError("Le format de cette photo dépasse les limites de retouche IA.")
+    return f"{cible}x{autre}" if l >= h else f"{autre}x{cible}"
 
 
 async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes:
     champs = {
         "model": reglages.MODELE_OPENAI_IMAGE,
         "prompt": REGLE_RETOUCHE + consigne,
-        "input_fidelity": "high",          # garde la pièce, les matières et les détails de la photo d'origine
         "quality": reglages.QUALITE_OPENAI_HD if hd else reglages.QUALITE_OPENAI_APERCU,
         "size": _taille_sortie(image_jpeg, 2048 if hd else 1024),
         "output_format": "jpeg",
