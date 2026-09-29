@@ -146,3 +146,20 @@ class Migration(unittest.TestCase):
                 r=c.execute(text("SELECT email,prenom,nom,photos_offertes_utilisees FROM comptes")).one()
                 self.assertEqual(tuple(r),('existant@example.com','','',1))
             engine.dispose()
+
+    def test_migration_admin_aucun_droit_implicite_et_validation_par_session_seulement(self):
+        with tempfile.TemporaryDirectory() as t:
+            engine = create_engine(f"sqlite:///{Path(t)/'old-admin.db'}")
+            with engine.begin() as c:
+                c.execute(text("CREATE TABLE comptes (id VARCHAR PRIMARY KEY, email VARCHAR UNIQUE, cree_le TIMESTAMP, photos_offertes_utilisees INTEGER)"))
+                c.execute(text("INSERT INTO comptes VALUES ('valide','valide@example.com',CURRENT_TIMESTAMP,1), ('sans_session','autre@example.com',CURRENT_TIMESTAMP,0)"))
+                c.execute(text("CREATE TABLE jetons (valeur VARCHAR PRIMARY KEY, compte_id VARCHAR, cree_le TIMESTAMP)"))
+                c.execute(text("INSERT INTO jetons VALUES ('session-test-1','valide','2026-09-27 10:00:00'), ('session-test-2','valide','2026-09-28 12:00:00')"))
+            migrer(engine)
+            migrer(engine)
+            with engine.connect() as c:
+                comptes = c.execute(text("SELECT id,role,statut,revision_admin,email_verifie_le,derniere_connexion_le FROM comptes ORDER BY id")).all()
+                self.assertEqual(tuple(comptes[0]), ('sans_session', 'client', 'actif', 0, None, None))
+                self.assertEqual(tuple(comptes[1]), ('valide', 'client', 'actif', 0, '2026-09-27 10:00:00', '2026-09-28 12:00:00'))
+                self.assertEqual(c.execute(text("SELECT count(*) FROM connexions_comptes")).scalar(), 0)
+            engine.dispose()

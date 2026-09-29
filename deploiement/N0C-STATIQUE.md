@@ -18,6 +18,26 @@ La boîte `no-reply@studioannonce.fr` est créée chez N0C. SMTP authentifié av
 
 Les profils restent privés ; `python -m scripts.export_comptes` permet un export CSV depuis le serveur. Ne jamais placer cet export sous `public_html`. L'inscription ne constitue pas une inscription à des emails publicitaires.
 
+## Administration privée
+
+L’espace `/app/admin/` reprend le studio clair existant. Le menu Administration apparaît pour le propriétaire et les administrateurs, mais la protection réelle se fait sur chaque route `/api/admin/*` avec la session et les droits enregistrés en base. Les réponses de compte et d’administration portent `Cache-Control: private, no-store`.
+
+Le compte existant et vérifié `martinmorebkk@gmail.com` a reçu le rôle propriétaire le 29 septembre 2026. Il reste le seul propriétaire. L’activation initiale passe uniquement par le script serveur `python -m scripts.initialiser_admin --email martinmorebkk@gmail.com` ; aucune route publique ne permet cette attribution. Le script refuse de créer un compte, d’utiliser un email non validé ou de remplacer un propriétaire déjà configuré.
+
+L’administration permet de rechercher les comptes, consulter prénom/nom/email, crédits, nombres de photos et logements, sessions et dernières connexions ; créer un compte client sans envoi d’email ; modifier son prénom et son nom ; suspendre/réactiver l’accès ; fermer les sessions ; supprimer de manière récupérable et restaurer. Une suppression conserve les données, les crédits et l’état de l’offre gratuite : ce n’est pas une purge. Une restauration rend uniquement le rôle client. La modification de l’adresse email, l’usurpation de connexion et la purge définitive ne sont pas proposées.
+
+Seul le propriétaire peut nommer ou retirer un administrateur depuis la fiche d’un autre compte actif, au profil complet et à l’email déjà validé. Un administrateur peut gérer les clients, jamais un autre administrateur ni le propriétaire. Le propre accès de l’acteur et le propriétaire sont protégés. Les changements d’accès révoquent les sessions et les codes inutilisés. La déconnexion normale ferme également la session côté serveur. La confirmation de l’email est exigée pour la suppression et les changements de rôle dans l’interface ; une révision côté serveur refuse les actions effectuées sur une fiche périmée.
+
+Les actions sont consignées dans `journal_admin` sans codes de connexion ni clés. Les connexions réussies sont enregistrées à partir de l’activation du suivi. Les dates anciennes peuvent être reprises des sessions existantes pour la fiche, mais ne sont pas transformées en événements historiques fictifs.
+
+Sauvegarde préalable du code API, de la base SQLite cohérente et de l’ancien `/app/` : `~/sauvegardes-studio/administration-20260929T102549Z/`. La migration ajoute les champs de rôle/état/révision et de dates aux comptes, ainsi que les tables du journal et des connexions. Elle n’accorde aucun droit administrateur par défaut.
+
+Validation : 53 tests API passent ensemble, puis les deux tests de migration passent après ajout du scénario des anciennes sessions (54 tests API au total). Les cas couvrent notamment les accès anonymes/clients refusés, la protection du propriétaire, la délégation, la concurrence, la révocation des sessions/codes et la conservation des données après suppression/restauration. Les mutations de recette utilisent une base isolée, sans modifier de comptes clients de production. Build web et 42 tests web réussis ; lint sans erreur (quatre avertissements `<img>` préexistants).
+
+Recette publiée : accès propriétaire observé dans Chrome, fiche de Martin protégée, recherche répétée, filtres, liste des administrateurs, événement d’activation dans le journal, formulaire de création et menu mobile vérifiés. L’appel anonyme à `/api/admin/vue-ensemble` renvoie 401 et `Cache-Control: private, no-store` (préfixe Passenger pris en compte). Le contrôle mobile a révélé un débordement du libellé accessible du tableau ; la correction de son conteneur a été compilée et publiée, mais sa dernière vérification visuelle reste à refaire.
+
+Blocage survenu en fin de recette le 29 septembre vers 10:32 UTC : Chrome affiche « Site dangereux » sur `https://studioannonce.fr/app/admin`, après les vérifications réussies. Aucun contournement de l’avertissement n’a été effectué. Le serveur répond toujours 200 sur `/app/admin/`, ce qui ne résout pas le signalement du navigateur. La cause et un éventuel classement Google Safe Browsing ne sont pas confirmés indépendamment ; la page du rapport de transparence n’a pas été accessible avec l’outil de recherche. Capture : `SAAS/verification-studio-annonce/avertissement-chrome-admin-20260929.png`. Ne pas présenter l’accès Chrome final comme débloqué.
+
 ## Retouche et coûts
 
 La clé OpenAI est installée dans le `.env` privé du serveur. L'accès à la liste des modèles fonctionne, mais l'essai de génération a été refusé pour absence de crédit. `IA_ACTIVE=false` reste en vigueur. Aucun résultat IA réel n'est validé. Les visiteurs sont informés de l'indisponibilité ; les actions IA sont bloquées côté serveur.

@@ -38,6 +38,7 @@ def moi(compte: Compte = Depends(compte_courant), s: Session = Depends(session))
     mouvements = s.execute(select(MouvementCredit).where(MouvementCredit.compte_id == compte.id)
                            .order_by(MouvementCredit.id.desc()).limit(50)).scalars().all()
     return {"id": compte.id, "email": compte.email, "prenom": compte.prenom, "nom": compte.nom,
+            "role": compte.role,
             "profil_complet": bool(compte.prenom and compte.nom and compte.profil_complete_le),
             "paiement_disponible": paiement_disponible(), "solde": credits.solde(s, compte.id),
             "photo_offerte_disponible": compte.photos_offertes_utilisees < reglages.PHOTO_OFFERTE_PAR_COMPTE,

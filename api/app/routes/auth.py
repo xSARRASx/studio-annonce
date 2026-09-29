@@ -4,13 +4,13 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import reglages
 from ..db import session
 from ..mail import disponible as email_disponible, envoyer
-from ..models import CodeConnexion, Compte, Jeton, TentativeConnexion, maintenant
+from ..models import CodeConnexion, Compte, ConnexionCompte, Jeton, TentativeConnexion, maintenant
 
 routeur = APIRouter(prefix="/auth", tags=["connexion"])
 
@@ -29,6 +29,10 @@ def demander_code(d: DemandeCode, s: Session = Depends(session)):
     if not email_disponible() and not reglages.CODE_DANS_LA_REPONSE:
         raise HTTPException(503, "La connexion par email n'est pas encore disponible.")
     email = d.email.lower()
+    existant = s.scalar(select(Compte).where(Compte.email == email))
+    if existant and existant.statut != "actif":
+        # Même réponse publique : ne pas révéler l'existence d'un compte bloqué.
+        return {"ok": True}
     # expire_le = émission + 10 minutes ; cette borne couvre la dernière heure.
     derniere_heure = maintenant() - timedelta(minutes=50)
     demandes = s.scalar(select(func.count(CodeConnexion.id)).where(
@@ -82,10 +86,16 @@ def verifier(v: Verification, s: Session = Depends(session)):
         s.rollback()
         raise HTTPException(400, "Code incorrect ou expiré.")
     compte = s.execute(select(Compte).where(Compte.email == email)).scalar_one_or_none()
+    if compte and compte.statut != "actif":
+        s.commit()
+        raise HTTPException(400, "Code incorrect ou expiré.")
     if not compte:
         compte = Compte(email=email)
         s.add(compte)
         s.flush()
+    compte.email_verifie_le = compte.email_verifie_le or maintenant()
+    compte.derniere_connexion_le = maintenant()
+    s.add(ConnexionCompte(compte_id=compte.id))
     jeton = Jeton(valeur=secrets.token_urlsafe(32), compte_id=compte.id)
     s.add(jeton)
     s.commit()
@@ -99,7 +109,18 @@ def compte_courant(authorization: str = Header(default=""), s: Session = Depends
     j = s.get(Jeton, authorization[7:])
     if not j:
         raise HTTPException(401, "Session inconnue, reconnectez-vous.")
-    return s.get(Compte, j.compte_id)
+    compte = s.get(Compte, j.compte_id)
+    if not compte or compte.statut != "actif":
+        raise HTTPException(401, "Ce compte n’est pas accessible. Contactez l’administrateur.")
+    return compte
+
+
+@routeur.post("/deconnexion")
+def deconnexion(authorization: str = Header(default=""), s: Session = Depends(session)):
+    if authorization.startswith("Bearer "):
+        s.execute(delete(Jeton).where(Jeton.valeur == authorization[7:]))
+        s.commit()
+    return {"ok": True}
 
 
 def compte_complet(compte: Compte = Depends(compte_courant)) -> Compte:

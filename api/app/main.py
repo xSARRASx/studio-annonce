@@ -6,15 +6,29 @@ from fastapi.responses import FileResponse
 from . import mail, retouche, stockage, vision, paiements as service_paiement
 from .config import reglages
 from .db import Base, moteur
-from .routes import auth, compte, logements, photos, paiements
+from .routes import auth, compte, logements, photos, paiements, admin
 
 Base.metadata.create_all(moteur)
 
 app = FastAPI(title="Studio Annonce", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-Photo-Credit-Consomme", "X-Photo-Offerte", "X-Photo-Reprise-Jusqu-Au"])
-for r in (auth, logements, photos, compte, paiements):
+for r in (auth, logements, photos, compte, paiements, admin):
     app.include_router(r.routeur)
+
+
+@app.middleware("http")
+async def donnees_privees(request, call_next):
+    response = await call_next(request)
+    # Passenger monte l'API sous /api : retirer le préfixe du montage avant
+    # d'identifier les routes privées, comme le fait le routeur Starlette.
+    chemin = request.scope["path"]
+    racine = request.scope.get("root_path", "").rstrip("/")
+    if racine and chemin.startswith(racine + "/"):
+        chemin = chemin[len(racine):]
+    if chemin.startswith(("/admin", "/compte", "/auth")):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 if not stockage.utilise_s3():
     stockage.DOSSIER_LOCAL.mkdir(exist_ok=True)

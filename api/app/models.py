@@ -26,6 +26,11 @@ class Compte(Base):
     prenom: Mapped[str] = mapped_column(String(80), default="", server_default="")
     nom: Mapped[str] = mapped_column(String(80), default="", server_default="")
     profil_complete_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    role: Mapped[str] = mapped_column(String(20), default="client", server_default="client")
+    statut: Mapped[str] = mapped_column(String(20), default="actif", server_default="actif")
+    revision_admin: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    email_verifie_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    derniere_connexion_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
     photos_offertes_utilisees: Mapped[int] = mapped_column(Integer, default=0)
     logements: Mapped[list[Logement]] = relationship(back_populates="compte")
@@ -38,6 +43,24 @@ class CodeConnexion(Base):
     code: Mapped[str] = mapped_column(String(6))
     expire_le: Mapped[datetime] = mapped_column(DateTime)
     utilise: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ConnexionCompte(Base):
+    """Connexions réussies, sans code, jeton, adresse IP ni données de navigateur."""
+    __tablename__ = "connexions_comptes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant, index=True)
+
+
+class JournalAdmin(Base):
+    __tablename__ = "journal_admin"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    acteur_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    cible_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    action: Mapped[str] = mapped_column(String(60))
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant, index=True)
 
 
 class TentativeConnexion(Base):

@@ -62,6 +62,6 @@ export type Photo = {
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
   photos: { id: string; vignette: string; essais: number; gardee: boolean }[] };
 export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean };
-export type Compte = { id: string; email: string; prenom: string; nom: string; profil_complet: boolean; paiement_disponible: boolean; solde: number; photo_offerte_disponible: boolean;
+export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; solde: number; photo_offerte_disponible: boolean;
   packs: { id: string; credits: number; prix_centimes: number; libelle: string }[];
   registre: { delta: number; motif: string; le: string }[] };

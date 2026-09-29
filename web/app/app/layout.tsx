@@ -12,7 +12,7 @@ import "../demo/studio-screens.css";
 import "./studio-connected.css";
 
 const tools = ["creer", "nouvelle", "creer-image", "video-photos", "visite"];
-const titles: Record<string, string> = { creer: "Créer", nouvelle: "Retoucher une photo", "creer-image": "Créer une image", "video-photos": "Vidéo → photos", visite: "Photos → vidéo", facturation: "Facturation", compte: "Mon compte", photo: "Votre photo", logement: "Mes créations" };
+const titles: Record<string, string> = { creer: "Créer", nouvelle: "Retoucher une photo", "creer-image": "Créer une image", "video-photos": "Vidéo → photos", visite: "Photos → vidéo", facturation: "Facturation", compte: "Mon compte", photo: "Votre photo", logement: "Mes créations", admin: "Administration" };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const routeur = useRouter();
@@ -22,6 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [erreurCompte, setErreurCompte] = useState("");
   const [hash, setHash] = useState("");
   const [menu, setMenu] = useState(false);
+  const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
   const route = chemin.replace(/\/$/, "").split("/").at(-1) || "app";
   const screen = route === "app" ? hash.split("/")[0] || "studio" : route;
   const creating = tools.includes(screen);
@@ -61,6 +62,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0 });
   }
 
+  async function deconnecter() {
+    if (deconnexionEnCours) return;
+    setDeconnexionEnCours(true);
+    try { await api("/auth/deconnexion", { method: "POST" }); poserJeton(null); routeur.replace("/connexion/"); }
+    catch { setErreurCompte("La déconnexion n’a pas abouti. Réessayez pour fermer votre session."); }
+    finally { setDeconnexionEnCours(false); }
+  }
+
   return <div className="studio-demo connected-studio">
     <div className="workspace studio-workspace">
       {menu && <button className="sidebar-scrim" aria-label="Fermer le menu" onClick={() => setMenu(false)}/>}
@@ -73,13 +82,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button className={["studio", "photo", "logement"].includes(screen) ? "active" : ""} aria-current={["studio", "photo", "logement"].includes(screen) ? "page" : undefined} onClick={() => nav("/app/")}><FolderOpen size={19}/> Mes créations</button>
           <button className={screen === "facturation" ? "active" : ""} aria-current={screen === "facturation" ? "page" : undefined} onClick={() => nav("/app/facturation/")}><Wallet size={19}/> Facturation</button>
           <button className={screen === "compte" ? "active" : ""} aria-current={screen === "compte" ? "page" : undefined} onClick={() => nav("/app/compte/")}><UserRound size={19}/> Mon compte</button>
+          {compte && ["proprietaire", "admin"].includes(compte.role) && <button className={screen === "admin" ? "active" : ""} aria-current={screen === "admin" ? "page" : undefined} onClick={() => nav("/app/admin/")}><ShieldCheck size={19}/> Administration</button>}
         </nav>
         <div className="studio-sidebar-note"><ShieldCheck size={19}/><p>Votre espace à vous.<small>Vos photos et leurs versions, retrouvées dans votre compte.</small></p></div>
         <div className="sidebar-bottom">
           {compte && <button className="connected-identity" onClick={() => nav("/app/compte/")}><span>{(compte.prenom || "M").slice(0, 1)}</span><strong>{compte.prenom || "Mon compte"}<small>Mon espace personnel</small></strong></button>}
           <Link className="studio-help-link" href="/demo/aide/">Une question ? Consulter l’aide</Link>
           <button className="back-site" onClick={() => nav("/")}><ArrowLeft size={15}/> Retour au site</button>
-          <button className="connected-logout" onClick={() => { poserJeton(null); routeur.replace("/connexion/"); }}><LogOut size={15}/> Se déconnecter</button>
+          <button className="connected-logout" disabled={deconnexionEnCours} onClick={deconnecter}><LogOut size={15}/> {deconnexionEnCours ? "Déconnexion…" : "Se déconnecter"}</button>
         </div>
       </aside>
       <div className="workspace-body">
