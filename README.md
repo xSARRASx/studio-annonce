@@ -1,6 +1,9 @@
 # Studio Annonce
 
-Prototype photo immobilier web et mobile. Le point d'entrée actuel et vérifié est la démonstration locale, distincte de l'application branchée à l'API.
+Prototype photo immobilier web et mobile. La démonstration est accessible sur [studioannonce.fr](https://studioannonce.fr/) depuis le 29 septembre 2026 ; le domaine redirige vers `/demo/`. Cette publication statique est distincte de l'application branchée à l'API.
+
+- [Démonstration publique](https://studioannonce.fr/demo/) et [aperçu mobile interactif](https://studioannonce.fr/mobile-preview/).
+- [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages publiées, vérifications et limites de la connexion serveur.
 
 - [Site et studio](http://127.0.0.1:3173/demo/) — `cd web && npm run dev -- --hostname 127.0.0.1 --port 3173`.
 - [Aperçu iPhone/Android](http://127.0.0.1:3173/mobile-preview/) — nécessite aussi `cd mobile && npx expo start --web --localhost --port 8173`.
@@ -8,7 +11,7 @@ Prototype photo immobilier web et mobile. Le point d'entrée actuel et vérifié
 - [Visites vidéo : préparation et contrôles à connecter](VIDEO-VISITES.md).
 - Tests bibliothèque : `cd web && npm run test:library` (Node 26.5 utilisé pour la vérification).
 
-Les photos sont conservées localement dans la démo. Les comptes, la retouche automatique, le paiement et la synchronisation serveur ne sont pas connectés à cet aperçu. Aucun déploiement public n'a été effectué le 23 septembre. La maquette vidéo intégrée est un montage de photos fictives.
+Les photos sont conservées localement dans la démo. Les comptes, la retouche automatique, le paiement et la synchronisation serveur ne sont pas connectés à cet aperçu. La maquette vidéo intégrée est un montage de photos fictives.
 
 ## Documentation initiale conservée
 
