@@ -7,6 +7,7 @@ import json
 import httpx
 
 from .config import reglages
+from .usage import enregistrer
 from .gemini import CONSIGNE_ANALYSE
 
 API = "https://api.openai.com/v1/responses"
@@ -49,6 +50,7 @@ async def _appel(corps: dict) -> str:
         raise RuntimeError("Le service d'analyse photo a renvoyé une réponse illisible.") from erreur
     if rep.status_code != 200:
         raise RuntimeError(donnees.get("error", {}).get("message", "L'analyse photo est indisponible."))
+    enregistrer(reglages.MODELE_OPENAI_ANALYSE, "analyse" if "text" in corps else "reformulation", donnees.get("usage"), rep.headers.get("x-request-id"))
     return _texte(donnees)
 
 

@@ -13,7 +13,7 @@ from .. import credits, images, retouche, stockage, vision
 from ..config import reglages
 from ..db import session
 from ..models import Compte, Logement, OperationPhoto, Photo, ReprisePhoto, Version, identifiant, maintenant
-from .auth import compte_courant
+from .auth import compte_complet
 
 routeur = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -112,7 +112,7 @@ def _abandonner(s: Session, compte_id: str, photo_id: str, jeton: str) -> None:
 
 
 @routeur.post("/{logement_id}")
-async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Compte = Depends(compte_courant),
+async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Compte = Depends(compte_complet),
                   s: Session = Depends(session)):
     compte_id = compte.id
     logement = s.get(Logement, logement_id)
@@ -141,7 +141,7 @@ async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Com
 
 
 @routeur.post("/{photo_id}/analyser")
-async def analyser(photo_id: str, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+async def analyser(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     p = _photo_du_compte(s, compte, photo_id)
     if not p.analyse:
         if not vision.disponible():
@@ -157,7 +157,7 @@ class DemandeEssai(BaseModel):
 
 
 @routeur.post("/{photo_id}/essai")
-async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     if not vision.disponible() or not retouche.disponible():
         raise HTTPException(503, "La retouche photo n'est pas encore disponible.")
     compte_id = compte.id
@@ -222,7 +222,7 @@ class DemandeReprise(BaseModel):
 
 
 @routeur.post("/{photo_id}/reprendre")
-def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     compte_id = compte.id
     compte = _verrouiller_compte(s, compte_id)
     p = _photo_du_compte(s, compte, photo_id)
@@ -247,12 +247,12 @@ def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_
 
 
 @routeur.get("/{photo_id}")
-def voir(photo_id: str, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+def voir(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     return _vue_photo(s, _photo_du_compte(s, compte, photo_id))
 
 
 @routeur.post("/{photo_id}/versions/{version_id}/telecharger")
-async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     compte_id = compte.id
     compte = _verrouiller_compte(s, compte_id)
     p = _photo_du_compte(s, compte, photo_id)

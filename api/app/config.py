@@ -17,6 +17,8 @@ class Reglages(BaseSettings):
     R2_ACCOUNT_ID: str = ""        # Cloudflare R2
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
+    PAIEMENT_ACTIF: bool = False
+    URL_PUBLIQUE_SITE: str = "https://studioannonce.fr"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -36,6 +38,7 @@ class Reglages(BaseSettings):
     ALERTES_ESSAIS_RESTANTS: tuple[int, ...] = (10, 5, 3, 2, 1)
     # Qui fabrique les images : "openai" (GPT Image, choix de Martin) ou "gemini".
     OPENAI_API_KEY: str = ""
+    IA_ACTIVE: bool = False  # ouvrir seulement après un essai fournisseur réussi
     FOURNISSEUR_IMAGE: str = "openai"
     MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"
     MODELE_OPENAI_ANALYSE: str = "gpt-5.4-mini"

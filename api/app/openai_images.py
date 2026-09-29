@@ -9,6 +9,7 @@ import httpx
 from PIL import Image
 
 from .config import reglages
+from .usage import enregistrer
 from .gemini import REGLE_RETOUCHE
 
 API = "https://api.openai.com/v1/images/edits"
@@ -55,6 +56,7 @@ async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes
     donnees = rep.json()
     if rep.status_code != 200:
         raise RuntimeError(donnees.get("error", {}).get("message", rep.text[:200]))
+    enregistrer(reglages.MODELE_OPENAI_IMAGE, "hd" if hd else "apercu", donnees.get("usage"), rep.headers.get("x-request-id"))
     try:
         return base64.b64decode(donnees["data"][0]["b64_json"])
     except (KeyError, IndexError):

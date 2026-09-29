@@ -4,23 +4,27 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Coins, LogOut } from "lucide-react";
 import { Embleme } from "@/components/logo";
-import { api, ErreurApi, jeton, poserJeton, type Compte } from "@/lib/api";
+import { api, ErreurApi, jeton, poserJeton, type Compte, type Sante } from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const routeur = useRouter();
   const chemin = usePathname();
+  const [sante, setSante] = useState<Sante | null>(null);
   const [compte, setCompte] = useState<Compte | null>(null);
+  const [erreurCompte, setErreurCompte] = useState("");
 
   useEffect(() => {
     if (!jeton()) { routeur.replace("/connexion"); return; }
     let annule = false;
     const actualiser = () => {
-      api<Compte>("/compte").then((valeur) => { if (!annule) setCompte(valeur); }).catch((erreur: ErreurApi) => {
+      api<Compte>("/compte").then((valeur) => { if (!annule) { setErreurCompte(""); setCompte(valeur); if (!valeur.profil_complet && chemin !== "/app/compte" && chemin !== "/app/compte/") routeur.replace("/app/compte/"); } }).catch((erreur: ErreurApi) => {
         // Une panne après un téléchargement ne doit pas déconnecter l'utilisateur.
         if (!annule && erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion"); }
+        else if (!annule) setErreurCompte("Votre compte ne peut pas être chargé pour le moment.");
       });
     };
     actualiser();
+    api<Sante>("/sante").then(v => { if (!annule) setSante(v); }).catch(() => {});
     window.addEventListener("studio:credits-updated", actualiser);
     return () => { annule = true; window.removeEventListener("studio:credits-updated", actualiser); };
   }, [routeur, chemin]);
@@ -45,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">{children}</main>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">{sante && !sante.retouche_disponible && <p role="status" className="rounded-2xl border border-line bg-surface p-4 mb-6 text-sm text-fg-muted">La retouche photo est momentanément indisponible. Vous pouvez préparer vos photos ; aucun crédit n’est consommé.</p>}{erreurCompte && <div role="alert" className="mb-4 text-sm"><p>{erreurCompte}</p><button className="text-accent mt-2" onClick={() => window.dispatchEvent(new Event("studio:credits-updated"))}>Réessayer</button></div>}{compte ? children : !erreurCompte && <p className="text-fg-muted">Chargement de votre compte…</p>}</main>
     </div>
   );
 }

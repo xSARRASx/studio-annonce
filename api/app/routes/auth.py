@@ -41,7 +41,13 @@ def demander_code(d: DemandeCode, s: Session = Depends(session)):
     s.add(CodeConnexion(email=email, code=code, expire_le=maintenant() + timedelta(minutes=10)))
     if email_disponible():
         try:
-            envoyer(email, "Votre code Studio Annonce", f"Votre code de connexion : {code}\nIl est valable 10 minutes.")
+            envoyer(email, "Votre code Studio Annonce",
+                    "Bonjour,\n\nVous avez demandé à accéder à votre espace Studio Annonce.\n\n"
+                    f"Votre code de connexion : {code}\nIl est valable 10 minutes et ne peut servir qu'une fois.\n\n"
+                    "Saisissez-le dans la page de connexion que vous venez d'ouvrir sur studioannonce.fr. "
+                    "Ne communiquez ce code à personne.\n\n"
+                    "Si vous n'avez pas fait cette demande, vous pouvez ignorer ce message.\n\n"
+                    "L'équipe Studio Annonce\nEmail automatique envoyé uniquement pour votre connexion.")
         except Exception as erreur:
             s.rollback()
             raise HTTPException(503, "Le code n'a pas pu être envoyé. Réessayez plus tard.") from erreur
@@ -68,7 +74,13 @@ def verifier(v: Verification, s: Session = Depends(session)):
         s.add(TentativeConnexion(email=email))
         s.commit()
         raise HTTPException(400, "Code incorrect ou expiré.")
-    c.utilise = 1
+    # Consommer le code atomiquement : deux validations concurrentes ne créent pas deux sessions.
+    consomme = s.execute(update(CodeConnexion).where(
+        CodeConnexion.id == c.id, CodeConnexion.utilise == 0
+    ).values(utilise=1)).rowcount
+    if not consomme:
+        s.rollback()
+        raise HTTPException(400, "Code incorrect ou expiré.")
     compte = s.execute(select(Compte).where(Compte.email == email)).scalar_one_or_none()
     if not compte:
         compte = Compte(email=email)
@@ -77,7 +89,8 @@ def verifier(v: Verification, s: Session = Depends(session)):
     jeton = Jeton(valeur=secrets.token_urlsafe(32), compte_id=compte.id)
     s.add(jeton)
     s.commit()
-    return {"jeton": jeton.valeur, "compte_id": compte.id}
+    return {"jeton": jeton.valeur, "compte_id": compte.id,
+            "profil_complet": bool(compte.prenom and compte.nom and compte.profil_complete_le)}
 
 
 def compte_courant(authorization: str = Header(default=""), s: Session = Depends(session)) -> Compte:
@@ -87,3 +100,9 @@ def compte_courant(authorization: str = Header(default=""), s: Session = Depends
     if not j:
         raise HTTPException(401, "Session inconnue, reconnectez-vous.")
     return s.get(Compte, j.compte_id)
+
+
+def compte_complet(compte: Compte = Depends(compte_courant)) -> Compte:
+    if not compte.prenom or not compte.nom or not compte.profil_complete_le:
+        raise HTTPException(403, "Complétez votre prénom et votre nom dans Mon compte avant de continuer.")
+    return compte

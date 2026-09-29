@@ -43,7 +43,7 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         for p in self.patches:
             p.start()
         with self.sessions() as s:
-            s.add_all([Compte(id="a", email="a@example.test"), Compte(id="b", email="b@example.test")])
+            s.add_all([Compte(id="a", email="a@example.test", prenom="Alice", nom="Test", profil_complete_le=self.instant), Compte(id="b", email="b@example.test", prenom="Bob", nom="Test", profil_complete_le=self.instant)])
             s.flush()
             s.add_all([Logement(id="la", compte_id="a"), Logement(id="lb", compte_id="b"),
                        Jeton(valeur="token-a", compte_id="a"), Jeton(valeur="token-b", compte_id="b"),

@@ -23,7 +23,7 @@ async function reponseApi(chemin: string, options: RequestInit = {}): Promise<Re
   if (options.body && !(options.body instanceof FormData)) entetes["Content-Type"] = "application/json";
   let rep: Response;
   try { rep = await fetch(`${API}${chemin}`, { ...options, headers: entetes }); }
-  catch { throw new ErreurApi(0, "Le cerveau n'est pas encore en ligne. Le site est visible, mais la connexion attend la mise en ligne."); }
+  catch { throw new ErreurApi(0, "Le service ne répond pas pour le moment. Vérifiez votre connexion et réessayez."); }
   if (!rep.ok) {
     let message = "Une erreur est survenue.";
     try { const d = await rep.json(); message = typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail); } catch {}
@@ -61,6 +61,7 @@ export type Photo = {
 };
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
   photos: { id: string; vignette: string; essais: number; gardee: boolean }[] };
-export type Compte = { id: string; email: string; solde: number; photo_offerte_disponible: boolean;
+export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean };
+export type Compte = { id: string; email: string; prenom: string; nom: string; profil_complet: boolean; paiement_disponible: boolean; solde: number; photo_offerte_disponible: boolean;
   packs: { id: string; credits: number; prix_centimes: number; libelle: string }[];
   registre: { delta: number; motif: string; le: string }[] };

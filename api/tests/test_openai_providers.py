@@ -43,7 +43,7 @@ class VisionOpenAI(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(corps["input"][0]["content"][1]["image_url"].startswith("data:image/jpeg;base64,"))
 
     async def test_cle_openai_suffit_pour_analyse_et_retouche(self):
-        with patch.object(vision.reglages, "OPENAI_API_KEY", "cle-test"), patch.object(
+        with patch.object(vision.reglages, "IA_ACTIVE", True), patch.object(vision.reglages, "OPENAI_API_KEY", "cle-test"), patch.object(
             vision.reglages, "GEMINI_API_KEY", ""
         ), patch.object(retouche.reglages, "FOURNISSEUR_IMAGE", "openai"), patch.object(
             openai_vision, "analyser", new_callable=AsyncMock, return_value={"piece": "salon"}
@@ -52,6 +52,13 @@ class VisionOpenAI(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(retouche.disponible())
             self.assertEqual(await vision.analyser(b"image"), {"piece": "salon"})
             analyser.assert_awaited_once_with(b"image")
+
+    async def test_ia_desactivee_meme_avec_une_cle_configuree(self):
+        with patch.object(vision.reglages, "IA_ACTIVE", False), patch.object(
+            vision.reglages, "OPENAI_API_KEY", "cle-test"
+        ), patch.object(retouche.reglages, "FOURNISSEUR_IMAGE", "openai"):
+            self.assertFalse(vision.disponible())
+            self.assertFalse(retouche.disponible())
 
 
 if __name__ == "__main__":
