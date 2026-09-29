@@ -14,7 +14,7 @@ const STORAGE_KEY = "studio-annonce.video-plan.v1";
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 const searchText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
 
-export function VideoPlanner({ library, source, onBack, onAddPhotos }: { library: DemoLibrary; source: Source; onBack: () => void; onAddPhotos: (files: File[], property: string) => Promise<DemoProject[]> }) {
+export function VideoPlanner({ library, source, onBack, onAddPhotos, storageKey = STORAGE_KEY }: { storageKey?: string; library: DemoLibrary; source: Source; onBack: () => void; onAddPhotos: (files: File[], property: string) => Promise<DemoProject[]> }) {
   const [property, setProperty] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [idea, setIdea] = useState("");
@@ -42,7 +42,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos }: { library
     queueMicrotask(() => {
       if (!active) return;
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
         if (saved && typeof saved === "object") {
           if (typeof saved.property === "string") setProperty(saved.property.slice(0, 500));
           if (typeof saved.idea === "string") setIdea(saved.idea.slice(0, 4000));
@@ -57,12 +57,12 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos }: { library
       setRestored(true);
     });
     return () => { active = false; };
-  }, []);
+  }, [storageKey]);
   useEffect(() => {
     if (!restored) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ property: currentProperty, selectedIds, idea, cleanup, route, brief, briefIdea, briefContext })); }
+    try { localStorage.setItem(storageKey, JSON.stringify({ property: currentProperty, selectedIds, idea, cleanup, route, brief, briefIdea, briefContext })); }
     catch { /* Aucun appel distant ni perte du texte affiché. */ }
-  }, [restored, currentProperty, selectedIds, idea, cleanup, route, brief, briefIdea, briefContext]);
+  }, [storageKey, restored, currentProperty, selectedIds, idea, cleanup, route, brief, briefIdea, briefContext]);
 
   function toggle(id: string) {
     setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);

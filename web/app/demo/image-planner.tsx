@@ -14,7 +14,7 @@ const EXAMPLES = [
   { label: "Un visuel créatif", detail: "Une image originale pour raconter une idée.", text: "Crée une illustration éditoriale colorée d’une petite maison dans un jardin luxuriant, avec une composition simple et accueillante.", icon: Palette, tone: "lilac" },
 ] as const;
 
-export function ImagePlanner({ onBack, onPhoto }: { onBack: () => void; onPhoto: () => void }) {
+export function ImagePlanner({ onBack, onPhoto, storageKey = STORAGE_KEY }: { storageKey?: string; onBack: () => void; onPhoto: () => void }) {
   const [idea, setIdea] = useState("");
   const [brief, setBrief] = useState("");
   const [briefIdea, setBriefIdea] = useState("");
@@ -25,7 +25,7 @@ export function ImagePlanner({ onBack, onPhoto }: { onBack: () => void; onPhoto:
     queueMicrotask(() => {
       if (!active) return;
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
         if (saved && typeof saved === "object") {
           if (typeof saved.idea === "string") setIdea(saved.idea.slice(0, 4000));
           if (typeof saved.brief === "string") setBrief(saved.brief.slice(0, 20000));
@@ -35,13 +35,13 @@ export function ImagePlanner({ onBack, onPhoto }: { onBack: () => void; onPhoto:
       setRestored(true);
     });
     return () => { active = false; };
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!restored) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ idea, brief, briefIdea })); }
+    try { localStorage.setItem(storageKey, JSON.stringify({ idea, brief, briefIdea })); }
     catch { /* Conserver le brouillon affiché si le navigateur refuse le stockage. */ }
-  }, [restored, idea, brief, briefIdea]);
+  }, [storageKey, restored, idea, brief, briefIdea]);
 
   function useBrief(value: string) {
     setBrief(value);

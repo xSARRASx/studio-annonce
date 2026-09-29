@@ -53,7 +53,7 @@ export async function telechargerPhoto(chemin: string): Promise<{
 export type Version = { id: string; numero: number; consigne: string; depuis: string | null; apercu: string; hd: boolean; cree_le: string };
 export type Analyse = { piece: string; defauts: string[]; consigne: string; question: string };
 export type Photo = {
-  id: string; logement_id: string; ordre: number; offerte: boolean; vignette: string; analyse: Analyse | null;
+  id: string; logement_id: string; original?: string; cree_le?: string; ordre: number; offerte: boolean; vignette: string; analyse: Analyse | null;
   essais: number; essais_restants: number; alerte: number | null; version_gardee: string | null;
   credite_le: string | null; reprise_jusqu_au: string | null; versions: Version[];
   cycle_id: string; reprise_expiree: boolean; reprise_necessaire: boolean;

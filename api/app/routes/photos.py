@@ -66,7 +66,8 @@ def _vue_photo(s: Session, p: Photo) -> dict:
     restants = max(0, periode["limite"] - periode["essais_cycle"])
     return {
         "id": p.id, "logement_id": p.logement_id, "ordre": p.ordre, "offerte": bool(p.offerte),
-        "vignette": stockage.url_publique(p.cle_vignette), "analyse": p.analyse,
+        "vignette": stockage.url_publique(p.cle_vignette), "original": stockage.url_publique(p.cle_originale),
+        "cree_le": _utc(p.cree_le), "analyse": p.analyse,
         "essais": p.essais, "essais_cycle": periode["essais_cycle"], "essais_restants": restants,
         "alerte": restants if restants in reglages.ALERTES_ESSAIS_RESTANTS else None,
         "version_gardee": p.version_gardee_id, "credite_le": _utc(p.credite_le),

@@ -37,7 +37,6 @@ function PageLogement() {
         fd.append("fichier", await reduire(liste[i]), liste[i].name.replace(/\.[^.]+$/, "") + ".jpg");
         const photo = await api<Photo>(`/photos/${id}`, { method: "POST", body: fd });
         setLogement((l) => l && { ...l, photos: [...l.photos, { id: photo.id, vignette: photo.vignette, essais: 0, gardee: false }] });
-        api(`/photos/${photo.id}/analyser`, { method: "POST" }).catch(() => {}); // l'analyse démarre tout de suite, en arrière-plan
       } catch (e) { setErreur((e as Error).message); }
       setEnvoi({ fait: i + 1, total: liste.length });
     }
@@ -45,8 +44,8 @@ function PageLogement() {
   }
 
   return (
-    <div className="apparait space-y-6">
-      <Link href="/app" className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Mes logements</Link>
+    <div className="connected-legacy apparait space-y-6">
+      <Link href="/app" className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Mes créations</Link>
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{logement?.nom || "…"}</h1>

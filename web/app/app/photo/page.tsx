@@ -2,9 +2,13 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, Send, Sparkles, RotateCcw, Eye, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Download, History, Info, Plus, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { api, telechargerPhoto, ErreurApi, type Photo, type Version } from "@/lib/api";
 import { Bouton, Message, Pastille } from "@/components/ui";
+
+import { useStudioAccount } from "@/components/studio-account";
+import { Compare } from "../../demo/studio-parts";
+import { BriefAssistant } from "../../demo/brief-assistant";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
 
@@ -16,6 +20,8 @@ function dateLisible(date: string | null): string | null {
 }
 
 function Atelier() {
+  const { compte, sante } = useStudioAccount();
+  const retoucheDisponible = !!sante?.retouche_disponible;
   const id = useSearchParams().get("id") || "";
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [courante, setCourante] = useState<Version | null>(null);
@@ -30,7 +36,7 @@ function Atelier() {
   const dialogue = useRef<HTMLDialogElement>(null);
   const retourFocus = useRef<HTMLElement | null>(null);
   const actionEnCours = useRef(false);
-  const bas = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     if (!id) return;
@@ -38,7 +44,9 @@ function Atelier() {
     api<Photo>(`/photos/${id}`).then(async (p) => {
       if (annule) return;
       setErreur("");
-      if (!p.analyse) {
+      poser(p, p.versions.at(-1) || null);
+      try { setDemande(sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) || ""); } catch {}
+      if (!p.analyse && retoucheDisponible) {
         setOccupe("analyse");
         p = await api<Photo>(`/photos/${id}/analyser`, { method: "POST" });
       }
@@ -47,13 +55,12 @@ function Atelier() {
       const a = p.analyse;
       setBulles([
         { de: "ia", texte: a ? `${a.piece}. Ce que je vois à corriger : ${a.defauts.join(", ")}.` : "Votre photo est prête à être retouchée." },
-        { de: "ia", texte: p.versions.length ? "Retrouvez toutes vos versions ci-dessous et choisissez celle à poursuivre." : "Je vous fais la version annonce ? Lumière pro, désordre retiré, rien d'autre ne bouge." + (a?.question ? ` Et une question : ${a.question}` : "") },
+        { de: "ia", texte: p.versions.length ? "Retrouvez toutes vos versions ci-dessous et choisissez celle à poursuivre." : retoucheDisponible ? "Décrivez les changements souhaités pour préparer votre version annonce." + (a?.question ? ` ${a.question}` : "") : "Votre original est enregistré. Vous pouvez préparer votre demande en attendant la disponibilité des retouches." },
       ]);
     }).catch((e) => { if (!annule) setErreur(e.message); })
       .finally(() => { if (!annule) setOccupe(null); });
     return () => { annule = true; };
-  }, [id]);
-  useEffect(() => { bas.current?.scrollIntoView({ behavior: "smooth" }); }, [bulles, occupe]);
+  }, [id, compte.id, retoucheDisponible]);
   useEffect(() => {
     const minuterie = window.setInterval(() => setHorloge(Date.now()), 30_000);
     return () => window.clearInterval(minuterie);
@@ -68,7 +75,7 @@ function Atelier() {
   function poser(p: Photo, v: Version | null) { setPhoto(p); setCourante(v); setVoirAvant(false); }
 
   async function essai(texte: string) {
-    if (!photo || actionEnCours.current || occupe || repriseNecessaire) return;
+    if (!photo || actionEnCours.current || occupe || repriseNecessaire || !retoucheDisponible || texte.length > 4000) return;
     actionEnCours.current = true;
     setErreur(""); setOccupe("essai");
     if (texte) setBulles((b) => [...b, { de: "moi", texte }]);
@@ -161,66 +168,47 @@ function Atelier() {
   const periodeExpiree = !!photo && (photo.reprise_expiree || (!!photo.reprise_jusqu_au && horloge >= Date.parse(photo.reprise_jusqu_au)));
   const repriseNecessaire = !!photo && (periodeExpiree || photo.essais_restants === 0);
   const finPeriode = dateLisible(photo?.reprise_jusqu_au || null);
-  const original = photo?.vignette.replace("vignette.webp", "original.jpg");
-  const image = voirAvant || !courante ? original : courante.apercu;
+  const original = photo?.original || photo?.vignette;
+  const image = !courante ? original : courante.apercu;
+
+  function saveDraft() {
+    try { sessionStorage.setItem(`studio:${compte.id}:photo:${id}:draft`, demande); setBulles(b => [...b, { de: "ia", texte: "Votre demande est conservée dans ce navigateur. Vous pourrez lancer la retouche dès que le service sera disponible." }]); }
+    catch { setErreur("Le navigateur n’a pas pu enregistrer la demande. Gardez une copie de votre texte."); }
+  }
 
   return (
-    <div className="apparait grid lg:grid-cols-[1fr_400px] gap-6 items-start">
-      <div className="space-y-3">
-        <Link href={photo ? `/app/logement?id=${photo.logement_id}` : "/app"} className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Retour au logement</Link>
-        <div className="relative rounded-3xl overflow-hidden bg-surface border border-line">
-          {image ? <img src={image} alt="" className="w-full max-h-[78vh] object-contain bg-surface-2" /> : <div className="aspect-[3/4] grid place-items-center text-fg-muted">Chargement…</div>}
-          {occupe === "essai" && <div className="absolute inset-0 bg-black/50 backdrop-blur-sm grid place-items-center text-sm"><span className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-2 border border-line"><Sparkles className="size-4 text-accent animate-pulse" /> Retouche en cours, une dizaine de secondes…</span></div>}
-          {courante && <button onMouseDown={() => setVoirAvant(true)} onMouseUp={() => setVoirAvant(false)} onMouseLeave={() => setVoirAvant(false)} onTouchStart={() => setVoirAvant(true)} onTouchEnd={() => setVoirAvant(false)}
-            className="absolute top-3 left-3 inline-flex items-center gap-2 rounded-full bg-surface/95 text-fg backdrop-blur px-3 h-9 text-xs border border-line select-none"><Eye className="size-3.5" /> {voirAvant ? "Avant" : "Maintenir pour voir l'avant"}</button>}
-          {courante && !voirAvant && <span className="absolute top-3 right-3 rounded-full bg-surface/95 text-fg backdrop-blur px-3 h-9 inline-flex items-center text-xs border border-line">Aperçu filigrané · la HD est nette</span>}
-        </div>
-        {photo && photo.versions.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <button onClick={() => setCourante(null)} className={`shrink-0 rounded-xl overflow-hidden border-2 ${!courante ? "border-accent" : "border-transparent"}`}><img src={original} alt="Original" className="h-16 w-12 object-cover" /></button>
-            {photo.versions.map((v) => (
-              <button key={v.id} onClick={() => setCourante(v)} title={v.consigne} className={`shrink-0 relative rounded-xl overflow-hidden border-2 ${courante?.id === v.id ? "border-accent" : "border-transparent"}`}>
-                <img src={v.apercu} alt={`Essai ${v.numero}`} className="h-16 w-12 object-cover" />
-                <span className="absolute bottom-0 inset-x-0 text-[10px] bg-surface/95 text-fg text-center">{v.numero}</span>
-              </button>))}
-          </div>
-        )}
-      </div>
-
-      <aside className="rounded-3xl bg-surface border border-line flex flex-col h-[78vh] lg:sticky lg:top-20">
-        <div className="p-4 border-b border-line flex items-center gap-2 flex-wrap">
-          <span className="font-medium">{photo?.analyse?.piece || "Analyse…"}</span>
-          {photo && <Pastille ton={photo.alerte ? "alerte" : "neutre"}>{photo.essais_restants} essai{photo.essais_restants > 1 ? "s" : ""} restant{photo.essais_restants > 1 ? "s" : ""}</Pastille>}
-          {photo?.offerte && !photo.credite_le && <Pastille ton="accent">photo offerte</Pastille>}
-          {photo?.credite_le && <Pastille ton="ok">gardée</Pastille>}
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
-          {bulles.map((b, i) => (
-            <div key={i} className={`max-w-[90%] rounded-2xl px-4 py-2.5 ${b.de === "ia" ? "bg-surface-2" : "bg-accent text-accent-fg ml-auto"}`}>{b.texte}</div>))}
-          {occupe === "analyse" && <div className="max-w-[90%] rounded-2xl px-4 py-2.5 bg-surface-2 text-fg-muted">Je regarde la photo…</div>}
-          <Message texte={erreur} />
-          <div ref={bas} />
-        </div>
-        <div className="p-3 border-t border-line space-y-2">
-          {photo && repriseNecessaire && <div className="rounded-2xl border border-accent/35 bg-accent/10 p-3 text-sm space-y-2">
-            <p className="font-medium">{periodeExpiree ? "Votre période de retouche est terminée" : "Tous les essais de cette période sont utilisés"}</p>
-            <p className="text-fg-muted">Vos versions restent disponibles. Un crédit ouvre une nouvelle période de 7 jours avec de nouveaux essais et la HD incluse.</p>
-            <Bouton className="w-full" onClick={(event) => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe}>Reprendre cette photo · 1 crédit</Bouton>
+    <main className="editor-main work-editor">
+      <Link href="/app/" className="text-action back-to-projects"><ArrowLeft size={16}/> Mes créations</Link>
+      <div className="editor-title"><div><p className="eyebrow">VOTRE PHOTO</p><h1>{photo?.analyse?.piece || "Votre photo"}</h1><p>Votre original est conservé avec toutes ses versions.</p></div><div className="editor-actions">
+        <Bouton data-photo-download onClick={telecharger} disabled={!courante || !!occupe || (periodeExpiree && !courante.hd)} chargement={occupe === "hd"}><Download size={17}/> {photo?.credite_le || photo?.offerte ? "Télécharger en HD" : "Garder en HD · 1 crédit"}</Bouton>
+      </div></div>
+      <div className="editor-grid"><section className="image-panel">
+        <div className="result-status"><span><CheckCircle2 size={16}/>{courante ? `Version ${courante.numero}` : "Photo originale"}</span><small>{photo?.offerte && !photo.credite_le ? "Photo offerte" : "Original préservé"}</small></div>
+        {image ? voirAvant && courante ? <Compare before={original} result={courante.apercu}/> : <div className="full-result connected-full-result"><img src={image} alt={courante ? "Votre photo retouchée" : "Votre photo originale"}/>{occupe === "essai" && <div role="status" className="connected-photo-pending"><Sparkles size={22}/> Retouche en cours…</div>}</div> : <div className="full-result connected-photo-pending">{erreur ? "La photo n’a pas pu être chargée." : "Chargement de votre photo…"}</div>}
+        <div className="image-bottom"><button disabled={!courante} aria-pressed={voirAvant} onClick={() => setVoirAvant(!voirAvant)}><SlidersHorizontal size={16}/>{voirAvant ? "Photo entière" : "Comparer avec l’original"}</button><span>{courante ? "Aperçu · HD sans filigrane" : "Original préservé"}</span></div>
+        <div className="version-gallery"><div className="history-toggle"><History size={18}/> Toutes vos versions <span>{(photo?.versions.length || 0) + 1}</span></div>
+          {photo && <div className="work-version-list">
+            <button className={`version-row ${!courante ? "is-selected" : ""}`} aria-pressed={!courante} onClick={() => { setCourante(null); setVoirAvant(false); }}><img src={original} alt="" width={92} height={62}/><span><small>LE POINT DE DÉPART</small><strong>Photo originale</strong><span>Votre photo, toujours conservée.</span></span>{!courante && <CheckCircle2 size={19}/>}</button>
+            {photo.versions.map(v => <button key={v.id} className={`version-row ${courante?.id === v.id ? "is-selected" : ""}`} aria-pressed={courante?.id === v.id} disabled={!!occupe} onClick={() => { setCourante(v); setVoirAvant(false); }}><img src={v.apercu} alt="" width={92} height={62}/><span><small>VERSION {v.numero}</small><strong>{v.hd ? "Version HD" : "Votre retouche"}</strong><span>{v.consigne}</span></span>{courante?.id === v.id && <CheckCircle2 size={19}/>}</button>)}
           </div>}
-          {photo && !repriseNecessaire && finPeriode && <p className="px-1 text-xs text-fg-muted">Retouches incluses jusqu’au {finPeriode}. Les téléchargements ne prolongent pas cette date.</p>}
-          {photo && photo.versions.length === 0 && !occupe && !repriseNecessaire && (
-            <Bouton className="w-full" onClick={() => essai("")}><Sparkles className="size-4" /> Oui, fais la version annonce</Bouton>)}
-          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (demande.trim()) essai(demande.trim()); }}>
-            <input value={demande} onChange={(e) => setDemande(e.target.value)} aria-label="Votre demande de retouche" placeholder="Enlève le vélo, meuble la chambre, mur en beige…" disabled={!!occupe || repriseNecessaire}
-                   className="min-w-0 flex-1 h-11 rounded-full bg-surface-2 border border-line px-4 text-sm outline-none focus:border-accent" />
-            <button type="submit" aria-label="Envoyer la demande" disabled={!!occupe || repriseNecessaire || !demande.trim()} className="size-11 rounded-full bg-accent text-accent-fg grid place-items-center disabled:opacity-40"><Send className="size-4" /></button>
-          </form>
-          <div className="flex gap-2">
-            <Bouton variante="secondaire" className="flex-1" onClick={() => setCourante(null)} disabled={!courante || !!occupe}><RotateCcw className="size-4" /> Repartir de l&apos;original</Bouton>
-            <Bouton className="flex-1" data-photo-download onClick={telecharger} disabled={!courante || !!occupe || (periodeExpiree && !courante.hd)} chargement={occupe === "hd"}><Download className="size-4" /> {photo?.credite_le || photo?.offerte ? "Télécharger en HD" : "Garder · 1 crédit"}</Bouton>
-          </div>
         </div>
-      </aside>
+      </section><aside className="edit-controls">
+        <p className="section-kicker">VOTRE PROCHAINE IDÉE</p><h2>Qu’est-ce qu’on change ?</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
+        {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} essais restants</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
+        <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else saveDraft(); }}>
+          <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
+          {!repriseNecessaire && <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>}
+          {demande.length > 4000 && <p className="st-error" role="alert">Raccourcissez votre demande à 4 000 caractères maximum. Votre texte est conservé.</p>}
+          <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Lancer la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
+        </form>
+        {!repriseNecessaire && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
+        {!retoucheDisponible && <div className="generation-state"><Info size={18}/><p><strong>Retouche momentanément indisponible</strong>Préparez votre demande. Aucun crédit n’est consommé.</p></div>}
+        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Tous les essais ont été utilisés"}</strong>Un crédit ouvre 7 jours supplémentaires. Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>Reprendre · 1 crédit</Bouton></div></div>}
+        {finPeriode && !repriseNecessaire && <p className="demo-help">Retouches incluses jusqu’au {finPeriode}.</p>}
+        <Message texte={erreur}/>
+        {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
+        <Link className="text-action" href="/demo/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
+      </aside></div>
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"
         className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-7 text-fg shadow-2xl backdrop:bg-black/65 sm:p-9">
@@ -245,7 +233,7 @@ function Atelier() {
           <Bouton onClick={reprendre} chargement={occupe === "reprise"} disabled={!!occupe}>Confirmer · 1 crédit</Bouton>
         </div> : <Bouton className="mt-6 w-full" onClick={fermerDialogue}>J’ai compris</Bouton>}
       </dialog>}
-    </div>
+    </main>
   );
 }
 

@@ -91,6 +91,15 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
     async def download(self, p="p", v="v"):
         return await self.client.post(f"/photos/{p}/versions/{v}/telecharger")
 
+    async def test_vue_original_independant_de_la_vignette_sans_debit(self):
+        before = self.balance()
+        response = await self.client.get("/photos/p")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["original"], "/test/source")
+        self.assertTrue(response.json()["cree_le"].endswith("Z"))
+        self.assertEqual(self.balance(), before)
+        photos.retouche.retoucher.assert_not_awaited()
+
     async def test_premiere_hd_debit_unique_date_utc_et_pas_de_report(self):
         first = await self.download()
         self.assertEqual(first.status_code, 200, first.text)

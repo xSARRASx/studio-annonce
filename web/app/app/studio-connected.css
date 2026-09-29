@@ -1,0 +1,47 @@
+/* Le studio connecté reprend les composants et les feuilles de style du site. */
+.connected-studio .workspace{min-height:100dvh}
+.connected-studio .studio-workspace .sidebar{height:100dvh}
+.connected-studio .workspace-header{position:sticky;top:0;z-index:30;background:#f8f7f2ee;backdrop-filter:blur(12px)}
+.connected-studio .sidebar{z-index:70}
+.connected-studio .sidebar .brand{font-size:19px!important;gap:7px}
+.connected-identity{display:flex;align-items:center;gap:10px;width:100%;padding:16px 0;text-align:left}
+.connected-identity>span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#eaf0e4;color:#4e5e3c}
+.connected-identity strong{font-size:13px;font-weight:550}
+.connected-identity small{display:block;font-weight:400;font-size:10px;color:#747b6a;margin-top:2px}
+.connected-logout{display:flex;align-items:center;gap:8px;color:#777d6e;font-size:12px!important;padding:16px 0 0}
+.connected-gift{padding-left:8px;border-left:1px solid #d7ddcd}
+.connected-service{display:flex;align-items:flex-start;gap:10px;margin:0 auto;padding:16px 5%;max-width:1180px;color:#647158;font-size:12px}
+.connected-service svg{flex-shrink:0;margin-top:2px}
+.connected-legacy{max-width:1180px;margin:auto;padding:40px 5% 70px}
+.connected-studio .connected-panel{border-radius:14px;background:#fffefa}
+.connected-studio .connected-button{border-radius:8px}
+.connected-studio .connected-field{border-radius:8px;background:#fffefa}
+.connected-studio .connected-page-title{font-size:clamp(28px,3vw,38px);letter-spacing:-1.2px;line-height:1.15}
+.connected-studio .connected-photo-editor{max-width:1400px;margin:auto;padding:32px 4% 60px;grid-template-columns:minmax(0,1fr) 350px}
+.connected-studio .connected-photo-editor>aside{border-radius:14px;background:#fffefa;top:94px}
+.connected-studio .connected-photo-editor .connected-preview{border-radius:14px}
+.connected-studio .connected-photo-editor button:disabled{cursor:not-allowed}
+.connected-example{padding:16px 22px 25px}
+.connected-example .comparison{height:auto;aspect-ratio:1.5}
+.connected-example-options{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.connected-example-options button{padding:10px 14px;background:#f0f3e9;border:1px solid #d9dfce;border-radius:8px;color:#48543c}
+.connected-example-options button[aria-pressed=true]{background:#30372a;color:white}
+.connected-example video{display:block;width:100%;max-height:65vh;background:#222}
+.connected-example p{font-size:13px;color:#68715d;margin-top:15px}
+@media(max-width:1000px){.connected-studio .connected-photo-editor{grid-template-columns:1fr}.connected-studio .connected-photo-editor>aside{height:600px;position:static}}
+@media(max-width:800px){.connected-studio .studio-workspace .sidebar{min-height:0}.connected-studio .workspace-header{padding:0 16px;height:66px}.connected-gift{display:none}.connected-studio .breadcrumb{font-size:11px;gap:5px}.connected-studio .workspace-credit{font-size:11px!important;padding:8px}.connected-legacy{padding:28px 6% 45px}}
+.connected-account-intro{color:#6b7262;line-height:1.6;font-size:14px;margin:14px 0 24px}
+.connected-account-email{color:#65745a;font-size:14px;padding:5px 0 16px}
+.connected-profile-form{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.connected-profile-form label{display:flex;flex-direction:column;gap:8px;font-size:13px;color:#647158}
+.connected-profile-form>div{grid-column:1/-1;display:flex;gap:22px;align-items:center;flex-wrap:wrap;padding-top:10px}
+.connected-billing-link{margin-top:26px}
+.connected-studio .st-pack .connected-button{margin-top:20px;width:100%}
+.connected-studio .st-block-head>span{display:flex;gap:6px;align-items:center}
+@media(max-width:600px){.connected-profile-form{grid-template-columns:1fr}}
+.connected-full-result>img{width:100%;height:100%;object-fit:contain}
+.connected-photo-pending{display:flex;align-items:center;justify-content:center;gap:12px;color:#48583c;background:#f8f7f2e8}
+.connected-full-result>.connected-photo-pending{position:absolute;inset:0}
+.connected-photo-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:20px}
+.connected-photo-feedback{margin:20px 0;padding:14px;border-radius:8px;background:#eff2e8;color:#57664b;font-size:13px;line-height:1.6}
+.connected-studio .work-version-list img{object-fit:cover}

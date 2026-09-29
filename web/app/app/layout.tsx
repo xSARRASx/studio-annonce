@@ -2,9 +2,17 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Coins, LogOut } from "lucide-react";
-import { Embleme } from "@/components/logo";
+import { ArrowLeft, ChevronRight, FolderOpen, Info, LogOut, Menu, Plus, ShieldCheck, UserRound, Wallet, X } from "lucide-react";
+import { Brand } from "../demo/studio-parts";
+import { StudioAccount } from "@/components/studio-account";
 import { api, ErreurApi, jeton, poserJeton, type Compte, type Sante } from "@/lib/api";
+import "../demo/studio.css";
+import "../demo/workspace.css";
+import "../demo/studio-screens.css";
+import "./studio-connected.css";
+
+const tools = ["creer", "nouvelle", "creer-image", "video-photos", "visite"];
+const titles: Record<string, string> = { creer: "Créer", nouvelle: "Retoucher une photo", "creer-image": "Créer une image", "video-photos": "Vidéo → photos", visite: "Photos → vidéo", facturation: "Facturation", compte: "Mon compte", photo: "Votre photo", logement: "Mes créations" };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const routeur = useRouter();
@@ -12,15 +20,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sante, setSante] = useState<Sante | null>(null);
   const [compte, setCompte] = useState<Compte | null>(null);
   const [erreurCompte, setErreurCompte] = useState("");
+  const [hash, setHash] = useState("");
+  const [menu, setMenu] = useState(false);
+  const route = chemin.replace(/\/$/, "").split("/").at(-1) || "app";
+  const screen = route === "app" ? hash.split("/")[0] || "studio" : route;
+  const creating = tools.includes(screen);
 
   useEffect(() => {
-    if (!jeton()) { routeur.replace("/connexion"); return; }
+    const read = () => { setHash(window.location.hash.slice(1)); setMenu(false); };
+    queueMicrotask(read);
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, [chemin]);
+
+  useEffect(() => {
+    if (!jeton()) { routeur.replace("/connexion/"); return; }
     let annule = false;
     const actualiser = () => {
-      api<Compte>("/compte").then((valeur) => { if (!annule) { setErreurCompte(""); setCompte(valeur); if (!valeur.profil_complet && chemin !== "/app/compte" && chemin !== "/app/compte/") routeur.replace("/app/compte/"); } }).catch((erreur: ErreurApi) => {
-        // Une panne après un téléchargement ne doit pas déconnecter l'utilisateur.
-        if (!annule && erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion"); }
-        else if (!annule) setErreurCompte("Votre compte ne peut pas être chargé pour le moment.");
+      api<Compte>("/compte").then(valeur => {
+        if (annule) return;
+        setErreurCompte(""); setCompte(valeur);
+        if (!valeur.profil_complet && !chemin.startsWith("/app/compte")) routeur.replace("/app/compte/");
+      }).catch((erreur: ErreurApi) => {
+        if (annule) return;
+        if (erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion/"); }
+        else setErreurCompte("Votre compte ne peut pas être chargé pour le moment.");
       });
     };
     actualiser();
@@ -29,27 +53,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { annule = true; window.removeEventListener("studio:credits-updated", actualiser); };
   }, [routeur, chemin]);
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <header className="sticky top-0 z-20 backdrop-blur bg-bg/80 border-b border-line">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-          <Link href="/app" className="flex items-center gap-2 font-semibold tracking-tight">
-            <Embleme className="size-8" />
-            <span className="hidden sm:inline">Studio <span className="text-accent">Annonce</span></span>
-          </Link>
-          <nav className="ml-auto flex items-center gap-1 text-sm">
-            <Link href="/app/compte" className="inline-flex items-center gap-2 rounded-full bg-surface-2 border border-line px-3 h-9 hover:border-line-strong">
-              <Coins className="size-4 text-accent" />
-              <span>{compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}</span>
-              {compte?.photo_offerte_disponible && <span className="text-xs text-accent">+1 offerte</span>}
-            </Link>
-            <button onClick={() => { poserJeton(null); routeur.replace("/connexion"); }} className="size-9 grid place-items-center rounded-full text-fg-muted hover:text-fg hover:bg-surface-2" title="Se déconnecter">
-              <LogOut className="size-4" />
-            </button>
-          </nav>
+  function nav(destination: string) {
+    setMenu(false);
+    if (chemin.replace(/\/$/, "") === "/app" && (destination === "/app/" || destination.startsWith("/app/#"))) {
+      window.location.hash = destination.split("#")[1] || "";
+    } else routeur.push(destination);
+    window.scrollTo({ top: 0 });
+  }
+
+  return <div className="studio-demo connected-studio">
+    <div className="workspace studio-workspace">
+      {menu && <button className="sidebar-scrim" aria-label="Fermer le menu" onClick={() => setMenu(false)}/>}
+      <aside className={`sidebar ${menu ? "is-open" : ""}`}>
+        <Brand onClick={() => nav("/")}/>
+        <button className="close-menu icon-button" aria-label="Fermer le menu" onClick={() => setMenu(false)}><X/></button>
+        <div className="sidebar-section-label">VOTRE ESPACE</div>
+        <nav aria-label="Navigation du studio">
+          <button className={`nav-create ${creating ? "active" : ""}`} aria-current={creating ? "page" : undefined} onClick={() => nav("/app/#creer")}><Plus size={19}/> Créer</button>
+          <button className={["studio", "photo", "logement"].includes(screen) ? "active" : ""} aria-current={["studio", "photo", "logement"].includes(screen) ? "page" : undefined} onClick={() => nav("/app/")}><FolderOpen size={19}/> Mes créations</button>
+          <button className={screen === "facturation" ? "active" : ""} aria-current={screen === "facturation" ? "page" : undefined} onClick={() => nav("/app/facturation/")}><Wallet size={19}/> Facturation</button>
+          <button className={screen === "compte" ? "active" : ""} aria-current={screen === "compte" ? "page" : undefined} onClick={() => nav("/app/compte/")}><UserRound size={19}/> Mon compte</button>
+        </nav>
+        <div className="studio-sidebar-note"><ShieldCheck size={19}/><p>Votre espace à vous.<small>Vos photos et leurs versions, retrouvées dans votre compte.</small></p></div>
+        <div className="sidebar-bottom">
+          {compte && <button className="connected-identity" onClick={() => nav("/app/compte/")}><span>{(compte.prenom || "M").slice(0, 1)}</span><strong>{compte.prenom || "Mon compte"}<small>Mon espace personnel</small></strong></button>}
+          <Link className="studio-help-link" href="/demo/aide/">Une question ? Consulter l’aide</Link>
+          <button className="back-site" onClick={() => nav("/")}><ArrowLeft size={15}/> Retour au site</button>
+          <button className="connected-logout" onClick={() => { poserJeton(null); routeur.replace("/connexion/"); }}><LogOut size={15}/> Se déconnecter</button>
         </div>
-      </header>
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">{sante && !sante.retouche_disponible && <p role="status" className="rounded-2xl border border-line bg-surface p-4 mb-6 text-sm text-fg-muted">La retouche photo est momentanément indisponible. Vous pouvez préparer vos photos ; aucun crédit n’est consommé.</p>}{erreurCompte && <div role="alert" className="mb-4 text-sm"><p>{erreurCompte}</p><button className="text-accent mt-2" onClick={() => window.dispatchEvent(new Event("studio:credits-updated"))}>Réessayer</button></div>}{compte ? children : !erreurCompte && <p className="text-fg-muted">Chargement de votre compte…</p>}</main>
+      </aside>
+      <div className="workspace-body">
+        <header className="workspace-header">
+          <button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu" aria-expanded={menu}><Menu/></button>
+          <div className="breadcrumb"><button onClick={() => nav(creating ? "/app/#creer" : "/app/")}>{creating ? "Créer" : "Mon studio"}</button><ChevronRight size={13}/><strong>{titles[screen] || "Mes créations"}</strong></div>
+          <button className="workspace-credit" onClick={() => nav("/app/facturation/")}><span className="status-dot"/>{compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}{compte?.photo_offerte_disponible && <span className="connected-gift">+ 1 photo offerte</span>}</button>
+        </header>
+        {erreurCompte && <div className="connected-service" role="alert"><Info size={17}/><p>{erreurCompte}</p><button className="text-action" onClick={() => window.dispatchEvent(new Event("studio:credits-updated"))}>Réessayer</button></div>}
+        {compte ? <StudioAccount.Provider key={compte.id} value={{ compte, sante, screen }}>{children}</StudioAccount.Provider> : !erreurCompte && <main className="st-main"><p role="status">Ouverture de votre studio…</p></main>}
+      </div>
     </div>
-  );
+  </div>;
 }

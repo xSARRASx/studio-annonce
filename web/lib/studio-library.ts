@@ -1,0 +1,30 @@
+import { api, type Logement, type Photo } from "./api";
+import type { DemoProject, DemoVersion } from "@/app/demo/library";
+
+/** Adaptation des données réelles aux écrans déjà utilisés sur le site. */
+export function photoProject(photo: Photo, logement: Logement): DemoProject {
+  const versions: DemoVersion[] = [{ id: "original", label: "Photo originale", src: photo.original || photo.vignette, note: "Votre photo originale." },
+    ...photo.versions.map(v => ({ id: v.id, label: `Version ${v.numero}`, src: v.apercu, note: v.consigne }))];
+  const last = photo.versions.at(-1);
+  const created = Date.parse(photo.cree_le || logement.cree_le);
+  return {
+    id: photo.id, title: photo.analyse?.piece || `Photo ${photo.ordre + 1}`, property: logement.nom,
+    kind: "photo", sample: false, createdAt: created,
+    updatedAt: last ? Date.parse(last.cree_le) : created,
+    versions, selected: photo.version_gardee || last?.id || "original",
+    ...(photo.version_gardee ? { saved: photo.version_gardee } : {}),
+    ...(photo.reprise_jusqu_au ? { editUntil: Date.parse(photo.reprise_jusqu_au) } : {}), draft: "",
+  };
+}
+
+export const projectSource = (project: DemoProject, version?: DemoVersion) =>
+  (version || project.versions.find(v => v.id === project.selected) || project.versions[0]).src || "";
+
+export async function loadProjects(logements: Logement[]): Promise<DemoProject[]> {
+  const entries = logements.flatMap(logement => logement.photos.map(photo => ({ logement, id: photo.id })));
+  const projects: DemoProject[] = [];
+  for (let i = 0; i < entries.length; i += 6) {
+    projects.push(...await Promise.all(entries.slice(i, i + 6).map(async ({ logement, id }) => photoProject(await api<Photo>(`/photos/${id}`), logement))));
+  }
+  return projects;
+}

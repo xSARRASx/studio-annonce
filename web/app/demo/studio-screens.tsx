@@ -105,7 +105,8 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
 }
 
 /* Nouvelle retouche : une page à rouvrir à chaque fois. Logement, photos, idée. */
-export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine }: {
+export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine, maxRequest = 20000 }: {
+  maxRequest?: number;
   library: DemoLibrary; busy: boolean; initial?: string;
   onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void; onImagine: () => void;
 }) {
@@ -130,7 +131,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   }
   async function creer(e: React.FormEvent) {
     e.preventDefault();
-    if (!fichier || !logement || envoi) return;
+    if (!fichier || !logement || envoi || demande.length > maxRequest) return;
     setEnvoi(true); setErreur("");
     try { await onCreate([fichier], logement, demande.trim()); }
     catch (cause) { setErreur(storageError(cause)); setEnvoi(false); }
@@ -158,14 +159,15 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
         </div>
       </fieldset>
       <fieldset className="st-step"><legend><span>2</span> Ce que vous voulez changer <em>facultatif</em></legend>
-        <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={20000} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
+        <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={maxRequest} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
         <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => d ? `${d}, ${i.toLowerCase()}` : i)}><Plus size={13}/> {i}</button>)}</div>
         <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>
+        {demande.length > maxRequest && <p className="st-error" role="alert">Raccourcissez votre demande à {maxRequest.toLocaleString("fr-FR")} caractères maximum. Votre texte est conservé.</p>}
       </fieldset>
       <OptionalProperty options={logements} choice={choix} name={nouveau} onChoice={setChoix} onName={setNouveau} disabled={envoi}/>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement}>{envoi ? "Création…" : "Créer la retouche"} <ArrowRight size={18}/></button>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement || demande.length > maxRequest}>{envoi ? "Création…" : "Créer la retouche"} <ArrowRight size={18}/></button>
         <span>{!fichier ? "Ajoutez votre photo." : "Vous paierez seulement la photo que vous garderez."}</span>
       </div>
     </form>

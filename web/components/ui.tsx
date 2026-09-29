@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 
 export function Bouton({ children, variante = "primaire", chargement, className = "", ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variante?: "primaire" | "secondaire" | "discret" | "danger"; chargement?: boolean }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]";
+  const base = "connected-button inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]";
   const styles = {
     primaire: "bg-accent text-accent-fg hover:brightness-110 shadow-sm",
     secondaire: "bg-surface-2 text-fg border border-line hover:border-line-strong",
@@ -20,11 +20,11 @@ export function Bouton({ children, variante = "primaire", chargement, className 
 }
 
 export function Champ({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`h-12 w-full rounded-2xl bg-surface-2 border border-line px-4 text-fg placeholder:text-fg-muted/60 outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition ${className}`} {...props} />;
+  return <input className={`connected-field h-12 w-full rounded-2xl bg-surface-2 border border-line px-4 text-fg placeholder:text-fg-muted/60 outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition ${className}`} {...props} />;
 }
 
 export function Carte({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-3xl bg-surface border border-line p-6 ${className}`}>{children}</div>;
+  return <div className={`connected-panel rounded-3xl bg-surface border border-line p-6 ${className}`}>{children}</div>;
 }
 
 export function Pastille({ children, ton = "neutre" }: { children: ReactNode; ton?: "neutre" | "accent" | "ok" | "alerte" }) {

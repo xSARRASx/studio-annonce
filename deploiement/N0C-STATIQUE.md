@@ -2,6 +2,14 @@
 
 Le site Next.js statique est servi sur `https://studioannonce.fr/`, et FastAPI par Python 3.11 / Passenger sur `/api`, dans `~/studioapi` hors de `public_html`. L'aperçu Expo est sous `/mobile/`. L'accueil donne accès au compte réel et à la démonstration. La démonstration `/demo/` et l'aperçu mobile conservent leurs données dans le navigateur ; ils ne synchronisent pas leurs projets avec le compte serveur.
 
+## Interface du studio connecté
+
+`/app/` réutilise maintenant les composants du studio conçu dans `/demo/` : accueil des créations, menu latéral, quatre outils de création, assistant de demande, exemples et comparaison des versions. Le logo porte verte et la favicon sont communs au site et au compte. Les pages profil, facturation et éditeur photo suivent cette même présentation claire. Les données du compte viennent de l'API, sans crédits fictifs ni copie automatique de la bibliothèque locale de démonstration.
+
+Les photos importées et leurs versions sont enregistrées côté serveur. L'API fournit désormais une URL signée distincte pour l'original, sans dériver celle-ci de la vignette. Les brouillons des assistants image et vidéo restent locaux et sont séparés par compte ; ces outils préparent les consignes, sans moteur de génération connecté.
+
+Recette Chrome sur le site publié : navigation entre les quatre outils, retour à Mes créations, ouverture et fermeture de l'exemple photo, pages compte et facturation, conservation du profil Martin Moré et de la photo offerte. Contrôle à 390 × 844 : menu et cartes accessibles, aucun débordement horizontal, puis retour à la taille normale. Aucun import réel, essai IA ou paiement n'a été effectué pendant cette recette d'interface. Captures conservées dans `SAAS/verification-studio-annonce/studio-connecte-accueil-20260929.png` et `studio-connecte-mobile-20260929.png`.
+
 ## Comptes et connexion
 
 Le parcours `/connexion/` demande prénom, nom et email. Le code reçu par email valide l'adresse, puis le profil est enregistré en base. Un ancien compte incomplet doit compléter son profil avant les opérations photo. L'email est normalisé ; une reconnexion ne redonne pas l'offre gratuite. La limite porte sur le compte, pas sur une personne possédant plusieurs adresses.
@@ -26,7 +34,9 @@ La future configuration utilise `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `U
 
 ## Vérifications et déploiement
 
-Les 40 tests API passent dans un dossier de recette isolé sur le serveur. Ils couvrent le profil requis, les codes invalides et réutilisés, la normalisation de l'email, la migration des comptes existants, les montants imposés par le serveur, la signature des confirmations, les accès entre comptes, les confirmations répétées et les calculs de coût. Les tests Stripe utilisent une simulation ; ne pas les confondre avec une recette fournisseur. Le build web et 42 tests web passent. Lint : zéro erreur, cinq avertissements `<img>` préexistants. Dans Chrome, le profil Martin Moré et l'offre disponible sont conservés après rechargement de `/app/compte/`.
+Les 41 tests API passent dans un dossier de recette isolé sur le serveur. Ils couvrent le profil requis, les codes invalides et réutilisés, la normalisation de l'email, la migration des comptes existants, les montants imposés par le serveur, la signature des confirmations, les accès entre comptes, les confirmations répétées, l'accès distinct à l'original sans débit et les calculs de coût. Les tests Stripe utilisent une simulation ; ne pas les confondre avec une recette fournisseur. Le build web et 42 tests web passent. Lint : zéro erreur, quatre avertissements `<img>`. Dans Chrome, le profil Martin Moré et l'offre disponible sont conservés après rechargement de `/app/compte/`.
+
+La correction d'interface a été déployée sans migration de données et sans suppression des fichiers du serveur. Sauvegarde de l'ancien `/app/`, de la route API photo et de la favicon sous `~/sauvegardes-studio/interface-20260929/`.
 
 Sauvegarde avant migration : `~/sauvegardes-studio/comptes-paiements-20260929T081751Z/` contient une sauvegarde SQLite cohérente et l'ancien code API. Aucune donnée historique n'a été effacée. La migration additive peut être rejouée :
 
