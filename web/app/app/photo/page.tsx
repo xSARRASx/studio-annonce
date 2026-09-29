@@ -169,11 +169,11 @@ function Atelier() {
       <div className="space-y-3">
         <Link href={photo ? `/app/logement?id=${photo.logement_id}` : "/app"} className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"><ArrowLeft className="size-4" /> Retour au logement</Link>
         <div className="relative rounded-3xl overflow-hidden bg-surface border border-line">
-          {image ? <img src={image} alt="" className="w-full max-h-[78vh] object-contain bg-black" /> : <div className="aspect-[3/4] grid place-items-center text-fg-muted">Chargement…</div>}
+          {image ? <img src={image} alt="" className="w-full max-h-[78vh] object-contain bg-surface-2" /> : <div className="aspect-[3/4] grid place-items-center text-fg-muted">Chargement…</div>}
           {occupe === "essai" && <div className="absolute inset-0 bg-black/50 backdrop-blur-sm grid place-items-center text-sm"><span className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-2 border border-line"><Sparkles className="size-4 text-accent animate-pulse" /> Retouche en cours, une dizaine de secondes…</span></div>}
           {courante && <button onMouseDown={() => setVoirAvant(true)} onMouseUp={() => setVoirAvant(false)} onMouseLeave={() => setVoirAvant(false)} onTouchStart={() => setVoirAvant(true)} onTouchEnd={() => setVoirAvant(false)}
-            className="absolute top-3 left-3 inline-flex items-center gap-2 rounded-full bg-black/60 backdrop-blur px-3 h-9 text-xs border border-white/10 select-none"><Eye className="size-3.5" /> {voirAvant ? "Avant" : "Maintenir pour voir l'avant"}</button>}
-          {courante && !voirAvant && <span className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur px-3 h-9 inline-flex items-center text-xs border border-white/10">Aperçu filigrané · la HD est nette</span>}
+            className="absolute top-3 left-3 inline-flex items-center gap-2 rounded-full bg-surface/95 text-fg backdrop-blur px-3 h-9 text-xs border border-line select-none"><Eye className="size-3.5" /> {voirAvant ? "Avant" : "Maintenir pour voir l'avant"}</button>}
+          {courante && !voirAvant && <span className="absolute top-3 right-3 rounded-full bg-surface/95 text-fg backdrop-blur px-3 h-9 inline-flex items-center text-xs border border-line">Aperçu filigrané · la HD est nette</span>}
         </div>
         {photo && photo.versions.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -181,7 +181,7 @@ function Atelier() {
             {photo.versions.map((v) => (
               <button key={v.id} onClick={() => setCourante(v)} title={v.consigne} className={`shrink-0 relative rounded-xl overflow-hidden border-2 ${courante?.id === v.id ? "border-accent" : "border-transparent"}`}>
                 <img src={v.apercu} alt={`Essai ${v.numero}`} className="h-16 w-12 object-cover" />
-                <span className="absolute bottom-0 inset-x-0 text-[10px] bg-black/60 text-center">{v.numero}</span>
+                <span className="absolute bottom-0 inset-x-0 text-[10px] bg-surface/95 text-fg text-center">{v.numero}</span>
               </button>))}
           </div>
         )}

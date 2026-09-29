@@ -71,7 +71,7 @@ function PageLogement() {
                 <img src={p.vignette} alt={`Photo ${i + 1}`} className="w-full h-full object-cover group-hover:scale-[1.02] transition" />
                 <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-center gap-2 text-xs">
                   <span>Photo {i + 1}</span>
-                  {p.gardee ? <span className="ml-auto inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="size-3.5" /> gardée</span>
+                  {p.gardee ? <span className="ml-auto inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="size-3.5" /> gardée</span>
                     : p.essais > 0 ? <span className="ml-auto text-fg-muted">{p.essais} essai{p.essais > 1 ? "s" : ""}</span> : <span className="ml-auto text-accent">à retoucher</span>}
                 </div>
               </Link>

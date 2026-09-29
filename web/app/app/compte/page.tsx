@@ -107,7 +107,7 @@ export default function PageCompte() {
     </Carte>)}</div>
     {compte?.paiement_disponible && <p className="text-sm text-fg-muted">Paiement sécurisé par Stripe. Achat ponctuel, sans abonnement.</p>}
     {compte && compte.registre.length > 0 && <Carte><h2 className="font-semibold mb-3">Historique des crédits</h2>
-      <ul className="divide-y divide-line text-sm">{compte.registre.map((m, i) => <li key={i} className="py-3 flex flex-wrap gap-3"><span className={m.delta > 0 ? "text-emerald-400" : "text-fg-muted"}>{m.delta > 0 ? "+" : ""}{m.delta}</span><span>{m.motif}</span><span className="ml-auto text-fg-muted">{new Date(m.le).toLocaleDateString("fr-FR")}</span></li>)}</ul>
+      <ul className="divide-y divide-line text-sm">{compte.registre.map((m, i) => <li key={i} className="py-3 flex flex-wrap gap-3"><span className={m.delta > 0 ? "text-emerald-700" : "text-fg-muted"}>{m.delta > 0 ? "+" : ""}{m.delta}</span><span>{m.motif}</span><span className="ml-auto text-fg-muted">{new Date(m.le).toLocaleDateString("fr-FR")}</span></li>)}</ul>
     </Carte>}
   </div>;
 }

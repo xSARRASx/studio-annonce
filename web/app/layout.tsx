@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Studio Annonce",
   description: "Découvrez Studio Annonce : préparez vos photos immobilières et explorez le studio en démonstration.",
 };
-export const viewport: Viewport = { themeColor: "#0b0b0f" };
+export const viewport: Viewport = { themeColor: "#f8f7f2", colorScheme: "light" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
