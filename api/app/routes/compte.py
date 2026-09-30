@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import credits
+from .. import credits, limites
 from ..config import reglages
 from ..db import session
 from ..models import Compte, MouvementCredit, maintenant
@@ -43,4 +43,5 @@ def moi(compte: Compte = Depends(compte_courant), s: Session = Depends(session))
             "paiement_disponible": paiement_disponible(), "solde": credits.solde(s, compte.id),
             "photo_offerte_disponible": compte.photos_offertes_utilisees < reglages.PHOTO_OFFERTE_PAR_COMPTE,
             "packs": PACKS,
+            "limites": limites.vue(s, compte.id),
             "registre": [{"delta": m.delta, "motif": m.motif, "le": m.cree_le.isoformat()} for m in mouvements]}

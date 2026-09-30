@@ -198,3 +198,24 @@ class Video(Base):
     cle_video: Mapped[str] = mapped_column(String(300), default="")
     erreur: Mapped[str] = mapped_column(Text, default="")
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+
+
+class QuotaCreation(Base):
+    """Compteur partagé web/mobile, indépendant des imports et des téléchargements."""
+    __tablename__ = "quotas_creation"
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), primary_key=True)
+    nature: Mapped[str] = mapped_column(String(10), primary_key=True)
+    periode: Mapped[int] = mapped_column(Integer, default=0)
+    utilisees: Mapped[int] = mapped_column(Integer, default=0)
+    reinitialise_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ReservationCreation(Base):
+    """Une place réservée avant l'IA, validée seulement quand le résultat est conservé."""
+    __tablename__ = "reservations_creation"
+    jeton: Mapped[str] = mapped_column(String(24), primary_key=True)
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    nature: Mapped[str] = mapped_column(String(10))
+    periode: Mapped[int] = mapped_column(Integer)
+    statut: Mapped[str] = mapped_column(String(16), default="en_cours")
+    expire_le: Mapped[datetime] = mapped_column(DateTime)

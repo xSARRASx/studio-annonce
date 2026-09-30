@@ -12,9 +12,9 @@ from PIL import Image
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
-from app import credits
+from app import credits, limites
 from app.db import Base, session
-from app.models import Compte, Jeton, Logement, MouvementCredit, OperationPhoto, Photo, ReprisePhoto, Version
+from app.models import Compte, Jeton, Logement, MouvementCredit, OperationPhoto, Photo, QuotaCreation, ReprisePhoto, Version
 from app.routes import photos
 
 
@@ -31,6 +31,7 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.files = {"source": b"source", "v1": b"v1"}
         self.patches = [
             patch.object(photos, "maintenant", side_effect=lambda: self.instant),
+            patch.object(limites, "maintenant", side_effect=lambda: self.instant),
             patch.object(photos.stockage, "lire", side_effect=lambda k: self.files[k]),
             patch.object(photos.stockage, "ecrire", side_effect=self.write),
             patch.object(photos.stockage, "url_publique", side_effect=lambda k: f"/test/{k}"),
@@ -123,7 +124,7 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(r.headers["x-photo-credit-consomme"], "0")
         self.assertEqual(self.balance(), 5)
         vue = (await self.client.get("/photos/p")).json()
-        self.assertEqual(vue["essais_restants"], 9)
+        self.assertEqual(vue["essais_restants"], 1)
         self.assertFalse(vue["reprise_expiree"])
 
     async def test_echec_ia_et_stockage_ne_consomme_ni_credit_ni_delai(self):
@@ -228,7 +229,7 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 402)
         r = await self.client.post("/photos/p/reprendre", json={"cycle_id":"initial"})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["essais_restants"], photos.reglages.ESSAIS_MAX_PAR_PHOTO)
+        self.assertEqual(r.json()["essais_restants"], 1)
         self.assertEqual(self.balance(), 4)
         hd = await self.download()
         self.assertEqual(hd.status_code, 200)
@@ -332,6 +333,114 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([r.status_code for r in responses], [200,200])
         self.assertEqual(sum(r.json()["offerte"] for r in responses), 1)
         self.assertNotEqual(responses[0].json()["ordre"], responses[1].json()["ordre"])
+
+    async def test_deux_creations_incluses_puis_une_par_credit(self):
+        self.update_photo(essais=0)
+        for _ in range(2):
+            r = await self.client.post("/photos/p/essai", json={})
+            self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(self.balance(), 5)
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 402)
+        reprise = await self.client.post("/photos/p/reprendre", json={"cycle_id": "initial"})
+        self.assertEqual(reprise.status_code, 200, reprise.text)
+        self.assertEqual(reprise.json()["essais_restants"], 1)
+        self.assertEqual(self.balance(), 4)
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 402)
+        self.assertEqual((await self.download()).status_code, 200)
+        self.assertEqual(self.balance(), 4)
+
+    async def test_apercus_possibles_sans_solde_mais_hd_payante_refusee(self):
+        with self.sessions() as s:
+            s.add(MouvementCredit(compte_id="a", delta=-5, motif="Fixture")); s.commit()
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
+        self.assertEqual((await self.download()).status_code, 402)
+        self.assertEqual(self.balance(), 0)
+
+    async def test_trentieme_place_reservee_bloque_autre_appareil(self):
+        with self.sessions() as s:
+            s.add(QuotaCreation(compte_id="a", nature="photo", utilisees=29)); s.commit()
+        entre, terminer = asyncio.Event(), asyncio.Event()
+        async def lent(*args, **kwargs):
+            entre.set(); await terminer.wait(); return self.hd
+        photos.retouche.retoucher.side_effect = lent
+        premier = asyncio.create_task(self.client.post("/photos/p/essai", json={}))
+        await asyncio.wait_for(entre.wait(), 5)
+        refus = await self.client.post("/photos/q/essai", json={})
+        self.assertEqual(refus.status_code, 429, refus.text)
+        terminer.set()
+        self.assertEqual((await premier).status_code, 200)
+        vue = (await self.client.get("/photos/p")).json()
+        self.assertEqual(vue["limites"]["photo"]["utilisees"], 30)
+        self.assertTrue(vue["limites"]["photo"]["bloque"])
+        self.assertEqual((await self.client.post("/photos/q/essai", json={})).status_code, 429)
+        # Acheter une HD reste autorisé à la limite ; cet achat remet les photos à zéro.
+        self.assertEqual((await self.download()).status_code, 200)
+        self.assertEqual((await self.client.get("/photos/p")).json()["limites"]["photo"]["utilisees"], 0)
+
+    async def test_echec_ne_compte_pas_et_correction_payee_reste_disponible(self):
+        self.update_photo(essais=2)
+        reprise = await self.client.post("/photos/p/reprendre", json={"cycle_id": "initial"})
+        self.assertEqual(reprise.status_code, 200)
+        photos.retouche.retoucher.side_effect = RuntimeError("échec simulé")
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 500)
+        vue = (await self.client.get("/photos/p")).json()
+        self.assertEqual(vue["essais_restants"], 1)
+        self.assertEqual(vue["limites"]["photo"]["utilisees"], 0)
+        self.assertEqual(vue["limites"]["photo"]["en_cours"], 0)
+        self.assertEqual(self.balance(), 4)
+        photos.retouche.retoucher.side_effect = None
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
+        self.assertEqual(self.balance(), 4)
+
+    async def test_hd_offerte_et_telechargement_repete_ne_remettent_pas_a_zero(self):
+        self.update_photo(offerte=1)
+        with self.sessions() as s:
+            s.add(QuotaCreation(compte_id="a", nature="photo", utilisees=30)); s.commit()
+        for _ in range(2):
+            self.assertEqual((await self.download()).status_code, 200)
+            vue = (await self.client.get("/photos/p")).json()
+            self.assertEqual(vue["limites"]["photo"]["utilisees"], 30)
+            self.assertTrue(vue["limites"]["photo"]["bloque"])
+        self.assertEqual(self.balance(), 5)
+
+    async def test_payant_debloque_apercu_propre_et_ancien_telechargement_ne_reset_pas(self):
+        avant = (await self.client.get("/photos/p")).json()
+        self.assertTrue(avant["filigrane"])
+        self.assertEqual(avant["versions"][0]["apercu"], "/test/a")
+        self.assertNotIn("cle_pleine", avant["versions"][0])
+        await self.download()
+        apres = (await self.client.get("/photos/p")).json()
+        self.assertFalse(apres["filigrane"])
+        self.assertIn("signature=", apres["versions"][0]["apercu"])
+        with self.sessions() as s:
+            q = s.get(QuotaCreation, ("a", "photo")); q.utilisees = 30; s.commit()
+        await self.download()
+        self.assertEqual((await self.client.get("/photos/p")).json()["limites"]["photo"]["utilisees"], 30)
+
+    async def test_suspension_pendant_hd_ne_debite_pas(self):
+        async def suspension(*args, **kwargs):
+            with self.sessions() as s:
+                s.get(Compte, "a").statut = "suspendu"; s.commit()
+            return self.hd
+        photos.retouche.retoucher.side_effect = suspension
+        self.assertEqual((await self.download()).status_code, 403)
+        self.assertEqual(self.balance(), 5)
+        with self.sessions() as s:
+            self.assertIsNone(s.get(Photo, "p").credite_le)
+            self.assertEqual(s.get(OperationPhoto, "p").statut, "echec")
+
+    async def test_suppression_pendant_essai_ne_consomme_pas_quota(self):
+        async def suppression(*args, **kwargs):
+            with self.sessions() as s:
+                s.get(Compte, "a").statut = "supprime"; s.commit()
+            return self.hd
+        photos.retouche.retoucher.side_effect = suppression
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 403)
+        with self.sessions() as s:
+            self.assertEqual(s.get(Photo, "p").essais, 1)
+            self.assertEqual(limites.vue(s, "a")["photo"]["utilisees"], 0)
+            self.assertEqual(limites.vue(s, "a")["photo"]["en_cours"], 0)
 
 
 if __name__ == "__main__":

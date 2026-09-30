@@ -1,5 +1,6 @@
 """Tailles, formats et filigrane. Trois tailles par photo : vignette, aperçu, HD.
-L'aperçu que le client voit avant de payer est réduit ET filigrané en travers : une capture ne sert à rien."""
+L'aperçu protégé est un dérivé distinct, produit après l'IA. L'original propre est conservé au privé.
+Le motif dissuade la récupération ; aucune protection ne peut interdire toutes les captures."""
 from __future__ import annotations
 
 import io
@@ -37,7 +38,7 @@ def en_webp(im: Image.Image, qualite: int = 82) -> bytes:
 
 
 def filigraner(im: Image.Image, texte: str = "STUDIO ANNONCE · APERÇU") -> Image.Image:
-    """Motif répété en diagonale, semi-transparent, sur toute l'image : impossible à rogner."""
+    """Motif répété en diagonale, semi-transparent, sur la copie d'aperçu seulement."""
     base = im.convert("RGBA")
     calque = Image.new("RGBA", base.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(calque)

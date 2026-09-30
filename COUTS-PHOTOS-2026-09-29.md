@@ -1,5 +1,7 @@
 # Coût des photos — document interne, 29 septembre 2026
 
+**Mise à jour du 30 septembre 2026 :** Martin a confirmé un pack unique de **10 crédits pour 9,99 €**. Les anciens packs du prototype ci-dessous sont historiques et ne sont plus proposés. Les règles ont aussi changé : une génération et une correction incluse par photo, puis une correction par crédit ; plafond commun au compte de 30 résultats photo depuis le dernier achat. Voir [les règles actuelles](REGLES-CREATIONS-2026-09-29.md). Les simulations de consommation ci-dessous restent des hypothèses : aucun coût réel par photo n’a encore été mesuré. Le nouveau prix ne prouve donc pas encore la rentabilité.
+
 Les montants ci-dessous sont des coûts fournisseur, pas des prix à afficher aux clients. Aucune retouche réelle n'a encore été mesurée : la clé OpenAI est reconnue, mais le fournisseur a refusé l'essai pour absence de crédit. Les ventes et la retouche restent fermées. Il faut financer puis réaliser une petite recette avant de confirmer la marge.
 
 ## Tarifs vérifiés
@@ -50,7 +52,7 @@ Ces packs sont les prix provisoires déjà présents dans le prototype, pas une 
 
 Ne pas soustraire directement des coûts en dollars à des recettes en euros. Appliquer le taux de change réellement facturé et le régime fiscal de l'entreprise avant de parler de marge. Les calculs ci-dessus montrent seulement les frais de carte, avant leur éventuel arrondi.
 
-Les règles actuelles permettent 10 essais pour la première photo offerte et 30 pour une photo payante. Elles n'ont pas été changées. **Je déconseille de valider ces packs avec 30 essais inclus avant mesure**, car les essais non retenus peuvent absorber la recette d'une photo. Une piste à chiffrer est un nombre limité d'aperçus inclus puis des essais supplémentaires payants.
+L’ancien prototype permettait 10 essais pour la première photo offerte et 30 pour une photo payante. Ces règles sont remplacées par celles décrites en tête de document. Les essais non retenus restent à inclure dans le coût global, même lorsqu’ils ne donnent lieu à aucun téléchargement.
 
 Le coût réel par vente doit aussi inclure les utilisateurs qui testent gratuitement et ne paient jamais :
 
@@ -58,9 +60,9 @@ Le coût réel par vente doit aussi inclure les utilisateurs qui testent gratuit
 
 Exemple purement économique : si un essai offert coûte 1 € et qu'un utilisateur sur dix achète, l'acquisition par l'offre gratuite coûte 10 € par nouvel acheteur. Cela doit ensuite être réparti sur ses achats. Ces deux nombres sont des hypothèses, pas des statistiques du site.
 
-## Mesure avant fixation des prix
+## Mesure pour valider la marge du tarif confirmé
 
-Mesurer un petit échantillon représentatif : rangement léger, lit à refaire, suppression d'objets et retouche plus complexe ; relever analyse, nombre d'aperçus, HD et résultat acceptable. Comparer coût moyen, cas coûteux et taux d'abandon. Fixer ensuite le nombre d'essais inclus et les packs. Les vidéos et Higgsfield ne sont pas chiffrés ici : aucun moteur vidéo n'est connecté ni tarif contractuel confirmé.
+Mesurer un petit échantillon représentatif : rangement léger, lit à refaire, suppression d'objets et retouche plus complexe ; relever analyse, nombre d'aperçus, HD et résultat acceptable. Comparer coût moyen, cas coûteux et taux d'abandon avec le pack confirmé à 9,99 € et les nouvelles limites. Toute modification de ce tarif ou des essais inclus reste à décider avec Martin. Les vidéos et Higgsfield ne sont pas chiffrés ici : aucun moteur vidéo n'est connecté ni tarif contractuel confirmé.
 
 Rapport privé, depuis le dossier API du serveur :
 

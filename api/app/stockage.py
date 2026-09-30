@@ -15,6 +15,8 @@ DELAI_LIEN_LOCAL = 3600
 
 
 def _s3():
+    if reglages.S3_PUBLIC_URL:
+        raise RuntimeError("Les photos nécessitent un stockage privé. Désactivez le domaine public du bucket avant de configurer les liens signés.")
     import boto3
     commun = dict(aws_access_key_id=reglages.S3_ACCESS_KEY_ID, aws_secret_access_key=reglages.S3_SECRET_ACCESS_KEY)
     if reglages.R2_ACCOUNT_ID:
@@ -44,13 +46,11 @@ def lire(cle: str) -> bytes:
 
 
 def url_publique(cle: str) -> str:
-    """Adresse temporaire pour les fichiers locaux ; URL du stockage sinon."""
+    """Nom historique : adresse temporaire signée, y compris pour les aperçus S3."""
     if not cle:
         return ""
-    if utilise_s3() and reglages.S3_PUBLIC_URL:
-        return f"{reglages.S3_PUBLIC_URL.rstrip('/')}/{cle}"
-    if utilise_s3() and reglages.AWS_REGION:
-        return f"https://{reglages.S3_BUCKET}.s3.{reglages.AWS_REGION}.amazonaws.com/{cle}"
+    if utilise_s3():
+        return _s3().generate_presigned_url("get_object", Params={"Bucket": reglages.S3_BUCKET, "Key": cle}, ExpiresIn=DELAI_LIEN_LOCAL)
     expiration = int(time.time()) + DELAI_LIEN_LOCAL
     signature = signer_lien_local(cle, expiration)
     return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}?expiration={expiration}&signature={signature}"
@@ -59,6 +59,14 @@ def url_publique(cle: str) -> str:
 def signer_lien_local(cle: str, expiration: int) -> str:
     message = f"{expiration}:{cle}".encode()
     return hmac.new(reglages.SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
+
+
+def url_privee(cle: str) -> str:
+    """À appeler seulement après contrôle du compte et du droit au fichier propre."""
+    if utilise_s3():
+        return _s3().generate_presigned_url("get_object", Params={"Bucket": reglages.S3_BUCKET, "Key": cle}, ExpiresIn=300)
+    expiration = int(time.time()) + 300
+    return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}?expiration={expiration}&signature={signer_lien_local(cle, expiration)}"
 
 
 def chemin_local_signe(cle: str, expiration: int, signature: str) -> Path | None:

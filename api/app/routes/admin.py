@@ -4,14 +4,14 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from .. import credits
+from .. import credits, limites
 from ..db import session
 from ..models import (CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin,
-                      Logement, Photo, maintenant)
+                      Logement, Photo, QuotaCreation, maintenant)
 from .auth import compte_complet
 from .compte import Profil
 
@@ -81,7 +81,7 @@ class ModificationProfil(Profil):
 class ActionCompte(BaseModel):
     model_config = ConfigDict(extra="forbid")
     revision: int = Field(ge=0)
-    action: Literal["suspendre", "reactiver", "supprimer", "restaurer", "deconnecter", "nommer_admin", "retirer_admin"]
+    action: Literal["suspendre", "reactiver", "supprimer", "restaurer", "deconnecter", "nommer_admin", "retirer_admin", "reinitialiser_essais"]
     confirmation_email: EmailStr
 
 
@@ -120,6 +120,30 @@ def liste_comptes(q: str = Query("", max_length=120), statut: Literal["tous", "a
             "comptes": [{**identite(c), "sessions": sessions.get(c.id, 0)} for c in comptes]}
 
 
+@routeur.get("/alertes")
+def liste_alertes(page: int = Query(1, ge=1), acteur: Compte = Depends(administrateur),
+                 s: Session = Depends(session)):
+    # Les quotas confirmés sont la source de vérité. Les réservations en cours
+    # ne produisent pas d'alerte. Un achat ou un déblocage résout l'alerte dans
+    # la même transaction que la remise à zéro, sans doublon de notification.
+    filtres = [Compte.statut == "actif", or_(
+        and_(QuotaCreation.nature == "photo", QuotaCreation.utilisees >= limites.plafond("photo")),
+        and_(QuotaCreation.nature == "video", QuotaCreation.utilisees >= limites.plafond("video")),
+    )]
+    requete = select(QuotaCreation, Compte).join(Compte, Compte.id == QuotaCreation.compte_id).where(*filtres)
+    total = s.scalar(select(func.count()).select_from(QuotaCreation).join(
+        Compte, Compte.id == QuotaCreation.compte_id).where(*filtres))
+    lignes = s.execute(requete.order_by(Compte.cree_le.desc(), Compte.id, QuotaCreation.nature)
+                       .offset((page - 1) * 20).limit(20)).all()
+    return {"total": total, "page": page, "par_page": 20, "alertes": [
+        {"id": f"quota:{c.id}:{q.nature}:{q.periode}", "nature": q.nature,
+         "utilisees": q.utilisees, "limite": limites.plafond(q.nature), "compte": identite(c),
+         "message": f"Ce compte a atteint la limite de {limites.plafond(q.nature)} créations "
+                    f"{'photo' if q.nature == 'photo' else 'vidéo'} depuis son dernier achat. "
+                    "Les nouvelles créations sont bloquées ; les fichiers déjà achetés restent accessibles."}
+        for q, c in lignes]}
+
+
 @routeur.get("/journal")
 def liste_journal(page: int = Query(1, ge=1), acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
     a, c = aliased(Compte), aliased(Compte)
@@ -137,6 +161,7 @@ def detail_compte(cible_id: str, acteur: Compte = Depends(administrateur), s: Se
     if not c:
         raise HTTPException(404, "Compte introuvable.")
     return {**identite(c), "sessions": s.scalar(select(func.count()).select_from(Jeton).where(Jeton.compte_id == c.id)),
+            "limites": limites.vue(s, c.id),
             "solde": credits.solde(s, c.id), "photo_offerte_utilisee": bool(c.photos_offertes_utilisees),
             "logements": s.scalar(select(func.count()).select_from(Logement).where(Logement.compte_id == c.id)),
             "photos": s.scalar(select(func.count()).select_from(Photo).join(Logement).where(Logement.compte_id == c.id)),
@@ -181,6 +206,15 @@ def action_compte(cible_id: str, d: ActionCompte, acteur: Compte = Depends(admin
     if str(d.confirmation_email).lower() != c.email:
         raise HTTPException(400, "L’adresse de confirmation ne correspond pas au compte.")
     avant = {"role": c.role, "statut": c.statut}
+    if d.action == "reinitialiser_essais":
+        if c.statut != "actif":
+            raise HTTPException(409, "Réactivez le compte avant de débloquer ses créations.")
+        quotas_avant = limites.vue(s, c.id)
+        limites.reinitialiser(s, c.id)
+        c.revision_admin += 1
+        journal(s, acteur, c, d.action, {"avant": quotas_avant})
+        s.commit()
+        return identite(c)
     transitions = {"suspendre": ("actif", "suspendu"), "reactiver": ("suspendu", "actif"), "restaurer": ("supprime", "actif")}
     if d.action in ("nommer_admin", "retirer_admin"):
         if acteur.role != "proprietaire":

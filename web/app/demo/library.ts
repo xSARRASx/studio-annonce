@@ -185,7 +185,7 @@ export function renewProject(state: DemoLibrary, id: string, now = Date.now()) {
   if (state.credits < 1) throw new Error("Aucun crédit de démonstration restant. Vos fichiers et versions sont conservés.");
   state.credits -= 1;
   project.editUntil = now + WEEK;
-  state.events.unshift({ id: crypto.randomUUID(), project: project.title, label: "Reprise pour 7 jours", amount: -1, at: now });
+  state.events.unshift({ id: crypto.randomUUID(), project: project.title, label: "Une correction, valable 7 jours", amount: -1, at: now });
 }
 
 export async function importedProjects(files: File[], kind: MediaKind): Promise<DemoProject[]> {

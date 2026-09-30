@@ -52,16 +52,20 @@ export async function telechargerPhoto(chemin: string): Promise<{
 
 export type Version = { id: string; numero: number; consigne: string; depuis: string | null; apercu: string; hd: boolean; cree_le: string };
 export type Analyse = { piece: string; defauts: string[]; consigne: string; question: string };
+export type LimiteCreation = { utilisees: number; limite: number; restantes: number; bloque: boolean };
+export type LimitesCreation = { photo: LimiteCreation; video: LimiteCreation; support_url: string; support_telephone: string; support_email?: string };
 export type Photo = {
   id: string; logement_id: string; original?: string; cree_le?: string; ordre: number; offerte: boolean; vignette: string; analyse: Analyse | null;
   essais: number; essais_restants: number; alerte: number | null; version_gardee: string | null;
   credite_le: string | null; reprise_jusqu_au: string | null; versions: Version[];
   cycle_id: string; reprise_expiree: boolean; reprise_necessaire: boolean;
   essais_cycle: number; reprise_commence_le: string | null;
+  filigrane: boolean; limites: LimitesCreation;
 };
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
   photos: { id: string; vignette: string; essais: number; gardee: boolean }[] };
 export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean };
 export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; solde: number; photo_offerte_disponible: boolean;
+  limites: LimitesCreation;
   packs: { id: string; credits: number; prix_centimes: number; libelle: string }[];
   registre: { delta: number; motif: string; le: string }[] };

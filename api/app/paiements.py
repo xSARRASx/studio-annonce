@@ -2,11 +2,10 @@
 from .config import reglages
 from . import retouche, vision
 
-# Tarifs de travail existants. Ne pas ouvrir les ventes avant validation de la marge.
+# Pack validé par Martin le 30/09/2026. Nouvel identifiant pour ne jamais
+# réinterpréter une ancienne commande au tarif de 14,90 €.
 PACKS = [
-    {"id": "p5", "credits": 5, "prix_centimes": 890, "libelle": "5 photos"},
-    {"id": "p10", "credits": 10, "prix_centimes": 1490, "libelle": "10 photos"},
-    {"id": "p25", "credits": 25, "prix_centimes": 2990, "libelle": "25 photos"},
+    {"id": "photo10-999", "credits": 10, "prix_centimes": 999, "libelle": "10 crédits photo"},
 ]
 
 

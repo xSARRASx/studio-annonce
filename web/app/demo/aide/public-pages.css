@@ -67,6 +67,7 @@
 .tariffs-offer strong{display:block;font-weight:550;line-height:1.4;color:#435436;font-size:19px;margin:8px 0 10px}
 .tariffs-offer div>span{font-size:12px;line-height:1.7;color:#727e62;display:block}
 .tariffs-packs{margin-top:40px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.tariffs-packs.tariffs-single-pack{grid-template-columns:minmax(0,1fr);max-width:580px;margin-left:auto;margin-right:auto}
 .tariffs-pack{position:relative;min-width:0;display:flex;flex-direction:column;padding:26px 22px 21px;background:#fffefa;border:1px solid #e0e3d7;border-radius:13px}
 .tariffs-pack-featured{background:#eaf0df;border-color:#c6d2b5}
 .tariffs-pack-label{font-size:11px;line-height:1.5;color:#6d795e;min-height:18px}

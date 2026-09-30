@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, session
 from app.migrations import migrer
-from app.models import AchatCredits, Compte, Jeton, MouvementCredit, maintenant
+from app.models import AchatCredits, Compte, Jeton, MouvementCredit, QuotaCreation, maintenant
 from app.routes import auth, compte, paiements, photos
 
 
@@ -86,16 +86,16 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
 
     async def test_checkout_prix_serveur_et_double_clic_meme_session(self):
         await self.profil()
-        d = {"pack_id":"p5", "cle_demande":str(uuid4())}
+        d = {"pack_id":"photo10-999", "cle_demande":str(uuid4())}
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
                 "id":"cs_test_recette", "url":"https://checkout.stripe.com/c/pay/cs_test_recette"}, None)) as creer:
             first = await self.client.post("/paiements/checkout", json=d)
             again = await self.client.post("/paiements/checkout", json=d)
             self.assertEqual(first.status_code,200,first.text); self.assertEqual(first.json(),again.json())
             self.assertEqual(creer.call_count,1)
-            self.assertEqual(creer.call_args.kwargs["line_items"][0]["price_data"]["unit_amount"],890)
+            self.assertEqual(creer.call_args.kwargs["line_items"][0]["price_data"]["unit_amount"],999)
             self.assertEqual((await self.client.post("/paiements/checkout",json={**d,"prix_centimes":1})).status_code,422)
-            self.assertEqual((await self.client.post("/paiements/checkout",json={**d,"pack_id":"p10"})).status_code,409)
+            self.assertEqual((await self.client.post("/paiements/checkout",json={**d,"pack_id":"p10"})).status_code,400)
             self.assertEqual(self.solde(),0)
 
     async def test_paiement_ferme_et_session_privee(self):
@@ -103,6 +103,35 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         with patch.object(paiements,"disponible",return_value=False):
             self.assertEqual((await self.client.post("/paiements/checkout",json={"pack_id":"p5","cle_demande":str(uuid4())})).status_code,503)
         self.assertEqual((await self.client.get("/paiements/achat",headers={"Authorization":"Bearer b"})).status_code,404)
+
+    async def test_pack_unique_999_et_confirmation_dix_credits(self):
+        await self.profil()
+        packs = (await self.client.get("/compte")).json()["packs"]
+        self.assertEqual(packs, [{"id": "photo10-999", "credits": 10, "prix_centimes": 999, "libelle": "10 crédits photo"}])
+        with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
+                "id": "cs_test_nouveau", "url": "https://checkout.stripe.com/c/pay/cs_test_nouveau"}, None)):
+            response = await self.client.post("/paiements/checkout", json={"pack_id": packs[0]["id"], "cle_demande": str(uuid4())})
+        self.assertEqual(response.status_code, 200, response.text)
+        objet = {"id": "cs_test_nouveau", "object": "checkout.session", "mode": "payment", "payment_status": "paid",
+                 "amount_total": 999, "currency": "eur", "livemode": False, "client_reference_id": "a",
+                 "metadata": {"achat_id": response.json()["achat_id"], "compte_id": "a"}}
+        self.assertEqual((await self.evenement({**objet, "amount_total": 1490})).status_code, 400)
+        self.assertEqual(self.solde(), 0)
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual(self.solde(), 10)
+
+    async def test_ancienne_commande_garde_prix_et_cle_ne_change_pas_de_pack(self):
+        await self.profil()
+        objet = self.commande()
+        with self.sessions() as s:
+            cle = s.get(AchatCredits, "achat").cle_demande
+        with patch.object(stripe.checkout.Session, "create") as creer:
+            response = await self.client.post("/paiements/checkout", json={"pack_id": "photo10-999", "cle_demande": cle})
+        self.assertEqual(response.status_code, 409)
+        creer.assert_not_called()
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual(self.solde(), 5)  # Ancien achat à 8,90 €, jamais converti au nouveau tarif.
 
     async def test_webhook_invalide_ou_impaye_ne_credite_jamais(self):
         objet = self.commande()
@@ -132,6 +161,22 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((await self.client.post("/auth/verifier",json={"email":adresse,"code":r.json()["code_demo"]})).status_code,400)
         with self.sessions() as s:
             self.assertEqual(s.scalar(select(func.count(Compte.id))),2)
+
+    async def test_seul_paiement_confirme_remet_photo_a_zero_et_doublon_ne_reset_pas(self):
+        with self.sessions() as s:
+            s.add_all([QuotaCreation(compte_id="a", nature="photo", utilisees=30),
+                       QuotaCreation(compte_id="a", nature="video", utilisees=10)]); s.commit()
+        objet = self.commande()
+        await self.evenement({**objet, "payment_status": "unpaid"})
+        self.assertEqual((await self.client.get("/compte")).json()["limites"]["photo"]["utilisees"], 30)
+        await self.evenement(objet)
+        etat = (await self.client.get("/compte")).json()["limites"]
+        self.assertEqual(etat["photo"]["utilisees"], 0)
+        self.assertEqual(etat["video"]["utilisees"], 10)
+        with self.sessions() as s:
+            s.get(QuotaCreation, ("a", "photo")).utilisees = 3; s.commit()
+        await self.evenement(objet)
+        self.assertEqual((await self.client.get("/compte")).json()["limites"]["photo"]["utilisees"], 3)
 
 
 class Migration(unittest.TestCase):

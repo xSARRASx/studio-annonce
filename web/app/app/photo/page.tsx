@@ -7,6 +7,8 @@ import { api, telechargerPhoto, ErreurApi, type Photo, type Version } from "@/li
 import { Bouton, Message, Pastille } from "@/components/ui";
 
 import { useStudioAccount } from "@/components/studio-account";
+import { CreationLimits } from "@/components/creation-limits";
+import { PreviewWatermark } from "@/components/preview-watermark";
 import { Compare } from "../../demo/studio-parts";
 import { BriefAssistant } from "../../demo/brief-assistant";
 
@@ -46,7 +48,7 @@ function Atelier() {
       setErreur("");
       poser(p, p.versions.at(-1) || null);
       try { setDemande(sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) || ""); } catch {}
-      if (!p.analyse && retoucheDisponible) {
+      if (!p.analyse && retoucheDisponible && !p.limites?.photo.bloque) {
         setOccupe("analyse");
         p = await api<Photo>(`/photos/${id}/analyser`, { method: "POST" });
       }
@@ -65,6 +67,20 @@ function Atelier() {
     const minuterie = window.setInterval(() => setHorloge(Date.now()), 30_000);
     return () => window.clearInterval(minuterie);
   }, []);
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const refresh = () => {
+      if (actionEnCours.current) return;
+      api<Photo>(`/photos/${id}`).then(p => {
+        if (!active || actionEnCours.current) return;
+        setPhoto(p);
+        setCourante(current => current ? p.versions.find(v => v.id === current.id) || null : null);
+      }).catch(() => { /* Les actions sont toujours vérifiées par le serveur. */ });
+    };
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("focus", refresh); };
+  }, [id]);
   const dialogueOuvert = !!infoTelechargement || confirmationReprise;
   useEffect(() => {
     const element = dialogue.current;
@@ -75,7 +91,7 @@ function Atelier() {
   function poser(p: Photo, v: Version | null) { setPhoto(p); setCourante(v); setVoirAvant(false); }
 
   async function essai(texte: string) {
-    if (!photo || actionEnCours.current || occupe || repriseNecessaire || !retoucheDisponible || texte.length > 4000) return;
+    if (!photo || actionEnCours.current || occupe || repriseNecessaire || creationBloquee || !retoucheDisponible || texte.length > 4000) return;
     actionEnCours.current = true;
     setErreur(""); setOccupe("essai");
     if (texte) setBulles((b) => [...b, { de: "moi", texte }]);
@@ -84,14 +100,15 @@ function Atelier() {
       poser(p, p.versions.at(-1) || null);
       setDemande("");
       const restants = p.essais_restants;
-      setBulles((b) => [...b, { de: "ia", texte: (texte ? "Voilà. " : "Voilà la version annonce. ") + (p.alerte ? `Il vous reste ${restants} essai${restants > 1 ? "s" : ""} sur cette photo.` : "Ça vous plaît ? Sinon dites-moi quoi changer.") }]);
+      window.dispatchEvent(new Event("studio:credits-updated"));
+      setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : "Une correction supplémentaire coûte 1 crédit."}` }]);
     } catch (e) {
       const err = e as ErreurApi;
-      if (err.statut === 402) {
+      if ([402, 403, 429].includes(err.statut)) {
         setBulles((b) => [...b, { de: "ia", texte: err.message }]);
         try { await rafraichir(); } catch { /* L'erreur d'origine reste visible. */ }
       } else setErreur(err.message);
-    } finally { setOccupe(null); actionEnCours.current = false; }
+    } finally { setOccupe(null); actionEnCours.current = false; window.dispatchEvent(new Event("studio:credits-updated")); }
   }
 
   async function rafraichir(versionId: string | null = courante?.id || null) {
@@ -121,7 +138,7 @@ function Atelier() {
       const limite = dateLisible(resultat.repriseJusquAu);
       setBulles((b) => [...b, { de: "ia", texte: resultat.premierePhotoOfferte
         ? "Votre photo offerte est prête en HD. Aucun crédit n'a été utilisé."
-        : resultat.creditConsomme ? `Votre photo est prête en HD. Un crédit a été utilisé.${limite ? ` Retouches incluses jusqu’au ${limite}.` : ""}`
+        : resultat.creditConsomme ? `Votre photo est prête en HD. Un crédit a été utilisé.${limite ? ` La correction incluse, si elle reste disponible, est utilisable jusqu’au ${limite}.` : ""}`
         : "Téléchargement HD relancé. Aucun crédit supplémentaire n'a été utilisé." }]);
       try { await rafraichir(); }
       catch { setErreur("Le téléchargement est prêt, mais l’état de la photo n’a pas pu être actualisé. Rechargez la page pour retrouver la période exacte."); }
@@ -168,6 +185,9 @@ function Atelier() {
   const periodeExpiree = !!photo && (photo.reprise_expiree || (!!photo.reprise_jusqu_au && horloge >= Date.parse(photo.reprise_jusqu_au)));
   const repriseNecessaire = !!photo && (periodeExpiree || photo.essais_restants === 0);
   const finPeriode = dateLisible(photo?.reprise_jusqu_au || null);
+  const limites = photo?.limites || compte.limites;
+  const creationBloquee = !!limites?.photo.bloque;
+  const filigrane = !!courante && (photo?.filigrane ?? (!photo?.offerte && !photo?.credite_le));
   const original = photo?.original || photo?.vignette;
   const image = !courante ? original : courante.apercu;
 
@@ -184,8 +204,8 @@ function Atelier() {
       </div></div>
       <div className="editor-grid"><section className="image-panel">
         <div className="result-status"><span><CheckCircle2 size={16}/>{courante ? `Version ${courante.numero}` : "Photo originale"}</span><small>{photo?.offerte && !photo.credite_le ? "Photo offerte" : "Original préservé"}</small></div>
-        {image ? voirAvant && courante ? <Compare before={original} result={courante.apercu}/> : <div className="full-result connected-full-result"><img src={image} alt={courante ? "Votre photo retouchée" : "Votre photo originale"}/>{occupe === "essai" && <div role="status" className="connected-photo-pending"><Sparkles size={22}/> Retouche en cours…</div>}</div> : <div className="full-result connected-photo-pending">{erreur ? "La photo n’a pas pu être chargée." : "Chargement de votre photo…"}</div>}
-        <div className="image-bottom"><button disabled={!courante} aria-pressed={voirAvant} onClick={() => setVoirAvant(!voirAvant)}><SlidersHorizontal size={16}/>{voirAvant ? "Photo entière" : "Comparer avec l’original"}</button><span>{courante ? "Aperçu · HD sans filigrane" : "Original préservé"}</span></div>
+        {image ? voirAvant && courante ? <Compare before={original} result={courante.apercu} watermarked={filigrane}/> : <div className="full-result connected-full-result"><img src={image} draggable={false} alt={courante ? "Votre photo retouchée" : "Votre photo originale"}/>{filigrane && <PreviewWatermark/>}{occupe === "essai" && <div role="status" className="connected-photo-pending"><Sparkles size={22}/> Retouche en cours…</div>}</div> : <div className="full-result connected-photo-pending">{erreur ? "La photo n’a pas pu être chargée." : "Chargement de votre photo…"}</div>}
+        <div className="image-bottom"><button disabled={!courante} aria-pressed={voirAvant} onClick={() => setVoirAvant(!voirAvant)}><SlidersHorizontal size={16}/>{voirAvant ? "Photo entière" : "Comparer avec l’original"}</button><span>{filigrane ? "Aperçu protégé · HD sans filigrane à l’achat" : courante ? "Téléchargement HD sans filigrane" : "Original préservé"}</span></div>
         <div className="version-gallery"><div className="history-toggle"><History size={18}/> Toutes vos versions <span>{(photo?.versions.length || 0) + 1}</span></div>
           {photo && <div className="work-version-list">
             <button className={`version-row ${!courante ? "is-selected" : ""}`} aria-pressed={!courante} onClick={() => { setCourante(null); setVoirAvant(false); }}><img src={original} alt="" width={92} height={62}/><span><small>LE POINT DE DÉPART</small><strong>Photo originale</strong><span>Votre photo, toujours conservée.</span></span>{!courante && <CheckCircle2 size={19}/>}</button>
@@ -194,17 +214,19 @@ function Atelier() {
         </div>
       </section><aside className="edit-controls">
         <p className="section-kicker">VOTRE PROCHAINE IDÉE</p><h2>Qu’est-ce qu’on change ?</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
-        {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} essais restants</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
+        {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} génération{photo.essais_restants > 1 ? "s" : ""} restante{photo.essais_restants > 1 ? "s" : ""}</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
+        <p className="demo-help">Première génération + 1 correction incluse. Chaque correction supplémentaire coûte 1 crédit.</p>
+        <CreationLimits limites={limites} compact/>
         <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else saveDraft(); }}>
-          <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
-          {!repriseNecessaire && <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>}
+          <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire || creationBloquee} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
+          {!repriseNecessaire && !creationBloquee && <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>}
           {demande.length > 4000 && <p className="st-error" role="alert">Raccourcissez votre demande à 4 000 caractères maximum. Votre texte est conservé.</p>}
-          <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Lancer la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
+          <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || creationBloquee || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Lancer la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
         </form>
-        {!repriseNecessaire && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
+        {!repriseNecessaire && !creationBloquee && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
         {!retoucheDisponible && <div className="generation-state"><Info size={18}/><p><strong>Retouche momentanément indisponible</strong>Préparez votre demande. Aucun crédit n’est consommé.</p></div>}
-        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Tous les essais ont été utilisés"}</strong>Un crédit ouvre 7 jours supplémentaires. Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>Reprendre · 1 crédit</Bouton></div></div>}
-        {finPeriode && !repriseNecessaire && <p className="demo-help">Retouches incluses jusqu’au {finPeriode}.</p>}
+        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Générations disponibles utilisées"}</strong>1 crédit débloque une seule correction, utilisable pendant 7 jours. Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>Ajouter 1 correction · 1 crédit</Bouton></div></div>}
+        {finPeriode && !repriseNecessaire && <p className="demo-help">Générations restantes utilisables jusqu’au {finPeriode}.</p>}
         <Message texte={erreur}/>
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
         <Link className="text-action" href="/demo/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
@@ -216,15 +238,15 @@ function Atelier() {
           className="absolute right-4 top-4 grid size-11 place-items-center rounded-full border border-line bg-surface-2 text-fg-muted transition hover:bg-surface-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"><X className="size-5" /></button>
         <div className="mb-5 grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent"><Download className="size-6" /></div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-fg-muted">{confirmationReprise ? "Avant de reprendre" : "Information importante"}</p>
-        <h2 id="download-info-title" className="mt-2 pr-9 text-2xl font-semibold tracking-tight">{confirmationReprise ? "Ouvrir une nouvelle période ?" : infoTelechargement?.reprise ? "Vos retouches sont réactivées" : "Votre photo est prête en HD"}</h2>
+        <h2 id="download-info-title" className="mt-2 pr-9 text-2xl font-semibold tracking-tight">{confirmationReprise ? "Ajouter une correction ?" : infoTelechargement?.reprise ? "Votre correction est disponible" : "Votre photo est prête en HD"}</h2>
         <div id="download-info-copy" className="mt-4 space-y-3 text-base leading-7 text-fg-muted">
           {confirmationReprise ? <>
-            <p><strong className="text-fg">1 crédit sera utilisé maintenant.</strong> Vous disposerez de 7 jours pour modifier cette photo. Ses versions précédentes sont conservées et les téléchargements HD sont inclus.</p>
-            <p className="text-sm">La limite quotidienne d’essais continue de s’appliquer.</p>
+            <p><strong className="text-fg">1 crédit sera utilisé maintenant pour une seule correction.</strong> Vous aurez 7 jours pour la lancer. Ses versions précédentes sont conservées et les téléchargements HD sont inclus.</p>
+            <p className="text-sm">En cas d’échec de la génération, cette correction reste disponible dans la période en cours. Cet achat remet le compteur de créations photo à zéro, sans modifier celui des vidéos.</p>
           </> : <>
-            <p>{infoTelechargement?.reprise ? "Un crédit a été utilisé pour ouvrir cette nouvelle période." : infoTelechargement?.offerte ? "C’est votre photo offerte : aucun crédit n’a été utilisé." : "Un crédit a été utilisé pour votre premier téléchargement HD."}</p>
-            {infoTelechargement?.dateLimite ? <p>Vous pouvez modifier cette photo sans nouveau crédit jusqu’au <strong className="text-fg">{infoTelechargement.dateLimite}</strong>, dans la limite des essais disponibles.</p> : <p>La date limite n’a pas été reçue du serveur. Rechargez la page pour consulter la période exacte ; aucun nouveau délai n’est créé par ce message.</p>}
-            <p>Après cette période, un nouveau crédit sera nécessaire pour reprendre les retouches. Télécharger à nouveau ne prolonge pas le délai.</p>
+            <p>{infoTelechargement?.reprise ? "Un crédit a été utilisé pour ajouter une seule correction." : infoTelechargement?.offerte ? "C’est votre photo offerte : aucun crédit n’a été utilisé." : "Un crédit a été utilisé pour votre premier téléchargement HD."}</p>
+            {infoTelechargement?.dateLimite ? <p>{infoTelechargement.reprise ? "Votre correction est utilisable" : "La correction incluse, si elle reste disponible, est utilisable"} jusqu’au <strong className="text-fg">{infoTelechargement.dateLimite}</strong>.</p> : <p>La date limite n’a pas été reçue du serveur. Rechargez la page pour consulter la période exacte ; aucun nouveau délai n’est créé par ce message.</p>}
+            <p>Chaque correction supplémentaire coûte 1 crédit. Un ancien téléchargement ne prolonge pas le délai et ne remet aucun compteur à zéro.</p>
           </>}
         </div>
         <p className="mt-5 border-t border-line pt-4 text-xs leading-5 text-fg-muted">Toutes vos versions restent dans l’historique. Les fichiers HD déjà préparés restent téléchargeables.</p>

@@ -31,8 +31,14 @@ class Reglages(BaseSettings):
 
     # Les règles du produit, décidées avec Martin (18 et 19/09/2026)
     PHOTO_OFFERTE_PAR_COMPTE: int = 1
-    ESSAIS_MAX_PAR_PHOTO: int = 30
-    ESSAIS_MAX_PHOTO_OFFERTE: int = 10
+    ESSAIS_MAX_PAR_PHOTO: int = 2
+    ESSAIS_MAX_PHOTO_OFFERTE: int = 2
+    ESSAIS_PAR_CORRECTION_PAYANTE: int = 1
+    CREATIONS_PHOTO_SANS_ACHAT: int = 30
+    CREATIONS_VIDEO_SANS_ACHAT: int = 10
+    SUPPORT_TELEPHONE: str = "06 34 97 26 93"
+    SUPPORT_URL: str = "https://wa.me/33634972693"
+    SUPPORT_EMAIL: str = "contact@studioannonce.fr"
     ESSAIS_MAX_PAR_JOUR: int = 150
     JOURS_DE_REPRISE: int = 7
     ALERTES_ESSAIS_RESTANTS: tuple[int, ...] = (10, 5, 3, 2, 1)

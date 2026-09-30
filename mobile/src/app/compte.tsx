@@ -1,1 +1,1 @@
-export { AccountScreen as default } from '../components/Studio';
+export { ConnectedAccount as default } from '../components/ConnectedStudio';

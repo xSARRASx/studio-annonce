@@ -3,11 +3,12 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { StudioProvider, colors } from '../components/Studio';
+import { AccountConnection } from '../components/AccountConnection';
 
 const navigationItems = [
   { name: 'index', title: 'Mes créations' },
   { name: 'creer', title: 'Créer' },
-  { name: 'compte', title: 'Facturation' },
+  { name: 'compte', title: 'Mon compte' },
 ] as const;
 const creationScreens = new Set(['creer', 'nouvelle', 'creer-image', 'visite', 'video-photos']);
 
@@ -18,7 +19,7 @@ function NavigationIcon({ name, color }: { name: string; color: string }) {
 }
 
 export default function Layout() {
-  return <StudioProvider><StatusBar style="dark"/><Tabs screenOptions={{ headerShown: false }} tabBar={({ state, navigation, insets }) => {
+  return <StudioProvider><AccountConnection><StatusBar style="dark"/><Tabs screenOptions={{ headerShown: false }} tabBar={({ state, navigation, insets }) => {
     const currentScreen = state.routes[state.index].name;
     const activeTab = creationScreens.has(currentScreen) ? 'creer' : currentScreen === 'compte' ? 'compte' : 'index';
     return <View style={[styles.tabs, { paddingBottom: Math.max(8, insets.bottom) }]}>{navigationItems.map(item => {
@@ -36,8 +37,9 @@ export default function Layout() {
   }}>
     <Tabs.Screen name="index" options={{ title: 'Mes créations' }}/>
     <Tabs.Screen name="creer" options={{ title: 'Créer' }}/>
-    <Tabs.Screen name="compte" options={{ title: 'Facturation' }}/>
-    <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></StudioProvider>;
+    <Tabs.Screen name="compte" options={{ title: 'Mon compte' }}/>
+    <Tabs.Screen name="local" options={{ href: null }}/>
+    <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></AccountConnection></StudioProvider>;
 }
 
 const styles = StyleSheet.create({

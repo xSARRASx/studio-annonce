@@ -1,0 +1,37 @@
+import { Info, Mail, MessageCircle } from "lucide-react";
+import type { LimitesCreation } from "@/lib/api";
+
+function supportHref(value: string | undefined) {
+  if (!value) return null;
+  try { const url = new URL(value); return ["https:", "mailto:", "tel:"].includes(url.protocol) ? url.href : null; }
+  catch { return null; }
+}
+
+export function SupportContact({ limites }: { limites?: LimitesCreation }) {
+  const whatsapp = supportHref(limites?.support_url) || "https://wa.me/33634972693";
+  const email = limites?.support_email?.trim() || "contact@studioannonce.fr";
+  const emailHref = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : "mailto:contact@studioannonce.fr";
+  return <section className="st-bill-block connected-support" aria-labelledby="support-title">
+    <div className="st-block-head"><h2 id="support-title">Besoin d’aide ?</h2></div>
+    <p className="connected-account-intro">Une question sur votre compte, une retouche ou vos crédits ? Retrouvez-nous sur WhatsApp ou par email.</p>
+    <div className="connected-support-actions"><a href={whatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} aria-hidden="true"/>Contacter le support</a><a href={emailHref}><Mail size={17} aria-hidden="true"/>Envoyer un email</a></div>
+    <p className="connected-account-intro">{limites?.support_telephone || "06 34 97 26 93"} · {email}</p>
+  </section>;
+}
+
+export function CreationLimits({ limites, kind = "photo", compact = false }: { limites?: LimitesCreation; kind?: "photo" | "video"; compact?: boolean }) {
+  if (!limites?.[kind]) return null;
+  const count = limites[kind];
+  const href = supportHref(limites.support_url);
+  const phone = limites.support_telephone?.trim();
+  const email = limites.support_email?.trim();
+  const emailHref = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? `mailto:${email}` : null;
+  const phoneHref = phone && /^\+?[\d ()-]{5,25}$/.test(phone) ? `tel:${phone.replace(/[ ()-]/g, "")}` : null;
+  return <div className={`creation-limits${count.bloque ? " is-blocked" : ""}${compact ? " compact" : ""}`} role={count.bloque ? "status" : undefined}>
+    <Info size={17} aria-hidden="true"/><div>
+      <strong>{count.bloque ? "Limite d’essais atteinte" : `${count.restantes} création${count.restantes > 1 ? "s" : ""} ${kind === "photo" ? "photo" : "vidéo"} restante${count.restantes > 1 ? "s" : ""}`}</strong>
+      <p>{count.bloque ? "Les nouvelles créations sont en pause. Contactez le support pour les débloquer. Vos fichiers déjà achetés restent accessibles." : `${count.utilisees} sur ${count.limite} depuis votre dernier achat ${kind === "photo" ? "photo" : "vidéo"}. Ce compteur est commun au site et à l’application mobile.`}</p>
+      {count.bloque && <div className="creation-limits-contact">{href && <a href={href}>Contacter le support</a>}{phoneHref && <a href={phoneHref}>{phone}</a>}{emailHref && <a href={emailHref}>Envoyer un email</a>}{!href && !phoneHref && !emailHref && <a href="/demo/aide/">Consulter l’aide</a>}</div>}
+    </div>
+  </div>;
+}

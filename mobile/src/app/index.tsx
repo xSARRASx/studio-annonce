@@ -1,1 +1,1 @@
-export { PhotosScreen as default } from '../components/Studio';
+export { ConnectedLibrary as default } from '../components/ConnectedStudio';

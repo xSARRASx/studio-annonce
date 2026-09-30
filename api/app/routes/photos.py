@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from .. import credits, images, retouche, stockage, vision
+from .. import credits, images, limites, retouche, stockage, vision
 from ..config import reglages
 from ..db import session
 from ..models import Compte, Logement, OperationPhoto, Photo, ReprisePhoto, Version, identifiant, maintenant
@@ -23,7 +23,7 @@ def _utc(date: datetime | None) -> str | None:
     return date.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z") if date else None
 
 
-def _verrouiller_compte(s: Session, compte_id: str) -> Compte:
+def _verrouiller_compte(s: Session, compte_id: str, nettoyage: bool = False) -> Compte:
     # Évite une lecture périmée issue de l'authentification. L'UPDATE verrouille une
     # ligne sur PostgreSQL et acquiert le verrou d'écriture SQLite, même sans changement.
     s.rollback()
@@ -33,6 +33,8 @@ def _verrouiller_compte(s: Session, compte_id: str) -> Compte:
     compte = s.get(Compte, compte_id)
     if not compte:
         raise HTTPException(401, "Compte introuvable.")
+    if compte.statut != "actif" and not nettoyage:
+        raise HTTPException(403, "Ce compte n’est plus actif. Aucun nouveau résultat ni débit n’a été validé.")
     return compte
 
 
@@ -48,7 +50,7 @@ def _periode(s: Session, p: Photo) -> dict:
                         .order_by(ReprisePhoto.commence_le.desc(), ReprisePhoto.id.desc())).first()
     debut = reprise.commence_le if reprise else p.credite_le
     fin = debut + timedelta(days=reglages.JOURS_DE_REPRISE) if debut else None
-    limite = reglages.ESSAIS_MAX_PAR_PHOTO if reprise or not p.offerte else reglages.ESSAIS_MAX_PHOTO_OFFERTE
+    limite = reglages.ESSAIS_PAR_CORRECTION_PAYANTE if reprise else (reglages.ESSAIS_MAX_PHOTO_OFFERTE if p.offerte else reglages.ESSAIS_MAX_PAR_PHOTO)
     essais_cycle = p.essais - (reprise.essais_depart if reprise else 0)
     expiree = bool(fin and maintenant() >= fin)
     return {"cycle_id": reprise.id if reprise else "initial", "debut": debut, "fin": fin,
@@ -56,9 +58,10 @@ def _periode(s: Session, p: Photo) -> dict:
             "expiree": expiree, "necessaire": expiree or essais_cycle >= limite}
 
 
-def _vue_version(v: Version) -> dict:
+def _vue_version(v: Version, autorisee: bool = False) -> dict:
     return {"id": v.id, "numero": v.numero, "consigne": v.consigne, "depuis": v.depuis_version_id,
-            "apercu": stockage.url_publique(v.cle_apercu), "hd": bool(v.cle_hd), "cree_le": _utc(v.cree_le)}
+            "apercu": stockage.url_privee(v.cle_pleine) if autorisee else stockage.url_publique(v.cle_apercu),
+            "hd": bool(v.cle_hd), "cree_le": _utc(v.cree_le)}
 
 
 def _vue_photo(s: Session, p: Photo) -> dict:
@@ -73,7 +76,9 @@ def _vue_photo(s: Session, p: Photo) -> dict:
         "version_gardee": p.version_gardee_id, "credite_le": _utc(p.credite_le),
         "reprise_jusqu_au": _utc(periode["fin"]), "reprise_commence_le": _utc(periode["debut"]),
         "reprise_expiree": periode["expiree"], "reprise_necessaire": periode["necessaire"],
-        "cycle_id": periode["cycle_id"], "versions": [_vue_version(v) for v in p.versions],
+        "cycle_id": periode["cycle_id"], "versions": [_vue_version(v, bool(p.offerte or p.credite_le)) for v in p.versions],
+        "filigrane": not bool(p.offerte or p.credite_le),
+        "limites": limites.vue(s, p.logement.compte_id),
     }
 
 
@@ -93,6 +98,8 @@ def _reserver(s: Session, p: Photo, compte_id: str, nature: str) -> str:
     op.nature, op.statut = nature, "en_cours"
     op.expire_le = maintenant() + timedelta(minutes=10)
     jeton = op.jeton
+    if nature == "essai":
+        limites.reserver(s, compte_id, "photo", jeton)
     s.commit()  # aucun verrou SQL n'est conservé pendant la génération
     return jeton
 
@@ -105,10 +112,11 @@ def _operation_a_terminer(s: Session, photo_id: str, jeton: str) -> OperationPho
 
 
 def _abandonner(s: Session, compte_id: str, photo_id: str, jeton: str) -> None:
-    _verrouiller_compte(s, compte_id)
+    _verrouiller_compte(s, compte_id, nettoyage=True)
     op = s.get(OperationPhoto, photo_id)
     if op and op.jeton == jeton and op.statut == "en_cours":
         op.statut = "echec"
+    limites.terminer(s, jeton, False)
     s.commit()
 
 
@@ -145,6 +153,7 @@ async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Com
 async def analyser(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     p = _photo_du_compte(s, compte, photo_id)
     if not p.analyse:
+        limites.verifier(s, compte.id, "photo")
         if not vision.disponible():
             raise HTTPException(503, "L'analyse photo n'est pas encore disponible.")
         p.analyse = await vision.analyser(stockage.lire(p.cle_originale))
@@ -164,13 +173,13 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
     compte_id = compte.id
     compte = _verrouiller_compte(s, compte_id)
     p = _photo_du_compte(s, compte, photo_id)
+    _operation_libre(s, p.id)
+    limites.verifier(s, compte_id, "photo")
     periode = _periode(s, p)
     if periode["expiree"]:
         raise HTTPException(402, "La période de retouche est terminée. Reprenez explicitement cette photo avec un crédit.")
     if periode["essais_cycle"] >= periode["limite"]:
-        raise HTTPException(402, f"Les {periode['limite']} essais de cette période sont utilisés. Un crédit permet d'ouvrir une nouvelle période.")
-    if not p.offerte and p.credite_le is None and credits.solde(s, compte_id) <= 0:
-        raise HTTPException(402, "Il faut au moins un crédit pour retoucher cette photo.")
+        raise HTTPException(402, "Les créations incluses sont utilisées. Un crédit permet une correction supplémentaire, avec son téléchargement HD.")
     debut_jour = maintenant().replace(hour=0, minute=0, second=0, microsecond=0)
     essais_du_jour = s.scalar(select(func.count(Version.id)).join(Photo).join(Logement)
                               .where(Logement.compte_id == compte_id, Version.cree_le >= debut_jour)) or 0
@@ -196,7 +205,8 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         resultat = await retouche.retoucher(source, consigne)
         # Stockage unique par opération : même une réponse tardive ne remplace pas une version.
         base_cle = f"{compte_id}/{p.logement_id}/{photo_id}/{jeton}"
-        pleine = stockage.ecrire(f"{base_cle}-pleine.jpg", resultat, "image/jpeg")
+        # La clé propre ne se déduit jamais de l'URL de la copie d'aperçu.
+        pleine = stockage.ecrire(f"prive/{compte_id}/{identifiant()}-pleine.jpg", resultat, "image/jpeg")
         apercu = stockage.ecrire(f"{base_cle}-apercu.webp", images.apercu_filigrane(resultat), "image/webp")
         compte = _verrouiller_compte(s, compte_id)
         p = _photo_du_compte(s, compte, photo_id)
@@ -210,6 +220,7 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         s.add(v)
         p.essais += 1
         op.statut = "terminee"
+        limites.terminer(s, jeton, True)
         s.commit()
         s.refresh(p)
         return _vue_photo(s, p)
@@ -238,7 +249,8 @@ def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_
     instant = maintenant()
     reprise = ReprisePhoto(photo_id=p.id, commence_le=instant, essais_depart=p.essais)
     s.add(reprise); s.flush()
-    credits.mouvement(s, compte, -1, "Nouvelle période de retouche photo", f"reprise:{reprise.id}")
+    credits.mouvement(s, compte, -1, "Une correction photo supplémentaire (HD incluse)", f"reprise:{reprise.id}")
+    limites.reinitialiser(s, compte_id, "photo")
     # Une reprise peut suivre l'épuisement des essais avant le premier téléchargement.
     # Ce crédit inclut la HD, sans second débit au prochain téléchargement.
     if p.credite_le is None:
@@ -299,6 +311,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
             if credits.solde(s, compte_id) < 1:
                 raise HTTPException(402, "Il vous faut un crédit pour télécharger cette photo en haute qualité.")
             credits.mouvement(s, compte, -1, "Photo gardée en HD", p.id)
+            limites.reinitialiser(s, compte_id, "photo")
         if premiere_fois:
             p.credite_le = maintenant()
         v.cle_hd = cle_hd

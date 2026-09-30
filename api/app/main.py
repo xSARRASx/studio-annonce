@@ -26,7 +26,7 @@ async def donnees_privees(request, call_next):
     racine = request.scope.get("root_path", "").rstrip("/")
     if racine and chemin.startswith(racine + "/"):
         chemin = chemin[len(racine):]
-    if chemin.startswith(("/admin", "/compte", "/auth")):
+    if chemin.startswith(("/admin", "/compte", "/auth", "/photos", "/logements", "/fichiers")):
         response.headers["Cache-Control"] = "private, no-store"
     return response
 

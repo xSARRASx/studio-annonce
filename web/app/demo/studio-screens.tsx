@@ -176,13 +176,13 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
 }
 
 /* Facturation : le solde, ce qui a été utilisé, les packs et les factures. */
-const PACKS = [["À l’unité", "1 photo", "1,90 €", ""], ["Pack 5", "5 photos", "8,90 €", "1,78 € la photo"], ["Pack 10", "10 photos", "14,90 €", "1,49 € la photo"], ["Pack 25", "25 photos", "29,90 €", "1,20 € la photo"]];
+const PACKS = [["Pack photo", "10 crédits", "9,99 €", "sans abonnement"]];
 export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate: () => void }) {
   return <main className="st-main st-billing">
     <p className="eyebrow">FACTURATION</p>
     <h1>Vos crédits et vos factures.</h1>
     <div className="st-bill-top">
-      <div className="st-balance"><span>Solde de démonstration</span><strong>{library.credits}<small>{library.credits > 1 ? "crédits" : "crédit"}</small></strong><p>1 crédit = 1 photo gardée en HD.</p></div>
+      <div className="st-balance"><span>Solde de démonstration</span><strong>{library.credits}<small>{library.credits > 1 ? "crédits" : "crédit"}</small></strong><p>1 crédit pour une photo HD ou une correction supplémentaire.</p></div>
       <div className="st-free"><Sparkles size={22}/><div><strong>{library.freeUsed ? "Photo offerte utilisée" : "1 photo offerte"}</strong><p>{library.freeUsed ? "Votre première photo retouchée vous a été offerte." : "Votre première photo retouchée est gratuite."}</p></div>{!library.freeUsed && <button className="text-action" onClick={onCreate}>Créer ma retouche <ArrowRight size={15}/></button>}</div>
     </div>
     <section className="st-bill-block"><div className="st-block-head"><h2>Recharger</h2><span>Le paiement arrive au lancement.</span></div>
@@ -195,6 +195,6 @@ export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate:
     <section className="st-bill-block"><div className="st-block-head"><h2><FileText size={18}/> Mes factures</h2></div>
       <div className="st-invoices-empty"><FileText size={26}/><p>Vos factures apparaîtront ici après votre premier achat, prêtes à télécharger en PDF.</p></div>
     </section>
-    <div className="st-bill-rules"><p><Download size={17}/> Le crédit part au premier téléchargement HD. Garder une version ne coûte rien.</p><p><Clock3 size={17}/> Ensuite, 7 jours pour ajuster la photo sans nouveau crédit.</p><p><ArrowUpRight size={17}/><span>Tous les détails sur la <Link href="/demo/tarifs/">page des tarifs</Link>.</span></p></div>
+    <div className="st-bill-rules"><p><Download size={17}/> Le crédit part au premier téléchargement HD. Garder une version ne coûte rien.</p><p><Clock3 size={17}/> 1 génération + 1 correction incluse. Puis 1 crédit par correction supplémentaire.</p><p><ArrowUpRight size={17}/><span>Tous les détails sur la <Link href="/demo/tarifs/">page des tarifs</Link>.</span></p></div>
   </main>;
 }

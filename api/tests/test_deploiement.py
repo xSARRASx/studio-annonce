@@ -78,7 +78,7 @@ class DeploiementPublic(unittest.TestCase):
             chemin.parent.mkdir()
             chemin.write_bytes(b"photo")
             signature = stockage.signer_lien_local(cle, 1010)
-            self.assertEqual(stockage.chemin_local_signe(cle, 1010, signature), chemin)
+            self.assertEqual(stockage.chemin_local_signe(cle, 1010, signature), chemin.resolve())
             self.assertIsNone(stockage.chemin_local_signe(cle, 999, stockage.signer_lien_local(cle, 999)))
             self.assertIsNone(stockage.chemin_local_signe(cle, 1010, "invalide"))
             sortie = "../hors-dossier.jpg"

@@ -1,1 +1,1 @@
-export { CreateScreen as default } from '../components/Studio';
+export { ConnectedUpload as default } from '../components/ConnectedStudio';

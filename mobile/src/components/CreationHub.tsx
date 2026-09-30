@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { Screen } from './Studio';
+import { AccountScreenFrame } from './ConnectedStudio';
 
 type CreationKind = 'retouch' | 'image' | 'video' | 'frames';
 
@@ -19,7 +19,7 @@ function CreationIcon({ kind, color }: { kind: CreationKind; color: string }) {
 }
 
 export function CreationHubScreen() {
-  return <Screen title="Que voulez-vous créer ?" subtitle="Choisissez votre point de départ. On vous guide pour la suite.">
+  return <AccountScreenFrame title="Que voulez-vous créer ?" subtitle="Choisissez votre point de départ. On vous guide pour la suite.">
     <View style={styles.choices}>
       {choices.map(choice => <Pressable key={choice.kind} accessibilityRole="button" accessibilityLabel={choice.title} accessibilityHint={choice.description} onPress={() => router.navigate({ pathname: choice.route, params: choice.kind === 'retouch' ? { logement: undefined, retour: undefined } : undefined })} style={({ pressed }) => [styles.card, { backgroundColor: choice.background, borderColor: choice.border, opacity: pressed ? .74 : 1 }]}>
         <View style={styles.cardTop}><View style={styles.icon}><CreationIcon kind={choice.kind} color={choice.ink}/></View><Text style={styles.title}>{choice.title}</Text><Text style={[styles.open, { color: choice.ink }]}>↗</Text></View>
@@ -27,8 +27,8 @@ export function CreationHubScreen() {
         <View style={styles.flow}><Text style={[styles.pill, { color: choice.ink }]}>{choice.from}</Text><Text style={[styles.flowArrow, { color: choice.ink }]}>→</Text><Text style={[styles.pill, styles.resultPill, { color: choice.ink, borderColor: choice.border }]}>{choice.to}</Text></View>
       </Pressable>)}
     </View>
-    <View style={styles.note}><Text style={styles.noteTitle}>Vous gardez la main.</Text><Text style={styles.noteBody}>À chaque étape, choisissez des réponses ou précisez votre idée avec vos mots.</Text><Text style={styles.preview}>Aperçu : les demandes IA sont préparées, la génération reste à connecter. L’extraction vidéo → photos fonctionne sur cet appareil.</Text></View>
-  </Screen>;
+    <View style={styles.note}><Text style={styles.noteTitle}>Vous gardez la main.</Text><Text style={styles.noteBody}>La retouche photo utilise votre compte et les mêmes crédits que le site. Une génération et une correction sont incluses ; chaque correction supplémentaire coûte un crédit.</Text><Text style={styles.preview}>La création d’images et de vidéos permet pour le moment de préparer un brouillon local. La génération vidéo n’est pas encore ouverte. L’extraction vidéo → photos fonctionne sur cet appareil.</Text></View>
+  </AccountScreenFrame>;
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,44 @@
-# Studio Annonce sur N0C — état vérifié le 29 septembre 2026
+# Studio Annonce sur N0C — état vérifié le 30 septembre 2026
 
-Le site Next.js statique est servi sur `https://studioannonce.fr/`, et FastAPI par Python 3.11 / Passenger sur `/api`, dans `~/studioapi` hors de `public_html`. L'aperçu Expo est sous `/mobile/`. L'accueil donne accès au compte réel et à la démonstration. La démonstration `/demo/` et l'aperçu mobile conservent leurs données dans le navigateur ; ils ne synchronisent pas leurs projets avec le compte serveur.
+Le site Next.js statique est servi sur `https://studioannonce.fr/`, et FastAPI par Python 3.11 / Passenger sur `/api`, dans `~/studioapi` hors de `public_html`. L'aperçu Expo est sous `/mobile/`, présenté dans `/mobile-preview/`. L'accueil donne accès au compte réel et à la démonstration. La démonstration `/demo/` et les anciens brouillons mobiles restent locaux. La nouvelle entrée mobile utilise le compte serveur ; les données de démonstration ne sont pas transférées en crédits réels.
+
+## Publication du 30 septembre : tarif et notifications
+
+Le pack confirmé est désormais **10 crédits photo pour 9,99 €**, sans abonnement. L'identifiant `photo10-999` évite de modifier le sens d'une ancienne commande. Le tarif est identique dans la page publique, le compte web, la démonstration et le compte mobile. Les achats restent indisponibles jusqu'à la validation des fournisseurs.
+
+L'administration dispose de l'onglet Notifications. Les comptes actifs ayant atteint 30 résultats photo, ou le seuil vidéo préparé de 10, y apparaissent avec identité, compteur et explication. Les réservations en cours et les échecs ne déclenchent pas l'alerte. La liste est paginée et actualisée toutes les minutes lorsque l'écran est actif. Le mobile connecté affiche les mêmes alertes et permet le même déblocage avec confirmation de l'email. Le contrôle serveur des rôles et la journalisation s'appliquent aux deux interfaces. Un achat ou un déblocage résout l'alerte ; aucune notification push ou email d'alerte n'est envoyée.
+
+Livraison `prix-alertes-20260930T0503Z` publiée à **05:11:28 UTC** sur le compte N0C `vzbbtadpbm`, domaine `studioannonce.fr` : 120 fichiers écrits, 196 empreintes vérifiées, 27 fichiers protégés conservés. Seuls deux fichiers API ont changé (`app/routes/admin.py` et `app/paiements.py`). Aucune migration, suppression de données ou modification du `.env`. Sauvegarde vérifiée : `~/sauvegardes-studio/prix-alertes-20260930T0503Z/fichiers-avant.tar.gz`, SHA-256 `f3e1251e3427cbb274343941709dc872b4dbee6a81ee40063701345c24119745`.
+
+Les 54 fichiers HTML/JS/CSS modifiés ont été récupérés par HTTP et correspondent exactement à l'export. `/api/sante` répond 200 ; `/api/compte`, `/api/admin/alertes` et `/api/admin/vue-ensemble` refusent l'accès anonyme avec 401 et `private, no-store`. Le contrôle HTTP avec une session existante du propriétaire confirme le catalogue à 999 centimes, l'accès aux alertes et un administrateur actif. Aucun compte client n'a été modifié pour la recette en production.
+
+Recette isolée : 75 tests API, 49 tests web, 22 tests de logique mobile ; exports web/mobile, TypeScript et lint réussis (quatre avertissements web `<img>` préexistants). Le déblocage depuis le mobile fait disparaître l'alerte sur le web sans changer les crédits. La page publique des tarifs et l'entrée mobile ont été observées sur le site publié. Les interactions de déblocage ont été testées sur des comptes fictifs, pas sur la production. Voir [le rapport de vérification](../VERIFICATION-PRIX-ALERTES-2026-09-30.md).
+
+**Blocages actuels :** la clé OpenAI est reconnue, mais le solde API est à 0,00 $ et l'appel de contrôle est refusé pour `credit_balance_exhausted` / `insufficient_quota`. Aucune clé Stripe ni secret de webhook n'est configuré. `IA_ACTIVE=false` et `PAIEMENT_ACTIF=false` sont donc conservés. Il faut le budget de recharge OpenAI et le compte Stripe d'encaissement, puis une recette réelle avant ouverture. Le moteur vidéo reste hors périmètre. L'aperçu mobile publié est une application web Expo ; aucune distribution native signée n'est revendiquée.
+
+Les sections datées du 29 septembre ci-dessous conservent l'historique ; le tarif confirmé ci-dessus remplace leurs anciens prix provisoires. Le contrôle visuel du 30 septembre dans le navigateur intégré ne constitue pas une preuve de résolution du signalement historique Chrome.
+
+## Livraison des règles de création du 29 septembre
+
+Les [règles détaillées](../REGLES-CREATIONS-2026-09-29.md) remplacent les anciennes limites : génération initiale et une correction incluse, puis une correction par crédit ; photo offerte propre ; aperçus non acquis protégés ; 30 créations photo et 10 créations vidéo depuis le dernier achat du type concerné, avec réservation des places en cours et contrôle serveur.
+
+Le seuil suspend les nouvelles créations, sans retirer les fichiers acquis. L'administration dispose d'une réinitialisation des essais journalisée. Les notifications Stripe répétées, les téléchargements gratuits ou répétés et les changements d'appareil ne réinitialisent pas les compteurs. Une suspension administrative pendant une génération empêche sa finalisation et tout nouveau débit.
+
+Support configuré dans N0C : `contact@studioannonce.fr` redirige vers `contact@guestlucky.com`, sans copie locale. Il s'agit d'une adresse de réception et de transfert, pas d'une boîte de connexion autonome. Le bouton « Contacter le support » ouvre `https://wa.me/33634972693` et le numéro affiché est `06 34 97 26 93`. La configuration du transfert a été vérifiée ; aucun email de test externe n'a été envoyé.
+
+Validation serveur : 69 tests réussis localement et avec Python 3.11 sur l'hébergement, dans une copie isolée sans `.env` de production. Validation web : 49 tests et export de production réussis. Sauvegarde préalable du code, du site complet et de SQLite avec contrôle d'intégrité sous `~/sauvegardes-studio/regles-20260929T1140/`. Préparation sous `~/livraisons-studio/regles-20260929T1140/`.
+
+Recette web sur données fictives : aperçu payant filigrané, comparaison découpée, offert propre, blocage au seuil de 30, téléchargement d'une photo acquise effectivement récupéré, aucun débordement à 390 px et aucune erreur navigateur. Les preuves sont dans `SAAS/verification-studio-annonce/regles-web-20260929/`. Recette Expo web à 390 px : connexion, bibliothèque, éditeur, correction supplémentaire au seuil de 30 après confirmation, solde 4 → 3 et compteur remis à 1 après réussite, téléchargement acquis toujours accessible. TypeScript, lint et 22 tests de logique mobile réussis. Aucun appel fournisseur ou paiement réel pendant ces recettes.
+
+L'export Expo est généré avec `EXPO_PUBLIC_API_URL=https://studioannonce.fr/api EXPO_BASE_URL=/mobile npx expo export --platform web --output-dir /tmp/studio-mobile-production`. La page `/mobile-preview/` ouvre sa racine connectée, et non l'ancien atelier local. Sur Apache, chaque page exportée `route.html` est également copiée dans `route/index.html` pour les liens avec barre finale.
+
+Publication effectuée le 29 septembre vers 11:42 UTC : API et migration additive, export Next et export Expo `/mobile/` transférés, puis Passenger redémarré. Aucun ancien fichier du site ni donnée client n'a été supprimé. La vérification HTTP authentifiée confirme les limites 30/10 et les contacts dans le vrai compte et l'administration, le refus 401 de l'administration anonyme et le maintien des réponses privées sans cache. Les lignes historiques des comptes, crédits, photos et versions sont conservées par rapport à la sauvegarde. Le service répond sain, connexion disponible, retouche et paiement toujours désactivés.
+
+Les exports iOS et Android compilent aussi ; ce ne sont pas des binaires signés installés. Captures de recette mobile conservées dans `SAAS/verification-studio-annonce/regles-mobile-20260929/`. Les contrôles de fichiers publiés sont dans `SAAS/verification-studio-annonce/regles-production-20260929.json`.
+
+L'onglet Chrome de production porte encore le titre « Erreur liée à la sécurité » lors de la vérification de cette livraison. Aucun avertissement n'a été contourné ; la recette visuelle utilise une copie locale avec des données fictives. Une réponse HTTP correcte ne signifie pas que le classement de sécurité Chrome est résolu.
+
+Le module de limites vidéo est prêt et testé, mais aucun moteur de génération vidéo n'est relié. La retouche réelle et les achats restent désactivés. Les nouveaux tarifs ne sont pas fixés par cette livraison. La compilation Expo et la recette web ne prouvent pas une installation ou une recette sur iPhone/Android physique.
 
 ## Interface du studio connecté
 

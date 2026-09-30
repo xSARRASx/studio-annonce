@@ -9,8 +9,9 @@ from fastapi import FastAPI
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
+from app import limites
 from app.db import Base, session
-from app.models import (CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin,
+from app.models import (CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin, QuotaCreation,
                         Logement, MouvementCredit, Photo, maintenant)
 from app.routes import admin, auth, compte
 from scripts.initialiser_admin import initialiser
@@ -49,7 +50,7 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_anonyme_et_client_refuses_sur_tous_les_endpoints(self):
         for authorization, expected in [("", 401), ("Bearer client", 403)]:
-            for path in ["/admin/vue-ensemble", "/admin/comptes", "/admin/journal", "/admin/comptes/owner"]:
+            for path in ["/admin/vue-ensemble", "/admin/comptes", "/admin/journal", "/admin/alertes", "/admin/comptes/owner"]:
                 r = await self.client.get(path, headers={"Authorization": authorization})
                 self.assertEqual(r.status_code, expected, r.text)
             for method, path, data in [("POST", "/admin/comptes", {"prenom": "Test", "nom": "Client", "email": "new@example.com"}),
@@ -69,6 +70,62 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.post("/admin/comptes", json=data)).status_code, 409)
         with self.sessions() as s:
             self.assertEqual(s.scalar(select(func.count()).select_from(JournalAdmin)), 1)
+
+    async def test_alerte_apres_trentieme_reussite_sans_doublon_ni_suspension(self):
+        with self.sessions() as s:
+            s.add(QuotaCreation(compte_id="client", nature="photo", utilisees=29)); s.commit()
+            limites.reserver(s, "client", "photo", "trentieme"); s.commit()
+        self.assertEqual((await self.client.get("/admin/alertes")).json()["total"], 0)
+        with self.sessions() as s:
+            limites.terminer(s, "trentieme", True); s.commit()
+        first = (await self.client.get("/admin/alertes")).json()
+        again = (await self.client.get("/admin/alertes", headers={"Authorization": "Bearer admin"})).json()
+        self.assertEqual(first, again)
+        self.assertEqual(first["total"], 1)
+        alert = first["alertes"][0]
+        self.assertEqual((alert["nature"], alert["utilisees"], alert["limite"]), ("photo", 30, 30))
+        self.assertEqual(alert["compte"]["email"], "client@example.com")
+        self.assertIn("fichiers déjà achetés restent accessibles", alert["message"])
+        self.assertEqual(alert["compte"]["statut"], "actif")
+        self.assertEqual((await self.client.get("/compte", headers={"Authorization": "Bearer client"})).status_code, 200)
+
+    async def test_generation_echouee_ne_declenche_pas_alerte(self):
+        with self.sessions() as s:
+            s.add(QuotaCreation(compte_id="client", nature="photo", utilisees=29)); s.commit()
+            limites.reserver(s, "client", "photo", "echec"); s.commit()
+            limites.terminer(s, "echec", False); s.commit()
+        self.assertEqual((await self.client.get("/admin/alertes")).json()["total"], 0)
+
+    async def test_deblocage_et_achat_resolvent_alerte_nouvelle_periode_distincte(self):
+        with self.sessions() as s:
+            s.add(QuotaCreation(compte_id="client", nature="photo", utilisees=30)); s.commit()
+        before = (await self.client.get("/admin/alertes")).json()["alertes"][0]["id"]
+        self.assertEqual((await self.action("reinitialiser_essais")).status_code, 200)
+        self.assertEqual((await self.client.get("/admin/alertes")).json()["total"], 0)
+        with self.sessions() as s:
+            s.get(QuotaCreation, ("client", "photo")).utilisees = 30; s.commit()
+        after = (await self.client.get("/admin/alertes")).json()["alertes"][0]["id"]
+        self.assertNotEqual(before, after)
+        with self.sessions() as s:
+            # Même remise à zéro transactionnelle que le webhook d'achat confirmé.
+            limites.reinitialiser(s, "client", "photo"); s.commit()
+        self.assertEqual((await self.client.get("/admin/alertes")).json()["total"], 0)
+
+    async def test_alertes_paginees_videos_et_comptes_inactifs(self):
+        with self.sessions() as s:
+            for i in range(21):
+                s.add(Compte(id=f"alerte-{i:02}", email=f"alerte-{i}@example.com"))
+            s.flush()
+            s.add_all([QuotaCreation(compte_id=f"alerte-{i:02}", nature="photo", utilisees=30) for i in range(21)])
+            s.add(QuotaCreation(compte_id="client", nature="video", utilisees=10))
+            s.add(QuotaCreation(compte_id="second", nature="photo", utilisees=30))
+            s.get(Compte, "second").statut = "supprime"; s.commit()
+        one = (await self.client.get("/admin/alertes?page=1")).json()
+        two = (await self.client.get("/admin/alertes?page=2")).json()
+        self.assertEqual((one["total"], len(one["alertes"]), len(two["alertes"])), (22, 20, 2))
+        ids = [a["id"] for a in one["alertes"] + two["alertes"]]
+        self.assertEqual(len(set(ids)), 22)
+        self.assertEqual((await self.client.get("/admin/alertes?page=0")).status_code, 422)
 
     async def test_aucune_auto_promotion_par_le_profil_public(self):
         r = await self.client.patch("/compte/profil", headers={"Authorization": "Bearer client"}, json={"prenom": "Client", "nom": "Test", "role": "proprietaire"})
@@ -159,6 +216,20 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(d["connexions"]), 1)
         self.assertIsNotNone(d["derniere_connexion_le"])
         self.assertEqual(sum(d["nombre"] for d in (await self.client.get("/admin/vue-ensemble")).json()["connexions"]), 1)
+
+    async def test_deblocage_compteurs_restreint_trace_sans_revoquer_connexion(self):
+        with self.sessions() as s:
+            s.add_all([QuotaCreation(compte_id="client", nature="photo", utilisees=30),
+                       QuotaCreation(compte_id="client", nature="video", utilisees=10)]); s.commit()
+        self.assertEqual((await self.action("reinitialiser_essais", actor="client")).status_code, 403)
+        self.assertEqual((await self.action("reinitialiser_essais")).status_code, 200)
+        d = (await self.client.get("/admin/comptes/client")).json()
+        self.assertEqual(d["limites"]["photo"]["utilisees"], 0)
+        self.assertEqual(d["limites"]["video"]["utilisees"], 0)
+        self.assertEqual(d["sessions"], 1)
+        self.assertEqual((await self.action("reinitialiser_essais")).status_code, 409)
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(JournalAdmin.action)), "reinitialiser_essais")
 
     async def test_bootstrap_ne_cree_ni_ne_remplace_proprietaire(self):
         with self.sessions() as s:

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..config import reglages
 from ..credits import mouvement
+from .. import limites
 from ..db import session
 from ..models import AchatCredits, Compte, maintenant
 from ..paiements import PACKS, disponible
@@ -98,8 +99,10 @@ def appliquer_confirmation(objet: dict, s: Session):
         AchatCredits.id == achat.id, AchatCredits.credite_le.is_(None)
     ).values(credite_le=maintenant(), statut="paye", stripe_session_id=objet["id"]))
     if resultat.rowcount:
+        s.execute(update(Compte).where(Compte.id == achat.compte_id).values(photos_offertes_utilisees=Compte.photos_offertes_utilisees))
         mouvement(s, s.get(Compte, achat.compte_id), achat.credits,
                   f"Achat de {achat.credits} crédits photo", f"stripe:{objet['id']}")
+        limites.reinitialiser(s, achat.compte_id, "photo")
     s.commit()  # commande et registre validés dans la même transaction
 
 

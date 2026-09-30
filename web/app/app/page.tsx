@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { api, type Logement, type Photo } from "@/lib/api";
 import { loadProjects, photoProject, projectSource } from "@/lib/studio-library";
 import { useStudioAccount } from "@/components/studio-account";
+import { CreationLimits } from "@/components/creation-limits";
 import { CreateView, PhotoList } from "../demo/studio-screens";
 import { CreationHub } from "../demo/creation-hub";
 import { ImagePlanner } from "../demo/image-planner";
@@ -97,6 +98,8 @@ export default function MonStudio() {
 
   return <>
     {error && <div className="connected-service" role="alert"><Info size={17}/><p>{error}</p></div>}
+    {["studio", "nouvelle", "creer-image"].includes(screen) && <div className="connected-limits"><CreationLimits limites={compte.limites}/></div>}
+    {screen === "visite" && <div className="connected-limits"><CreationLimits limites={compte.limites} kind="video"/></div>}
     {screen === "studio" && <PhotoList library={library} source={projectSource} now={now} busy={busy} onCreate={() => go("creer")} onAddPhoto={name => { setProperty(name); go("nouvelle"); }} onExample={setExample} onOpen={project => router.push(`/app/photo/?id=${project.id}`)}/>}
     {screen === "creer" && <CreationHub onChoose={go}/>}
     {screen === "nouvelle" && sante && !sante.retouche_disponible && <div className="connected-service" role="status"><Info size={17}/><p>Vous pouvez préparer votre photo. La retouche IA est momentanément indisponible ; aucun crédit n’est consommé.</p></div>}

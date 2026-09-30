@@ -1,5 +1,7 @@
 # PROMPT DE PASSATION : reprends le projet « Studio Annonce » (photos et vidéos IA pour annonces de logements)
 
+> Archive historique. Pour l'état actuel au 30 septembre 2026, lire d'abord [les règles de création](REGLES-CREATIONS-2026-09-29.md), [le déploiement N0C](deploiement/N0C-STATIQUE.md) et [la dernière vérification](VERIFICATION-PRIX-ALERTES-2026-09-30.md). Le pack actuel est de 10 crédits pour 9,99 €, avec une génération et une correction incluse par photo. Les anciens tarifs, limites par photo, couleurs et consignes de publication ci-dessous ne font pas autorité sur ces décisions plus récentes.
+
 Tu prends la suite d'un assistant IA qui a travaillé avec Martin sur ce projet. Ce document contient TOUT :
 le produit, les décisions prises, les règles, le code déjà écrit, ce qui reste à faire, et la façon de
 travailler avec Martin. Lis-le en entier avant de faire quoi que ce soit, puis continue là où on s'est arrêté.
