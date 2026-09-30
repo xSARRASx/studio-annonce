@@ -59,21 +59,21 @@ export function CookieConsent() {
 
   if (!pret) return null;
   if (!ouvert) return (
-    <button className="cookie-settings" type="button" onClick={() => setOuvert(true)} aria-label="Modifier mes choix de cookies">
+    <button className="sa-consent-settings" type="button" onClick={() => setOuvert(true)} aria-label="Modifier mes choix de cookies">
       <Settings2 size={15} aria-hidden="true" /> Cookies
     </button>
   );
 
-  return <div className="cookie-layer" role="presentation">
-    <section className="cookie-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-title" aria-describedby="cookie-description">
-      {choix && <button className="cookie-close" type="button" onClick={() => setOuvert(false)} aria-label="Fermer les réglages des cookies"><X size={18}/></button>}
-      <span className="cookie-icon"><Cookie size={21} aria-hidden="true" /></span>
-      <div className="cookie-copy">
+  return <div className="sa-consent-layer" role="presentation">
+    <section className="sa-consent-panel" role="dialog" aria-modal="true" aria-labelledby="cookie-title" aria-describedby="cookie-description">
+      {choix && <button className="sa-consent-close" type="button" onClick={() => setOuvert(false)} aria-label="Fermer les réglages des cookies"><X size={18}/></button>}
+      <span className="sa-consent-icon"><Cookie size={21} aria-hidden="true" /></span>
+      <div className="sa-consent-text">
         <h2 id="cookie-title">Vos choix de cookies</h2>
         <p id="cookie-description">Les éléments indispensables gardent votre session et vos préférences. Les cookies optionnels servent uniquement à mesurer l’audience et améliorer Studio Annonce ; ils restent désactivés sans votre accord.</p>
         <Link href="/confidentialite/">En savoir plus et gérer vos données</Link>
       </div>
-      <div className="cookie-actions">
+      <div className="sa-consent-actions">
         <button type="button" onClick={() => choisir("refuses")}>Tout refuser</button>
         <button type="button" onClick={() => choisir("acceptes")}>Tout accepter</button>
       </div>
