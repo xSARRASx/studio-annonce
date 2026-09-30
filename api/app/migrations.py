@@ -20,6 +20,9 @@ def migrer(engine=moteur):
         for nom, definition in ajouts.items():
             if nom not in colonnes:
                 connexion.execute(text(f"ALTER TABLE comptes ADD COLUMN {nom} {definition}"))
+        colonnes_achats = {c["name"] for c in inspect(connexion).get_columns("achats_credits")}
+        if "nature" not in colonnes_achats:
+            connexion.execute(text("ALTER TABLE achats_credits ADD COLUMN nature VARCHAR(10) NOT NULL DEFAULT 'photo'"))
         # Une session existante atteste d'une validation du code email. Ne pas
         # inventer d'événements de connexion historiques dans le nouveau journal.
         connexion.execute(text("""UPDATE comptes SET email_verifie_le =

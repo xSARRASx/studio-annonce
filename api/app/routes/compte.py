@@ -3,11 +3,11 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import credits, limites
+from .. import credits, credits_video, limites
 from ..config import reglages
 from ..db import session
-from ..models import Compte, MouvementCredit, maintenant
-from ..paiements import PACKS, disponible as paiement_disponible
+from ..models import Compte, MouvementCredit, MouvementCreditVideo, maintenant
+from ..paiements import PACKS_PHOTO, PACKS_VIDEO, photo_disponible, video_disponible
 from .auth import compte_courant
 
 routeur = APIRouter(prefix="/compte", tags=["compte"])
@@ -37,11 +37,17 @@ def enregistrer_profil(profil: Profil, compte: Compte = Depends(compte_courant),
 def moi(compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
     mouvements = s.execute(select(MouvementCredit).where(MouvementCredit.compte_id == compte.id)
                            .order_by(MouvementCredit.id.desc()).limit(50)).scalars().all()
+    mouvements_video = s.execute(select(MouvementCreditVideo).where(MouvementCreditVideo.compte_id == compte.id)
+                                 .order_by(MouvementCreditVideo.id.desc()).limit(50)).scalars().all()
     return {"id": compte.id, "email": compte.email, "prenom": compte.prenom, "nom": compte.nom,
             "role": compte.role,
             "profil_complet": bool(compte.prenom and compte.nom and compte.profil_complete_le),
-            "paiement_disponible": paiement_disponible(), "solde": credits.solde(s, compte.id),
+            "paiement_disponible": photo_disponible(),
+            "paiement_photo_disponible": photo_disponible(),
+            "paiement_video_disponible": video_disponible(),
+            "solde": credits.solde(s, compte.id), "solde_video": credits_video.solde(s, compte.id),
             "photo_offerte_disponible": compte.photos_offertes_utilisees < reglages.PHOTO_OFFERTE_PAR_COMPTE,
-            "packs": PACKS,
+            "packs": PACKS_PHOTO, "packs_photo": PACKS_PHOTO, "packs_video": PACKS_VIDEO,
             "limites": limites.vue(s, compte.id),
-            "registre": [{"delta": m.delta, "motif": m.motif, "le": m.cree_le.isoformat()} for m in mouvements]}
+            "registre": [{"delta": m.delta, "motif": m.motif, "le": m.cree_le.isoformat()} for m in mouvements],
+            "registre_video": [{"delta": m.delta, "motif": m.motif, "le": m.cree_le.isoformat()} for m in mouvements_video]}

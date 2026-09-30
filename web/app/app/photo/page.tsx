@@ -34,6 +34,7 @@ function Atelier() {
   const [erreur, setErreur] = useState("");
   const [infoTelechargement, setInfoTelechargement] = useState<{ offerte: boolean; dateLimite: string | null; reprise?: boolean } | null>(null);
   const [confirmationReprise, setConfirmationReprise] = useState(false);
+  const [propositionVideo, setPropositionVideo] = useState(false);
   const [horloge, setHorloge] = useState(() => Date.now());
   const dialogue = useRef<HTMLDialogElement>(null);
   const retourFocus = useRef<HTMLElement | null>(null);
@@ -131,6 +132,7 @@ function Atelier() {
       document.body.appendChild(lien); lien.click(); lien.remove();
       // Laisser le navigateur prendre en charge le fichier avant de libérer l'URL.
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setPropositionVideo(true);
       if (resultat.creditConsomme || resultat.premierePhotoOfferte) {
         setInfoTelechargement({ offerte: resultat.premierePhotoOfferte, dateLimite: dateLisible(resultat.repriseJusquAu) });
         window.dispatchEvent(new Event("studio:credits-updated"));
@@ -231,6 +233,7 @@ function Atelier() {
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
         <Link className="text-action" href="/demo/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
       </aside></div>
+      {propositionVideo && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si vos photos devenaient une vidéo&nbsp;?</h2><p>Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat.</p></div><Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link></section>}
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"
         className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-7 text-fg shadow-2xl backdrop:bg-black/65 sm:p-9">

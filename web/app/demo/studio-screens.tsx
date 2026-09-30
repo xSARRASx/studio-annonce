@@ -176,7 +176,11 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
 }
 
 /* Facturation : le solde, ce qui a été utilisé, les packs et les factures. */
-const PACKS = [["Pack photo", "10 crédits", "9,99 €", "sans abonnement"]];
+const PACKS = [
+  ["Découverte", "10 crédits", "9,99 €", "1,00 € / photo"],
+  ["Essentiel", "30 crédits", "24,99 €", "0,83 € / photo"],
+  ["Volume", "100 crédits", "59,99 €", "0,60 € / photo"],
+];
 export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate: () => void }) {
   return <main className="st-main st-billing">
     <p className="eyebrow">FACTURATION</p>
@@ -185,8 +189,11 @@ export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate:
       <div className="st-balance"><span>Solde de démonstration</span><strong>{library.credits}<small>{library.credits > 1 ? "crédits" : "crédit"}</small></strong><p>1 crédit pour une photo HD ou une correction supplémentaire.</p></div>
       <div className="st-free"><Sparkles size={22}/><div><strong>{library.freeUsed ? "Photo offerte utilisée" : "1 photo offerte"}</strong><p>{library.freeUsed ? "Votre première photo retouchée vous a été offerte." : "Votre première photo retouchée est gratuite."}</p></div>{!library.freeUsed && <button className="text-action" onClick={onCreate}>Créer ma retouche <ArrowRight size={15}/></button>}</div>
     </div>
-    <section className="st-bill-block"><div className="st-block-head"><h2>Recharger</h2><span>Le paiement arrive au lancement.</span></div>
+    <section className="st-bill-block"><div className="st-block-head"><h2>Packs photo</h2><span>Plus le pack est grand, plus le prix par photo baisse.</span></div>
       <div className="st-packs">{PACKS.map(([nom, qte, prix, unite]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte}{unite ? ` · ${unite}` : ""}</small></div>)}</div>
+    </section>
+    <section className="st-bill-block"><div className="st-block-head"><h2>Packs vidéo</h2><span>Solde séparé · 1 crédit vidéo = 5 secondes.</span></div>
+      <div className="st-packs">{[["10 secondes", "2 crédits vidéo", "12,99 €"], ["20 secondes", "4 crédits vidéo", "21,99 €"], ["30 secondes", "6 crédits vidéo", "29,99 €"]].map(([nom, qte, prix]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte} · ouverture après validation</small></div>)}</div>
     </section>
     <section className="st-bill-block"><div className="st-block-head"><h2><History size={18}/> Historique</h2><span>{library.events.length} {library.events.length > 1 ? "opérations" : "opération"}</span></div>
       {library.events.length ? <ul className="st-ledger">{library.events.map(e => <li key={e.id}><span><strong>{e.label}</strong><small>{e.project} · {dateText(e.at, true)}</small></span><b className={e.amount < 0 ? "debit" : ""}>{e.amount === 0 ? "Offerte" : `${e.amount} crédit`}</b></li>)}</ul>

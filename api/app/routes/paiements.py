@@ -10,7 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import reglages
-from ..credits import mouvement
+from ..credits import mouvement as mouvement_photo
+from ..credits_video import mouvement as mouvement_video
 from .. import limites
 from ..db import session
 from ..models import AchatCredits, Compte, maintenant
@@ -28,11 +29,12 @@ class DemandeAchat(BaseModel):
 
 @routeur.post("/checkout")
 def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
-    if not disponible():
-        raise HTTPException(503, "Les achats ne sont pas encore ouverts. Aucun paiement n'a été lancé.")
     pack = next((p for p in PACKS if p["id"] == d.pack_id), None)
     if not pack:
         raise HTTPException(400, "Pack inconnu.")
+    if not disponible(pack["nature"]):
+        service = "vidéo" if pack["nature"] == "video" else "photo"
+        raise HTTPException(503, f"Les achats {service} ne sont pas encore ouverts. Aucun paiement n'a été lancé.")
     condition = (AchatCredits.compte_id == compte.id, AchatCredits.cle_demande == str(d.cle_demande))
     achat = s.scalar(select(AchatCredits).where(*condition))
     if not achat:
@@ -40,7 +42,7 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
             AchatCredits.compte_id == compte.id, AchatCredits.cree_le > maintenant() - timedelta(hours=1))) or 0
         if nombre >= 10:
             raise HTTPException(429, "Trop de demandes de paiement. Réessayez plus tard.")
-        achat = AchatCredits(compte_id=compte.id, cle_demande=str(d.cle_demande), pack_id=pack["id"],
+        achat = AchatCredits(compte_id=compte.id, cle_demande=str(d.cle_demande), pack_id=pack["id"], nature=pack["nature"],
                             credits=pack["credits"], montant_centimes=pack["prix_centimes"],
                             reel=int(reglages.STRIPE_SECRET_KEY.startswith(("sk_live_", "rk_live_"))))
         s.add(achat)
@@ -60,16 +62,18 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
     if achat.stripe_url:
         return {"achat_id": achat.id, "statut": achat.statut, "url": achat.stripe_url}
     achat_id, compte_id, email = achat.id, compte.id, compte.email
-    montant, quantite, pack_id = achat.montant_centimes, achat.credits, achat.pack_id
+    montant, quantite, pack_id, nature = achat.montant_centimes, achat.credits, achat.pack_id, achat.nature
     s.commit()  # pas de transaction SQL durant l'appel réseau
     site = reglages.URL_PUBLIQUE_SITE.rstrip("/")
     try:
         resultat = stripe.checkout.Session.create(
             api_key=reglages.STRIPE_SECRET_KEY, idempotency_key=f"studio-annonce:{achat_id}",
             mode="payment", payment_method_types=["card"], locale="fr", customer_email=email,
-            client_reference_id=compte_id, metadata={"achat_id": achat_id, "compte_id": compte_id},
+            client_reference_id=compte_id, metadata={"achat_id": achat_id, "compte_id": compte_id, "nature": nature},
             line_items=[{"price_data": {"currency": "eur", "unit_amount": montant,
-                "product_data": {"name": f"Studio Annonce — {quantite} crédits photo", "metadata": {"pack_id": pack_id}}}, "quantity": 1}],
+                "product_data": {"name": (f"Studio Annonce — {quantite} crédits photo" if nature == "photo" else
+                                             f"Studio Annonce — {quantite} crédits vidéo ({quantite * 5} secondes)"),
+                                 "metadata": {"pack_id": pack_id, "nature": nature}}}, "quantity": 1}],
             success_url=f"{site}/app/compte/?achat={achat_id}",
             cancel_url=f"{site}/app/compte/?paiement=annule",
         )
@@ -91,6 +95,7 @@ def appliquer_confirmation(objet: dict, s: Session):
     if (objet.get("mode") != "payment" or objet.get("payment_status") != "paid"
             or objet.get("amount_total") != achat.montant_centimes or objet.get("currency") != achat.devise
             or metadata.get("compte_id") != achat.compte_id or objet.get("client_reference_id") != achat.compte_id
+            or metadata.get("nature", achat.nature) != achat.nature
             or bool(objet.get("livemode")) != bool(achat.reel)
             or not objet.get("id", "").startswith("cs_")
             or (achat.stripe_session_id and achat.stripe_session_id != objet.get("id"))):
@@ -100,9 +105,16 @@ def appliquer_confirmation(objet: dict, s: Session):
     ).values(credite_le=maintenant(), statut="paye", stripe_session_id=objet["id"]))
     if resultat.rowcount:
         s.execute(update(Compte).where(Compte.id == achat.compte_id).values(photos_offertes_utilisees=Compte.photos_offertes_utilisees))
-        mouvement(s, s.get(Compte, achat.compte_id), achat.credits,
-                  f"Achat de {achat.credits} crédits photo", f"stripe:{objet['id']}")
-        limites.reinitialiser(s, achat.compte_id, "photo")
+        cible = s.get(Compte, achat.compte_id)
+        if achat.nature == "video":
+            mouvement_video(s, cible, achat.credits,
+                            f"Achat de {achat.credits} crédits vidéo ({achat.credits * 5} secondes)",
+                            f"stripe:{objet['id']}")
+            limites.reinitialiser(s, achat.compte_id, "video")
+        else:
+            mouvement_photo(s, cible, achat.credits,
+                            f"Achat de {achat.credits} crédits photo", f"stripe:{objet['id']}")
+            limites.reinitialiser(s, achat.compte_id, "photo")
     s.commit()  # commande et registre validés dans la même transaction
 
 
@@ -136,5 +148,5 @@ def etat(achat_id: str, compte: Compte = Depends(compte_courant), s: Session = D
     achat = s.get(AchatCredits, achat_id)
     if not achat or achat.compte_id != compte.id:
         raise HTTPException(404, "Achat introuvable.")
-    return {"id": achat.id, "statut": achat.statut, "credits": achat.credits,
+    return {"id": achat.id, "statut": achat.statut, "nature": achat.nature, "credits": achat.credits,
             "montant_centimes": achat.montant_centimes}

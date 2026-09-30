@@ -134,6 +134,17 @@ class MouvementCredit(Base):
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
 
 
+class MouvementCreditVideo(Base):
+    """Registre séparé : un crédit vidéo représente cinq secondes en 720p."""
+    __tablename__ = "mouvements_credits_video"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    delta: Mapped[int] = mapped_column(Integer)
+    motif: Mapped[str] = mapped_column(String(200))
+    reference: Mapped[str] = mapped_column(String(200), default="")
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+
+
 class AchatCredits(Base):
     """Commande figée avant Stripe ; créditée une seule fois après confirmation signée."""
     __tablename__ = "achats_credits"
@@ -142,6 +153,7 @@ class AchatCredits(Base):
     compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
     cle_demande: Mapped[str] = mapped_column(String(36))
     pack_id: Mapped[str] = mapped_column(String(20))
+    nature: Mapped[str] = mapped_column(String(10), default="photo", server_default="photo")
     credits: Mapped[int] = mapped_column(Integer)
     montant_centimes: Mapped[int] = mapped_column(Integer)
     devise: Mapped[str] = mapped_column(String(3), default="eur")

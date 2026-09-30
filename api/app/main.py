@@ -47,5 +47,7 @@ def sante():
         "ok": True,
         "connexion_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
         "retouche_disponible": vision.disponible() and retouche.disponible(),
-        "paiement_disponible": service_paiement.disponible(),
+        "paiement_disponible": service_paiement.photo_disponible(),
+        "paiement_photo_disponible": service_paiement.photo_disponible(),
+        "paiement_video_disponible": service_paiement.video_disponible(),
     }

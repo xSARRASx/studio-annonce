@@ -1,6 +1,6 @@
 # Coût des photos — document interne, 29 septembre 2026
 
-**Mise à jour du 30 septembre 2026 :** Martin a confirmé un pack unique de **10 crédits pour 9,99 €**. Les anciens packs du prototype ci-dessous sont historiques et ne sont plus proposés. Les règles ont aussi changé : une génération et une correction incluse par photo, puis une correction par crédit ; plafond commun au compte de 30 résultats photo depuis le dernier achat. Voir [les règles actuelles](REGLES-CREATIONS-2026-09-29.md). Les simulations de consommation ci-dessous restent des hypothèses : aucun coût réel par photo n’a encore été mesuré. Le nouveau prix ne prouve donc pas encore la rentabilité.
+**Mise à jour du 30 septembre 2026 :** Martin a confirmé un premier pack de **10 crédits pour 9,99 €**, complété par deux packs dégressifs : **30 crédits pour 24,99 €** et **100 crédits pour 59,99 €**. Les anciens packs du prototype ci-dessous sont historiques et ne sont plus proposés. Les règles ont aussi changé : une génération et une correction incluse par photo, puis une correction par crédit ; plafond commun au compte de 30 résultats photo depuis le dernier achat. Voir [les règles actuelles](REGLES-CREATIONS-2026-09-29.md) et [la grille photo/vidéo](TARIFS-PHOTO-VIDEO-2026-09-30.md). Les simulations de consommation ci-dessous restent des hypothèses : aucun coût réel par photo n’a encore été mesuré. Le prix à 0,60 € du gros pack ne prouve donc pas encore la rentabilité.
 
 Les montants ci-dessous sont des coûts fournisseur, pas des prix à afficher aux clients. Aucune retouche réelle n'a encore été mesurée : la clé OpenAI est reconnue, mais le fournisseur a refusé l'essai pour absence de crédit. Les ventes et la retouche restent fermées. Il faut financer puis réaliser une petite recette avant de confirmer la marge.
 
@@ -60,9 +60,9 @@ Le coût réel par vente doit aussi inclure les utilisateurs qui testent gratuit
 
 Exemple purement économique : si un essai offert coûte 1 € et qu'un utilisateur sur dix achète, l'acquisition par l'offre gratuite coûte 10 € par nouvel acheteur. Cela doit ensuite être réparti sur ses achats. Ces deux nombres sont des hypothèses, pas des statistiques du site.
 
-## Mesure pour valider la marge du tarif confirmé
+## Mesure pour valider la marge des tarifs confirmés
 
-Mesurer un petit échantillon représentatif : rangement léger, lit à refaire, suppression d'objets et retouche plus complexe ; relever analyse, nombre d'aperçus, HD et résultat acceptable. Comparer coût moyen, cas coûteux et taux d'abandon avec le pack confirmé à 9,99 € et les nouvelles limites. Toute modification de ce tarif ou des essais inclus reste à décider avec Martin. Les vidéos et Higgsfield ne sont pas chiffrés ici : aucun moteur vidéo n'est connecté ni tarif contractuel confirmé.
+Mesurer un petit échantillon représentatif : rangement léger, lit à refaire, suppression d'objets et retouche plus complexe ; relever analyse, nombre d'aperçus, HD et résultat acceptable. Comparer coût moyen, cas coûteux et taux d'abandon avec les trois packs et les nouvelles limites. Le pack de 100 à 0,60 € par photo exige la marge de sécurité la plus stricte. Toute modification de ces tarifs ou des essais inclus reste à décider avec Martin. Les vidéos et Higgsfield ne sont pas chiffrés ici : aucun moteur vidéo n'est connecté ni tarif contractuel confirmé.
 
 Rapport privé, depuis le dossier API du serveur :
 

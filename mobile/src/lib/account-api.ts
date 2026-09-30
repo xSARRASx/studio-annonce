@@ -1,14 +1,17 @@
 /** Account operations always use the server balance and limits. No local debit. */
 export type Limit = { utilisees: number; limite: number; restantes: number; bloque: boolean };
 export type Limits = { photo: Limit; video: Limit; support_url: string; support_telephone: string; support_email?: string };
+export type Pack = { id: string; nature: 'photo' | 'video'; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
 export type Account = {
   id: string; email: string; prenom: string; nom: string; profil_complet: boolean;
   role: 'client' | 'admin' | 'proprietaire'; solde: number; photo_offerte_disponible: boolean;
-  paiement_disponible: boolean; limites?: Limits;
-  packs: { id: string; credits: number; prix_centimes: number; libelle: string }[];
+  paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean;
+  solde_video: number; limites?: Limits;
+  packs: Pack[]; packs_photo: Pack[]; packs_video: Pack[];
   registre: { delta: number; motif: string; le: string }[];
+  registre_video: { delta: number; motif: string; le: string }[];
 };
-export type Health = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean };
+export type Health = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
 export type Property = { id: string; nom: string; ville: string; type_annonce: string; photos: { id: string; vignette: string; essais: number; gardee: boolean }[] };
 export type PhotoVersion = { id: string; numero: number; apercu: string; hd: boolean; consigne: string };
 export type AccountPhoto = {

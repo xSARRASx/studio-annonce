@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, session
 from app.migrations import migrer
-from app.models import AchatCredits, Compte, Jeton, MouvementCredit, QuotaCreation, maintenant
+from app.models import AchatCredits, Compte, Jeton, MouvementCredit, MouvementCreditVideo, QuotaCreation, maintenant
 from app.routes import auth, compte, paiements, photos
 
 
@@ -73,6 +73,10 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         with self.sessions() as s:
             return s.scalar(select(func.coalesce(func.sum(MouvementCredit.delta),0)))
 
+    def solde_video(self):
+        with self.sessions() as s:
+            return s.scalar(select(func.coalesce(func.sum(MouvementCreditVideo.delta),0)))
+
     async def test_profil_valide_persiste_et_ne_change_pas_email(self):
         self.assertFalse((await self.client.get("/compte")).json()["profil_complet"])
         self.assertEqual((await self.client.patch("/compte/profil", json={"prenom":" ", "nom":"Test"})).status_code,422)
@@ -101,13 +105,17 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
     async def test_paiement_ferme_et_session_privee(self):
         await self.profil(); self.commande()
         with patch.object(paiements,"disponible",return_value=False):
-            self.assertEqual((await self.client.post("/paiements/checkout",json={"pack_id":"p5","cle_demande":str(uuid4())})).status_code,503)
+            self.assertEqual((await self.client.post("/paiements/checkout",json={"pack_id":"photo10-999","cle_demande":str(uuid4())})).status_code,503)
         self.assertEqual((await self.client.get("/paiements/achat",headers={"Authorization":"Bearer b"})).status_code,404)
 
-    async def test_pack_unique_999_et_confirmation_dix_credits(self):
+    async def test_packs_degressifs_et_confirmation_dix_credits(self):
         await self.profil()
-        packs = (await self.client.get("/compte")).json()["packs"]
-        self.assertEqual(packs, [{"id": "photo10-999", "credits": 10, "prix_centimes": 999, "libelle": "10 crédits photo"}])
+        compte_json = (await self.client.get("/compte")).json()
+        packs = compte_json["packs_photo"]
+        self.assertEqual([(p["id"], p["credits"], p["prix_centimes"]) for p in packs],
+                         [("photo10-999", 10, 999), ("photo30-2499", 30, 2499), ("photo100-5999", 100, 5999)])
+        self.assertEqual([(p["id"], p["credits"], p["secondes"], p["prix_centimes"]) for p in compte_json["packs_video"]],
+                         [("video2-1299", 2, 10, 1299), ("video4-2199", 4, 20, 2199), ("video6-2999", 6, 30, 2999)])
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
                 "id": "cs_test_nouveau", "url": "https://checkout.stripe.com/c/pay/cs_test_nouveau"}, None)):
             response = await self.client.post("/paiements/checkout", json={"pack_id": packs[0]["id"], "cle_demande": str(uuid4())})
@@ -120,6 +128,26 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.evenement(objet)).status_code, 200)
         self.assertEqual((await self.evenement(objet)).status_code, 200)
         self.assertEqual(self.solde(), 10)
+
+    async def test_achat_video_credite_un_solde_separe_et_reset_video_seulement(self):
+        await self.profil()
+        with self.sessions() as s:
+            s.add_all([QuotaCreation(compte_id="a", nature="photo", utilisees=12),
+                       QuotaCreation(compte_id="a", nature="video", utilisees=8)]); s.commit()
+        with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
+                "id": "cs_test_video", "url": "https://checkout.stripe.com/c/pay/cs_test_video"}, None)):
+            response = await self.client.post("/paiements/checkout", json={"pack_id": "video4-2199", "cle_demande": str(uuid4())})
+        self.assertEqual(response.status_code, 200, response.text)
+        objet = {"id": "cs_test_video", "object": "checkout.session", "mode": "payment", "payment_status": "paid",
+                 "amount_total": 2199, "currency": "eur", "livemode": False, "client_reference_id": "a",
+                 "metadata": {"achat_id": response.json()["achat_id"], "compte_id": "a", "nature": "video"}}
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual(self.solde(), 0)
+        self.assertEqual(self.solde_video(), 4)
+        etat = (await self.client.get("/compte")).json()
+        self.assertEqual(etat["solde_video"], 4)
+        self.assertEqual(etat["limites"]["photo"]["utilisees"], 12)
+        self.assertEqual(etat["limites"]["video"]["utilisees"], 0)
 
     async def test_ancienne_commande_garde_prix_et_cle_ne_change_pas_de_pack(self):
         await self.profil()

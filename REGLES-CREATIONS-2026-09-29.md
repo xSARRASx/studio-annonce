@@ -2,9 +2,11 @@
 
 Décisions de Martin du 29 septembre 2026. Même compte, mêmes crédits et mêmes limites sur le site et dans l’application mobile connectée. Les anciens brouillons de démonstration restent distincts ; ils ne donnent aucun crédit réel.
 
-## Tarif confirmé le 30 septembre
+## Tarifs photo confirmés le 30 septembre
 
-Un seul pack prépayé de **10 crédits pour 9,99 €**, sans abonnement. Un crédit donne droit au premier téléchargement HD d’une photo payante ; l’aperçu et la correction incluse précèdent l’achat. La première photo offerte reste téléchargeable sans filigrane. Le nouveau pack porte un identifiant distinct (`photo10-999`) : une ancienne commande conserve son montant et son nombre de crédits d’origine.
+Trois packs prépayés, sans abonnement : **10 crédits pour 9,99 €**, **30 crédits pour 24,99 €** et **100 crédits pour 59,99 €**. Un crédit donne droit au premier téléchargement HD d’une photo payante ; l’aperçu et la correction incluse précèdent l’achat. La première photo offerte reste téléchargeable sans filigrane. Chaque pack porte un identifiant qui fige son prix : une ancienne commande conserve toujours son montant et son nombre de crédits d’origine.
+
+Les vidéos utilisent un solde distinct pour que le client achète une durée claire sans convertir ses photos. **Un crédit vidéo représente 5 secondes en 720p**. Les packs préparés sont 2 crédits / 10 secondes à 12,99 €, 4 crédits / 20 secondes à 21,99 € et 6 crédits / 30 secondes à 29,99 €. Ils restent impossibles à acheter tant que le moteur Higgsfield n’a pas réussi sa recette réelle.
 
 Au seuil de 30 résultats photo, une notification privée apparaît dans l’administration avec prénom, nom, email, compteur et message. Les mêmes notifications et le déblocage journalisé sont accessibles sur le mobile connecté. La liste se rafraîchit toutes les minutes quand cet écran est actif et après un déblocage. Un achat confirmé ou une réinitialisation résout la notification ; ce n’est pas une notification push ni un email automatique.
 
@@ -40,7 +42,7 @@ Les tables de compteurs sont ajoutées sans suppression des données existantes.
 
 Le serveur contrôle les droits, les débits et les limites. Le navigateur et le mobile les affichent et les rafraîchissent ; aucun crédit réel n’est conservé dans un compteur local faisant autorité.
 
-La règle vidéo et son compteur sont implémentés et testés dans le service commun. Le moteur de génération vidéo n’est pas encore connecté : tout futur point d’entrée vidéo devra réserver et terminer ses créations sous verrou du compte avec ce service, puis remettre le compteur vidéo à zéro sur un achat vidéo confirmé.
+La règle vidéo, son compteur, son registre de crédits distinct et son catalogue sont implémentés dans le service commun. Le moteur de génération vidéo n’est pas encore connecté : tout futur point d’entrée vidéo devra réserver et terminer ses créations sous verrou du compte avec ce service, puis remettre le compteur vidéo à zéro sur un achat vidéo confirmé.
 
 La retouche réelle et les paiements restent fermés tant que la configuration et les tests fournisseurs ne sont pas validés. Le tarif confirmé le 30 septembre est affiché, avec achat désactivé tant que le service ne peut pas fonctionner. L’aperçu mobile navigateur ne vaut pas recette d’une application installée sur iPhone ou Android.
 
@@ -48,6 +50,6 @@ Le stockage actuel de production est local et ses liens sont signés. Pour S3/R2
 
 ## Vérification
 
-75 tests serveur réussis localement le 30 septembre : quotas, concurrence, paiements idempotents, nouveau pack à 999 centimes, anciennes commandes conservées, notifications paginées, propriété des fichiers, correction achetée, migrations, administration et suspension pendant génération. Les essais fournisseurs sont simulés dans une base isolée : aucun débit ni email réel.
+La vérification automatisée couvre les quotas, la concurrence, les paiements idempotents, les trois packs photo, les trois packs vidéo, la séparation des deux soldes, les anciennes commandes conservées, les notifications paginées, la propriété des fichiers, les corrections achetées, les migrations, l’administration et la suspension pendant génération. Les essais fournisseurs sont simulés dans une base isolée : aucun débit ni email réel.
 
 Le suivi du déploiement et les vérifications des interfaces figurent dans `deploiement/N0C-STATIQUE.md`.
