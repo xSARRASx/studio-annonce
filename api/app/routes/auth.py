@@ -1,5 +1,6 @@
 """Connexion sans mot de passe : un mail, un code à 6 chiffres, un jeton."""
 import secrets
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -9,10 +10,11 @@ from sqlalchemy.orm import Session
 
 from ..config import reglages
 from ..db import session
-from ..mail import disponible as email_disponible, envoyer
+from ..mail import disponible as email_disponible, envoyer_code_connexion
 from ..models import CodeConnexion, Compte, ConnexionCompte, Jeton, TentativeConnexion, maintenant
 
 routeur = APIRouter(prefix="/auth", tags=["connexion"])
+journal = logging.getLogger("studioannonce.auth")
 
 
 class DemandeCode(BaseModel):
@@ -45,15 +47,11 @@ def demander_code(d: DemandeCode, s: Session = Depends(session)):
     s.add(CodeConnexion(email=email, code=code, expire_le=maintenant() + timedelta(minutes=10)))
     if email_disponible():
         try:
-            envoyer(email, "Votre code Studio Annonce",
-                    "Bonjour,\n\nVous avez demandé à accéder à votre espace Studio Annonce.\n\n"
-                    f"Votre code de connexion : {code}\nIl est valable 10 minutes et ne peut servir qu'une fois.\n\n"
-                    "Saisissez-le dans la page de connexion que vous venez d'ouvrir sur studioannonce.fr. "
-                    "Ne communiquez ce code à personne.\n\n"
-                    "Si vous n'avez pas fait cette demande, vous pouvez ignorer ce message.\n\n"
-                    "L'équipe Studio Annonce\nEmail automatique envoyé uniquement pour votre connexion.")
+            message_id = envoyer_code_connexion(email, code)
+            journal.info("email_connexion_accepte domaine=%s message_id=%s", email.rsplit("@", 1)[-1], message_id)
         except Exception as erreur:
             s.rollback()
+            journal.warning("email_connexion_refuse domaine=%s erreur=%s", email.rsplit("@", 1)[-1], type(erreur).__name__)
             raise HTTPException(503, "Le code n'a pas pu être envoyé. Réessayez plus tard.") from erreur
     s.commit()
     if reglages.CODE_DANS_LA_REPONSE and not email_disponible():

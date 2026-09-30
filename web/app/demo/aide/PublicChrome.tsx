@@ -39,6 +39,7 @@ export function PublicFooter() {
         <Link href="/demo/">Accueil</Link>
         <Link href="/demo/tarifs/">Tarifs</Link>
         <Link href="/demo/aide/">Aide</Link>
+        <Link href="/confidentialite/">Confidentialité</Link>
       </nav>
     </footer>
   );

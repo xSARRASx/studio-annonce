@@ -20,6 +20,8 @@ export default function Connexion() {
   const [chargement, setChargement] = useState(false);
   const [service, setService] = useState<Sante | null>(null);
   const [indisponible, setIndisponible] = useState(false);
+  const [renvoiDans, setRenvoiDans] = useState(0);
+  const [confirmationEnvoi, setConfirmationEnvoi] = useState("");
   useEffect(() => { if (jeton()) routeur.replace("/app/"); }, [routeur]);
   useEffect(() => {
     const controle = new AbortController();
@@ -28,6 +30,19 @@ export default function Connexion() {
       .then(setService).catch(() => { if (!controle.signal.aborted) setIndisponible(true); });
     return () => controle.abort();
   }, []);
+  useEffect(() => {
+    if (!renvoiDans) return;
+    const minuteur = window.setTimeout(() => setRenvoiDans(valeur => Math.max(0, valeur - 1)), 1000);
+    return () => window.clearTimeout(minuteur);
+  }, [renvoiDans]);
+
+  async function demanderCode() {
+    await api("/auth/code", { method: "POST", body: JSON.stringify({ email: email.trim() }) });
+    setEtape("code");
+    setCode("");
+    setRenvoiDans(30);
+    setConfirmationEnvoi(`Un code vient d’être envoyé par no-reply@studioannonce.fr à ${email.trim()}.`);
+  }
 
   async function envoyer(event: React.FormEvent) {
     event.preventDefault();
@@ -35,8 +50,7 @@ export default function Connexion() {
     verrou.current = true; setChargement(true); setErreur("");
     try {
       if (etape === "identite") {
-        await api("/auth/code", { method: "POST", body: JSON.stringify({ email: email.trim() }) });
-        setEtape("code");
+        await demanderCode();
       } else {
         const r = await api<{ jeton: string; profil_complet: boolean }>("/auth/verifier", {
           method: "POST", body: JSON.stringify({ email: email.trim(), code }) });
@@ -49,6 +63,14 @@ export default function Connexion() {
         routeur.replace(r.profil_complet || inscription ? "/app/" : "/app/compte/");
       }
     } catch (e) { setErreur((e as Error).message); }
+    finally { verrou.current = false; setChargement(false); }
+  }
+
+  async function renvoyer() {
+    if (verrou.current || renvoiDans) return;
+    verrou.current = true; setChargement(true); setErreur(""); setConfirmationEnvoi("");
+    try { await demanderCode(); }
+    catch (e) { setErreur((e as Error).message); }
     finally { verrou.current = false; setChargement(false); }
   }
 
@@ -81,13 +103,17 @@ export default function Connexion() {
               <label className="text-sm block">Adresse email<Champ className="mt-1.5" type="email" name="email" autoComplete="email" placeholder="vous@exemple.fr" required value={email} onChange={e => setEmail(e.target.value)}/></label>
             </> : <label className="text-sm block">Code de connexion<Champ className="mt-1.5 text-center text-2xl tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" placeholder="123456" required maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))}/></label>}
             <Message texte={erreur}/>
+            {etape === "code" && confirmationEnvoi && <p role="status" className="text-xs leading-relaxed text-accent bg-accent/10 rounded-xl px-3 py-2">{confirmationEnvoi}</p>}
             <Bouton type="submit" className="w-full" chargement={chargement} disabled={etape === "code" ? code.length !== 6 : inscription && (!prenom.trim() || !nom.trim())}>{etape === "code" ? "Accéder à mon espace" : "Recevoir mon code"}</Bouton>
             {etape === "identite" ? <>
               <p className="text-xs text-fg-muted leading-relaxed">Votre prénom, votre nom et votre email servent à gérer votre compte et votre essai. Cette inscription ne vous abonne pas à des emails publicitaires.</p>
               <button type="button" onClick={() => { setInscription(!inscription); setErreur(""); }} className="text-sm text-accent w-full py-2">{inscription ? "J’ai déjà un compte — me connecter" : "Créer un compte"}</button>
             </> : <>
-              <p className="text-xs text-fg-muted">Pensez à vérifier les courriers indésirables. Seul le dernier code reçu fonctionne.</p>
-              <button type="button" disabled={chargement} onClick={() => { setEtape("identite"); setCode(""); setErreur(""); }} className="text-sm text-fg-muted flex items-center gap-2 py-2"><ArrowLeft className="size-4"/> Modifier l’adresse ou demander un nouveau code</button>
+              <p className="text-xs text-fg-muted leading-relaxed">L’expéditeur est <strong>no-reply@studioannonce.fr</strong>. Vérifiez aussi les courriers indésirables. Seul le dernier code reçu fonctionne.</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <button type="button" disabled={chargement || renvoiDans > 0} onClick={() => void renvoyer()} className="text-sm text-accent text-left py-2 disabled:opacity-50">{renvoiDans ? `Renvoyer dans ${renvoiDans} s` : "Renvoyer le code"}</button>
+                <button type="button" disabled={chargement} onClick={() => { setEtape("identite"); setCode(""); setErreur(""); setConfirmationEnvoi(""); }} className="text-sm text-fg-muted flex items-center gap-2 py-2"><ArrowLeft className="size-4"/> Modifier l’adresse</button>
+              </div>
             </>}
           </form>
         </>}

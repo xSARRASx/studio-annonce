@@ -61,7 +61,7 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
     async def test_creation_client_email_normalise_aucun_envoi_ni_role_injecte(self):
         data = {"prenom": "  Marie ", "nom": " Test ", "email": "NEW@EXAMPLE.COM"}
         self.assertEqual((await self.client.post("/admin/comptes", json={**data, "role": "proprietaire"})).status_code, 422)
-        with patch.object(auth, "envoyer") as mail:
+        with patch.object(auth, "envoyer_code_connexion") as mail:
             r = await self.client.post("/admin/comptes", json=data)
             mail.assert_not_called()
         self.assertEqual(r.status_code, 201, r.text)

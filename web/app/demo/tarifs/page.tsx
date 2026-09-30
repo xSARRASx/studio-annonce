@@ -29,8 +29,8 @@ export default function PublicPricing() {
             <h2>{pack.credits} <span>crédits photo</span></h2>
             <p className="tariffs-pack-description">{pack.description}</p>
             <div className="tariffs-amount">{pack.price}<span>€</span></div>
-            <p className="tariffs-unit">Moins de 1 € par photo · sans abonnement</p>
-            <div className="tariffs-pack-line"><Check size={15} aria-hidden="true" /><span>{pack.credits} {pack.credits === 1 ? "crédit" : "crédits"} · téléchargement HD</span></div>
+            <p className="tariffs-unit">1 photo HD = 1 crédit · sans abonnement</p>
+            <div className="tariffs-pack-line"><Check size={15} aria-hidden="true" /><span>10 photos gardées en HD</span></div>
           </article>)}
         </section>
         <p className="tariffs-availability">Le pack est fixé à 9,99 €. L’ouverture des achats est en préparation.</p>
