@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import io
 import math
+from dataclasses import dataclass
 
 import httpx
 from PIL import Image
@@ -13,6 +14,15 @@ from .usage import enregistrer
 from .gemini import REGLE_RETOUCHE
 
 API = "https://api.openai.com/v1/images/edits"
+
+
+@dataclass(frozen=True)
+class RetoucheMesuree:
+    image: bytes
+    modele: str
+    operation: str
+    usage: dict
+    requete_id: str | None
 
 
 def _cle() -> str:
@@ -41,7 +51,9 @@ def _taille_sortie(image_jpeg: bytes, bord_max: int) -> str:
     return f"{cible}x{autre}" if l >= h else f"{autre}x{cible}"
 
 
-async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes:
+async def retoucher_avec_mesure(image_jpeg: bytes, consigne: str, hd: bool = False) -> RetoucheMesuree:
+    """Effectue une retouche, la journalise et rend aussi sa consommation au contrôle privé."""
+    operation = "hd" if hd else "apercu"
     champs = {
         "model": reglages.MODELE_OPENAI_IMAGE,
         "prompt": REGLE_RETOUCHE + consigne,
@@ -56,8 +68,15 @@ async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes
     donnees = rep.json()
     if rep.status_code != 200:
         raise RuntimeError(donnees.get("error", {}).get("message", rep.text[:200]))
-    enregistrer(reglages.MODELE_OPENAI_IMAGE, "hd" if hd else "apercu", donnees.get("usage"), rep.headers.get("x-request-id"))
+    usage = donnees.get("usage") if isinstance(donnees.get("usage"), dict) else {}
+    requete_id = rep.headers.get("x-request-id")
+    enregistrer(reglages.MODELE_OPENAI_IMAGE, operation, usage, requete_id)
     try:
-        return base64.b64decode(donnees["data"][0]["b64_json"])
-    except (KeyError, IndexError):
+        image = base64.b64decode(donnees["data"][0]["b64_json"], validate=True)
+    except (KeyError, IndexError, ValueError):
         raise RuntimeError("OpenAI n'a pas renvoyé d'image.")
+    return RetoucheMesuree(image, reglages.MODELE_OPENAI_IMAGE, operation, usage, requete_id)
+
+
+async def retoucher(image_jpeg: bytes, consigne: str, hd: bool = False) -> bytes:
+    return (await retoucher_avec_mesure(image_jpeg, consigne, hd)).image

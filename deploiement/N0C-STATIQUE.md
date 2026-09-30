@@ -82,6 +82,19 @@ La clé OpenAI est installée dans le `.env` privé du serveur. L'accès à la l
 
 Les réponses fournisseur alimentent un registre privé des tokens par opération et modèle, sans prompt, photo ni identité. `python -m app.couts` établit un total estimé à partir de l'usage mesuré, à rapprocher des factures fournisseur. Un usage absent ou inconnu n'est pas traité comme gratuit. Voir [les coûts et simulations](../COUTS-PHOTOS-2026-09-29.md). La vidéo IA n'a pas de moteur connecté.
 
+Après recharge du compte OpenAI, effectuer une première recette isolée avant de modifier `IA_ACTIVE`. La commande ci-dessous valide la source avant l'appel, refuse d'écraser une sortie existante, vérifie l'image reçue, journalise l'usage et affiche le coût estimé de cet appel. La source et la sortie doivent rester dans un dossier privé, jamais sous `public_html` :
+
+```bash
+cd ~/studioapi
+mkdir -p ~/recettes-studio
+/home/vzbbtadpbm/virtualenv/studioapi/3.11/bin/python -m scripts.recette_retouche_openai \
+  --source ~/recettes-studio/source.jpg \
+  --sortie ~/recettes-studio/resultat-apercu.jpg \
+  --consigne "Nettoyer la pièce et retirer les objets personnels, sans modifier sa géométrie ni ses ouvertures."
+```
+
+Contrôler visuellement la fidélité de la pièce et rapprocher le coût affiché du tableau fournisseur. Une recette réussie n'active rien à elle seule : conserver `IA_ACTIVE=false` tant que la qualité et le coût n'ont pas été validés.
+
 ## Paiement
 
 Stripe Checkout est implémenté : packs fixés côté serveur, achat associé au compte, reprise d'une même demande sans double création et crédits accordés seulement après confirmation signée. Le serveur vérifie montant, devise, compte, mode réel/test et session. Une confirmation répétée ne crédite pas deux fois. Le retour navigateur ne prouve jamais le paiement.
