@@ -7,11 +7,15 @@ import * as Crypto from 'expo-crypto';
 import { Logo, Button, colors } from './Studio';
 import { useAccount } from './AccountConnection';
 import { AdminAlerts } from './AdminAlerts';
-import { canRequestGeneration, downloadLabel, generationLabel, needsDownloadCredit, previewIsProtected, type AccountPhoto, type Limits, type Property } from '../lib/account-api';
+import { canRequestGeneration, downloadLabel, generationLabel, needsDownloadCredit, previewIsProtected, type AccountPhoto, type Limits, type Pack, type Property } from '../lib/account-api';
 import { canSavePhoto, photoForm, savePhoto } from '../lib/account-files';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Cette action n’a pas abouti. Réessayez.';
 const euro = (cents: number) => (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+type Cart = Record<string, number>;
+const cartArticles = (packs: Pack[], cart: Cart) => packs.flatMap(pack => cart[pack.id] ? [{ pack_id: pack.id, quantite: cart[pack.id] }] : []);
+const cartTotal = (packs: Pack[], cart: Cart) => packs.reduce((sum, pack) => sum + pack.prix_centimes * (cart[pack.id] || 0), 0);
+const cartCredits = (packs: Pack[], cart: Cart) => packs.reduce((sum, pack) => sum + pack.credits * (cart[pack.id] || 0), 0);
 
 export function AccountScreenFrame({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   const { account, ready, error } = useAccount();
@@ -46,6 +50,9 @@ function SupportContact({ limits }: { limits?: Limits }) {
 }
 function Notice({ text }: { text: string }) { return <Text accessibilityLiveRegion="polite" style={s.notice}>{text}</Text>; }
 function LinkButton({ title, onPress }: { title: string; onPress: () => void }) { return <Pressable accessibilityRole="button" onPress={onPress} style={s.link}><Text style={s.linkText}>{title}</Text></Pressable>; }
+function Quantity({ label, value, total, onChange }: { label: string; value: number; total: number; onChange: (delta: number) => void }) {
+  return <View accessibilityLabel={`Quantité pour ${label}`} style={s.quantity}><Pressable accessibilityRole="button" accessibilityLabel={`Retirer un pack ${label}`} disabled={!value} onPress={() => onChange(-1)} style={[s.quantityButton, !value && s.quantityDisabled]}><Text style={s.quantitySymbol}>−</Text></Pressable><Text style={s.quantityValue}>{value}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Ajouter un pack ${label}`} disabled={total >= 20} onPress={() => onChange(1)} style={[s.quantityButton, total >= 20 && s.quantityDisabled]}><Text style={s.quantitySymbol}>+</Text></Pressable></View>;
+}
 function Field({ label, value, onChangeText, placeholder, email, code, multiline }: { label: string; value: string; onChangeText: (v: string) => void; placeholder?: string; email?: boolean; code?: boolean; multiline?: boolean }) {
   return <View style={s.field}><Text style={s.label}>{label}</Text><TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#8a9081" autoCapitalize={email || code ? 'none' : 'sentences'} keyboardType={email ? 'email-address' : code ? 'number-pad' : 'default'} autoComplete={email ? 'email' : code ? 'one-time-code' : 'off'} maxLength={code ? 6 : multiline ? 4000 : 254} multiline={multiline} style={[s.input, multiline && s.multiline]}/></View>;
 }
@@ -181,18 +188,29 @@ function EditorContent() {
 export function ConnectedAccount() { return <AccountScreenFrame title="Mon compte" subtitle="Vos crédits et vos photos sont communs au site et à l’application."><Gate><AccountContent/></Gate></AccountScreenFrame>; }
 function AccountContent() {
   const { account, api, logout, refresh } = useAccount(); const [busy, setBusy] = useState(false); const [notice, setNotice] = useState(''); const [profileOpen, setProfileOpen] = useState(false); const [historyOpen, setHistoryOpen] = useState(false);
-  const requests = useRef<Record<string, string>>({});
-  async function buy(packId: string) {
-    const pack = [...(account?.packs_photo || account?.packs || []), ...(account?.packs_video || [])].find(candidate => candidate.id === packId);
-    const available = pack?.nature === 'video' ? account?.paiement_video_disponible : (account?.paiement_photo_disponible ?? account?.paiement_disponible);
-    if (busy || !pack || !available) return; setBusy(true); setNotice('');
+  const [photoCart, setPhotoCart] = useState<Cart>({}); const [videoCart, setVideoCart] = useState<Cart>({});
+  const request = useRef<{ signature: string; key: string } | null>(null);
+  async function buy(nature: 'photo' | 'video', packs: Pack[], cart: Cart) {
+    const available = nature === 'video' ? account?.paiement_video_disponible : (account?.paiement_photo_disponible ?? account?.paiement_disponible);
+    const articles = cartArticles(packs, cart);
+    if (busy || !articles.length || !available) return; setBusy(true); setNotice('');
     try {
-      const key = requests.current[packId] || Crypto.randomUUID(); requests.current[packId] = key;
-      const checkout = await api.json<{ url?: string; statut?: string }>('/paiements/checkout', { method: 'POST', body: JSON.stringify({ pack_id: packId, cle_demande: key }) });
-      if (checkout.statut === 'paye') { delete requests.current[packId]; await refresh(); setNotice('Votre achat est confirmé.'); return; }
+      const signature = `${nature}:${JSON.stringify(articles)}`;
+      if (request.current?.signature !== signature) request.current = { signature, key: Crypto.randomUUID() };
+      const checkout = await api.json<{ url?: string; statut?: string }>('/paiements/checkout', { method: 'POST', body: JSON.stringify({ articles, cle_demande: request.current.key }) });
+      if (checkout.statut === 'paye') { request.current = null; await refresh(); setNotice('Votre achat est confirmé.'); return; }
       if (!checkout.url || new URL(checkout.url).origin !== 'https://checkout.stripe.com') throw new Error('Le paiement sécurisé n’est pas disponible.');
       await Linking.openURL(checkout.url); setNotice('Après le paiement, revenez ici et actualisez votre solde.');
     } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
+  }
+  function updateCart(nature: 'photo' | 'video', packId: string, delta: number) {
+    const change = nature === 'photo' ? setPhotoCart : setVideoCart;
+    change(current => {
+      const total = Object.values(current).reduce((sum, amount) => sum + amount, 0);
+      if (delta > 0 && total >= 20) return current;
+      const amount = Math.max(0, Math.min(20, (current[packId] || 0) + delta));
+      const next = { ...current, [packId]: amount }; if (!amount) delete next[packId]; request.current = null; return next;
+    });
   }
   async function disconnect() { if (busy) return; setBusy(true); try { await logout(); } catch (error) { setNotice(message(error)); } finally { setBusy(false); } }
   if (!account) return null;
@@ -200,11 +218,14 @@ function AccountContent() {
   const videoAvailable = account.paiement_video_disponible ?? false;
   const photoPacks = account.packs_photo || account.packs || [];
   const videoPacks = account.packs_video || [];
+  const photoPackCount = Object.values(photoCart).reduce((sum, amount) => sum + amount, 0);
+  const videoPackCount = Object.values(videoCart).reduce((sum, amount) => sum + amount, 0);
+  const photoCredits = cartCredits(photoPacks, photoCart), videoCredits = cartCredits(videoPacks, videoCart);
   const movements = [...(account.registre || []).map(line => ({ ...line, nature: 'photo' as const })), ...(account.registre_video || []).map(line => ({ ...line, nature: 'vidéo' as const }))]
     .sort((a, b) => Date.parse(b.le) - Date.parse(a.le));
   return <><View style={s.balance}><Text style={s.eyebrow}>MES SOLDES</Text><Text style={s.balanceNumber}>{account.solde}<Text style={s.balanceUnit}> crédit{account.solde > 1 ? 's' : ''} photo</Text></Text><Text style={s.videoBalance}>{account.solde_video || 0} crédit{(account.solde_video || 0) > 1 ? 's' : ''} vidéo · 1 crédit = 5 secondes</Text><Text style={s.body}>{account.photo_offerte_disponible ? 'Votre première photo est offerte.' : 'Une génération et une correction incluse par photo.'}</Text><LinkButton title="Actualiser mes soldes" onPress={() => void refresh()}/></View>
-    <LimitsCard limits={account.limites} detailed/><View style={s.group}><Text style={s.section}>Packs photo · sans abonnement</Text><Text style={s.small}>1 photo gardée en HD = 1 crédit. Le prix baisse avec la quantité.</Text>{!photoAvailable && <Text style={s.small}>Les achats ouvriront après la recette de production photo.</Text>}{photoPacks.map(pack => <View key={pack.id} style={s.pack}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{pack.libelle}</Text><Text style={s.small}>{euro(pack.prix_centimes)} · {euro(pack.prix_unitaire_centimes)} par photo</Text>{!!pack.avantage && <Text style={s.packAdvantage}>{pack.avantage}</Text>}</View><Button title={photoAvailable ? "Choisir" : "Bientôt"} secondary onPress={() => void buy(pack.id)} disabled={busy || !photoAvailable}/></View>)}</View>
-    <View style={s.group}><Text style={s.section}>Packs vidéo · solde séparé</Text><Text style={s.small}>1 crédit vidéo = 5 secondes en 720p. Vos crédits photo restent intacts.</Text>{!videoAvailable && <Text style={s.small}>Les packs sont affichés, mais aucun paiement vidéo ne peut partir avant la validation de Higgsfield.</Text>}{videoPacks.map(pack => <View key={pack.id} style={s.pack}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{pack.libelle}</Text><Text style={s.small}>{euro(pack.prix_centimes)} · {pack.credits} crédits vidéo</Text>{!!pack.avantage && <Text style={s.packAdvantage}>{pack.avantage}</Text>}</View><Button title={videoAvailable ? "Choisir" : "Bientôt"} secondary onPress={() => void buy(pack.id)} disabled={busy || !videoAvailable}/></View>)}</View>
+    <LimitsCard limits={account.limites} detailed/><View style={s.group}><Text style={s.section}>Packs photo · sans abonnement</Text><Text style={s.small}>1 photo gardée en HD = 1 crédit. Vous pouvez cumuler plusieurs packs dans le même panier.</Text>{!photoAvailable && <Text style={s.small}>Les achats ouvriront après la recette de production photo.</Text>}{photoPacks.map(pack => <View key={pack.id} style={s.pack}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{pack.libelle}</Text><Text style={s.small}>{euro(pack.prix_centimes)} · {euro(pack.prix_unitaire_centimes)} par photo</Text>{!!pack.avantage && <Text style={s.packAdvantage}>{pack.avantage}</Text>}</View><Quantity label={pack.libelle} value={photoCart[pack.id] || 0} total={photoPackCount} onChange={delta => updateCart('photo', pack.id, delta)}/></View>)}<View style={s.cart}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{photoCredits || 0} crédits photo</Text><Text style={s.small}>Total du panier : {euro(cartTotal(photoPacks, photoCart))}</Text></View><Button title={photoAvailable ? 'Payer' : 'Bientôt'} secondary onPress={() => void buy('photo', photoPacks, photoCart)} disabled={busy || !photoAvailable || !photoCredits}/></View></View>
+    <View style={s.group}><Text style={s.section}>Packs vidéo · solde séparé</Text><Text style={s.small}>1 crédit vidéo = 5 secondes en 720p. Plusieurs packs vidéo peuvent être réunis dans un paiement.</Text>{!videoAvailable && <Text style={s.small}>Les packs sont affichés, mais aucun paiement vidéo ne peut partir avant la validation de Higgsfield.</Text>}{videoPacks.map(pack => <View key={pack.id} style={s.pack}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{pack.libelle}</Text><Text style={s.small}>{euro(pack.prix_centimes)} · {pack.credits} crédits vidéo</Text>{!!pack.avantage && <Text style={s.packAdvantage}>{pack.avantage}</Text>}</View><Quantity label={pack.libelle} value={videoCart[pack.id] || 0} total={videoPackCount} onChange={delta => updateCart('video', pack.id, delta)}/></View>)}<View style={s.cart}><View style={{ flex: 1 }}><Text style={s.cardTitle}>{videoCredits * 5} secondes</Text><Text style={s.small}>Total du panier : {euro(cartTotal(videoPacks, videoCart))}</Text></View><Button title={videoAvailable ? 'Payer' : 'Bientôt'} secondary onPress={() => void buy('video', videoPacks, videoCart)} disabled={busy || !videoAvailable || !videoCredits}/></View></View>
     {['proprietaire', 'admin'].includes(account.role) && <AdminAlerts/>}
     {!!notice && <Notice text={notice}/>}<View style={s.card}><Text style={s.cardTitle}>{account.prenom} {account.nom}</Text><Text style={s.body}>{account.email}</Text><View style={s.secondaryRow}><LinkButton title="Mes coordonnées" onPress={() => setProfileOpen(v => !v)}/><LinkButton title="Mes mouvements" onPress={() => setHistoryOpen(v => !v)}/></View>{profileOpen && <ProfileForm/>}{historyOpen && (movements.length ? movements.map((line, index) => <View key={`${line.nature}-${line.le}-${index}`} style={s.historyLine}><Text style={[s.body, { flex: 1 }]}>{line.motif}</Text><Text style={s.label}>{line.delta > 0 ? '+' : ''}{line.delta} {line.nature}</Text></View>) : <Text style={s.small}>Aucun mouvement pour le moment.</Text>)}<LinkButton title="Me déconnecter" onPress={() => void disconnect()}/></View></>;
 }
@@ -224,4 +245,5 @@ const s = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: '#20271988', alignItems: 'center', justifyContent: 'center', padding: 22 }, dialog: { width: '100%', maxWidth: 450, backgroundColor: '#fffefa', borderRadius: 25, padding: 23, gap: 18 },
   balance: { backgroundColor: '#e9edde', borderRadius: 24, padding: 23, gap: 10 }, eyebrow: { color: '#66764e', fontSize: 11, letterSpacing: 1.4, fontWeight: '600' }, balanceNumber: { fontSize: 48, color: colors.ink, fontWeight: '600' }, balanceUnit: { fontSize: 21, fontWeight: '400' }, pack: { padding: 17, borderWidth: 1, borderColor: '#dde2d2', borderRadius: 19, backgroundColor: '#fffefa', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, historyLine: { flexDirection: 'row', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#e9ecdf' },
   videoBalance: { borderTopWidth: 1, borderTopColor: '#cfd7c3', paddingTop: 12, color: '#566847', fontSize: 14, fontWeight: '600' }, packAdvantage: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: '#e4ead8', color: '#566847', fontSize: 10, fontWeight: '600' }, videoOffer: { marginTop: 4, padding: 18, gap: 12, borderRadius: 18, backgroundColor: '#eef2e7', borderWidth: 1, borderColor: '#d5ddca' },
+  quantity: { flexDirection: 'row', alignItems: 'center', gap: 8 }, quantityButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ccd5c0', backgroundColor: '#f4f6ef' }, quantityDisabled: { opacity: .35 }, quantitySymbol: { color: colors.ink, fontSize: 20, lineHeight: 22 }, quantityValue: { minWidth: 22, textAlign: 'center', color: colors.ink, fontWeight: '600', fontSize: 15 }, cart: { padding: 17, borderRadius: 19, backgroundColor: '#e9edde', flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

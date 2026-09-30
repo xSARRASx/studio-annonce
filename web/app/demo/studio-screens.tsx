@@ -179,6 +179,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
 const PACKS = [
   ["Découverte", "10 crédits", "9,99 €", "1,00 € / photo"],
   ["Essentiel", "30 crédits", "24,99 €", "0,83 € / photo"],
+  ["Avantage", "50 crédits", "34,99 €", "0,70 € / photo"],
   ["Volume", "100 crédits", "59,99 €", "0,60 € / photo"],
 ];
 export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate: () => void }) {

@@ -9,6 +9,8 @@ PACKS_PHOTO = [
      "libelle": "10 crédits photo", "prix_unitaire_centimes": 100},
     {"id": "photo30-2499", "nature": "photo", "credits": 30, "prix_centimes": 2499,
      "libelle": "30 crédits photo", "prix_unitaire_centimes": 83, "avantage": "Économisez 17 %"},
+    {"id": "photo50-3499", "nature": "photo", "credits": 50, "prix_centimes": 3499,
+     "libelle": "50 crédits photo", "prix_unitaire_centimes": 70, "avantage": "Économisez 30 %"},
     {"id": "photo100-5999", "nature": "photo", "credits": 100, "prix_centimes": 5999,
      "libelle": "100 crédits photo", "prix_unitaire_centimes": 60, "avantage": "Meilleur tarif"},
 ]

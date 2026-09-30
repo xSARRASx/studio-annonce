@@ -274,7 +274,12 @@ export function HistoryScreen() {
   const images = projectImages(project, uris);
   return <Screen title="Toutes les versions" subtitle={project.title} back="library"><View style={s.historyIntro}><Text style={s.eyebrow}>{images.length} {images.length === 1 ? 'IMAGE CONSERVÉE' : 'IMAGES CONSERVÉES'}</Text><Text style={s.body}>Touchez une version pour la voir en grand.</Text></View>{images.map((item, i) => <Pressable key={item.label} accessibilityRole="button" accessibilityState={{ selected: project.selected === i }} accessibilityLabel={`Afficher ${item.label}${project.saved === i ? ', version gardée' : ''}`} onPress={() => { update(project.id, { selected: i }); router.push({ pathname: '/retouche', params: { id: project.id } }); }} style={[s.versionRow, project.selected === i && s.selected]}><Photo source={item.image} label={item.label} small/><View style={{ flex: 1, gap: 5 }}><Text style={s.eyebrow}>{i === 0 ? 'VOTRE POINT DE DÉPART' : `VERSION ${i}`}</Text><Text style={s.rowTitle}>{item.label}</Text><Text style={s.rowStatus}>{project.saved === i ? '♥ Version gardée' : project.selected === i ? 'Version affichée' : 'Ouvrir cette version'}</Text></View><Text style={s.arrow}>›</Text></Pressable>)}<Text style={s.small}>L’original et toutes les propositions sont conservés. Chaque photo possède son propre historique.</Text></Screen>;
 }
-const PACKS = [['10 crédits photo', '9,99 €', 'Sans abonnement']];
+const PACKS = [
+  ['10 crédits photo', '9,99 €', '1,00 € / photo'],
+  ['30 crédits photo', '24,99 €', '0,83 € / photo'],
+  ['50 crédits photo', '34,99 €', '0,70 € / photo'],
+  ['100 crédits photo', '59,99 €', '0,60 € / photo'],
+];
 export function AccountScreen() {
   const { projects, credits, creditsUsed, freeUsed } = useStudio();
   const operations = projects.filter(p => p.firstDownloadedAt !== null && p.source === 'example').sort((a, b) => b.firstDownloadedAt! - a.firstDownloadedAt!);

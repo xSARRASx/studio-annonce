@@ -10,6 +10,7 @@ Les achats sont ponctuels et sans abonnement. Les crédits photo et les crédits
 | --- | ---: | ---: | ---: |
 | 10 crédits photo | 9,99 € | 1,00 € | — |
 | 30 crédits photo | 24,99 € | 0,83 € | 17 % |
+| 50 crédits photo | 34,99 € | 0,70 € | 30 % |
 | 100 crédits photo | 59,99 € | 0,60 € | 40 % |
 
 Un crédit photo correspond au premier téléchargement HD sans filigrane d’une photo payante, ou à une correction supplémentaire explicitement achetée. La première génération et une correction sont incluses dans le cycle initial. La première photo du compte est offerte, propre et téléchargeable.
@@ -35,6 +36,8 @@ Le coût d’une photo se mesure par retouche et par sortie HD. Le coût d’une
 Le pack de 100 photos est agressif à 0,60 € par photo. Il ne doit être achetable qu’après une recette réelle sur un échantillon représentatif et une mesure du coût moyen comprenant l’analyse, les aperçus, la sortie HD, les corrections incluses, les essais abandonnés, l’offre gratuite, les frais Stripe, les taxes et les échecs éventuellement facturés.
 
 La grille est donc publiée comme information commerciale, tandis que le serveur refuse tout Checkout tant que l’IA photo et Stripe ne sont pas tous les deux configurés et validés. De la même manière, les achats vidéo exigent Stripe, la clé Higgsfield et l’activation vidéo après recette. Aucun simple bouton ou paramètre du navigateur ne peut ouvrir les ventes.
+
+Le panier accepte plusieurs exemplaires d’un même pack et plusieurs packs de la même nature dans un paiement unique, par exemple deux packs de 10 ou un pack de 10 avec un pack de 30. Le serveur recalcule le total et les crédits depuis son propre catalogue. Les packs photo et vidéo se règlent séparément afin de créditer le bon solde.
 
 ## Parcours après une photo
 

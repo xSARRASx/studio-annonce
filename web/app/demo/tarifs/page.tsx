@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 
 const packs = [
   { credits: 10, price: "9,99", unit: "1,00", label: "Pour commencer", description: "10 photos gardées en HD." },
-  { credits: 30, price: "24,99", unit: "0,83", label: "Le plus choisi", description: "30 photos · 17 % moins cher par photo." },
+  { credits: 30, price: "24,99", unit: "0,83", label: "Essentiel", description: "30 photos · 17 % moins cher par photo." },
+  { credits: 50, price: "34,99", unit: "0,70", label: "Le plus choisi", description: "50 photos · 30 % moins cher par photo." },
   { credits: 100, price: "59,99", unit: "0,60", label: "Meilleur tarif", description: "100 photos · 40 % moins cher par photo." },
 ];
 const videoPacks = [
@@ -30,8 +31,8 @@ export default function PublicPricing() {
           <div><span className="public-eyebrow">VOS PHOTOS, SANS ABONNEMENT</span><h1 id="tariffs-title">Plus vous créez,<br /><em>moins chaque photo coûte.</em></h1><p>Un crédit est utilisé quand vous téléchargez une photo en HD.<br className="desktop-break" /> Les crédits restent disponibles sur votre compte.</p></div>
           <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span></div></aside>
         </section>
-        <section className="tariffs-packs tariffs-three-packs" aria-label="Packs de crédits photo">
-          {packs.map(pack => <article className={`tariffs-pack${pack.credits === 30 ? " tariffs-pack-featured" : ""}`} key={pack.credits}>
+        <section className="tariffs-packs" aria-label="Packs de crédits photo">
+          {packs.map(pack => <article className={`tariffs-pack${pack.credits === 50 ? " tariffs-pack-featured" : ""}`} key={pack.credits}>
             <span className="tariffs-pack-label">{pack.label}</span>
             <h2>{pack.credits} <span>crédits photo</span></h2>
             <p className="tariffs-pack-description">{pack.description}</p>

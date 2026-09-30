@@ -4,7 +4,7 @@ from uuid import UUID
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,19 +21,51 @@ from .auth import compte_complet, compte_courant
 routeur = APIRouter(prefix="/paiements", tags=["paiements"])
 
 
-class DemandeAchat(BaseModel):
+class ArticleAchat(BaseModel):
     model_config = ConfigDict(extra="forbid")
     pack_id: str
+    quantite: int = Field(ge=1, le=20)
+
+
+class DemandeAchat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    pack_id: str | None = None
+    articles: list[ArticleAchat] | None = Field(default=None, max_length=8)
     cle_demande: UUID
+
+    @model_validator(mode="after")
+    def panier_ou_pack(self):
+        if bool(self.pack_id) == bool(self.articles):
+            raise ValueError("Indiquez un pack ou un panier.")
+        return self
+
+
+def composer_panier(d: DemandeAchat):
+    demandes = ([ArticleAchat(pack_id=d.pack_id, quantite=1)] if d.pack_id else d.articles) or []
+    quantites: dict[str, int] = {}
+    for article in demandes:
+        quantites[article.pack_id] = quantites.get(article.pack_id, 0) + article.quantite
+    if not quantites or sum(quantites.values()) > 20 or any(q > 20 for q in quantites.values()):
+        raise HTTPException(400, "Panier trop volumineux.")
+    packs = {p["id"]: p for p in PACKS}
+    if any(pack_id not in packs for pack_id in quantites):
+        raise HTTPException(400, "Pack inconnu.")
+    composition = [{"pack_id": pack_id, "quantite": quantites[pack_id]}
+                   for pack_id in (p["id"] for p in PACKS) if pack_id in quantites]
+    natures = {packs[a["pack_id"]]["nature"] for a in composition}
+    if len(natures) != 1:
+        raise HTTPException(400, "Réglez les crédits photo et vidéo séparément.")
+    nature = natures.pop()
+    credits = sum(packs[a["pack_id"]]["credits"] * a["quantite"] for a in composition)
+    montant = sum(packs[a["pack_id"]]["prix_centimes"] * a["quantite"] for a in composition)
+    return composition, packs, nature, credits, montant
 
 
 @routeur.post("/checkout")
 def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
-    pack = next((p for p in PACKS if p["id"] == d.pack_id), None)
-    if not pack:
-        raise HTTPException(400, "Pack inconnu.")
-    if not disponible(pack["nature"]):
-        service = "vidéo" if pack["nature"] == "video" else "photo"
+    composition, packs, nature, credits, montant = composer_panier(d)
+    if not disponible(nature):
+        service = "vidéo" if nature == "video" else "photo"
         raise HTTPException(503, f"Les achats {service} ne sont pas encore ouverts. Aucun paiement n'a été lancé.")
     condition = (AchatCredits.compte_id == compte.id, AchatCredits.cle_demande == str(d.cle_demande))
     achat = s.scalar(select(AchatCredits).where(*condition))
@@ -42,8 +74,9 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
             AchatCredits.compte_id == compte.id, AchatCredits.cree_le > maintenant() - timedelta(hours=1))) or 0
         if nombre >= 10:
             raise HTTPException(429, "Trop de demandes de paiement. Réessayez plus tard.")
-        achat = AchatCredits(compte_id=compte.id, cle_demande=str(d.cle_demande), pack_id=pack["id"], nature=pack["nature"],
-                            credits=pack["credits"], montant_centimes=pack["prix_centimes"],
+        identifiant_pack = composition[0]["pack_id"] if len(composition) == 1 and composition[0]["quantite"] == 1 else f"panier-{nature}"
+        achat = AchatCredits(compte_id=compte.id, cle_demande=str(d.cle_demande), pack_id=identifiant_pack,
+                            composition=composition, nature=nature, credits=credits, montant_centimes=montant,
                             reel=int(reglages.STRIPE_SECRET_KEY.startswith(("sk_live_", "rk_live_"))))
         s.add(achat)
         try:
@@ -53,8 +86,9 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
             achat = s.scalar(select(AchatCredits).where(*condition))
             if not achat:
                 raise HTTPException(409, "La demande a changé. Réessayez.")
-    if achat.pack_id != d.pack_id:
-        raise HTTPException(409, "Cette demande correspond à un autre pack.")
+    composition_achat = achat.composition or [{"pack_id": achat.pack_id, "quantite": 1}]
+    if composition_achat != composition:
+        raise HTTPException(409, "Cette demande correspond à un autre panier.")
     if achat.credite_le:
         return {"achat_id": achat.id, "statut": "paye", "url": None}
     if achat.statut != "en_attente" or achat.cree_le < maintenant() - timedelta(hours=23):
@@ -62,7 +96,11 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
     if achat.stripe_url:
         return {"achat_id": achat.id, "statut": achat.statut, "url": achat.stripe_url}
     achat_id, compte_id, email = achat.id, compte.id, compte.email
-    montant, quantite, pack_id, nature = achat.montant_centimes, achat.credits, achat.pack_id, achat.nature
+    nature = achat.nature
+    lignes = [{"price_data": {"currency": "eur", "unit_amount": packs[a["pack_id"]]["prix_centimes"],
+                "product_data": {"name": f"Studio Annonce — {packs[a['pack_id']]['libelle']}",
+                                 "metadata": {"pack_id": a["pack_id"], "nature": nature}}},
+               "quantity": a["quantite"]} for a in composition_achat]
     s.commit()  # pas de transaction SQL durant l'appel réseau
     site = reglages.URL_PUBLIQUE_SITE.rstrip("/")
     try:
@@ -70,10 +108,7 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
             api_key=reglages.STRIPE_SECRET_KEY, idempotency_key=f"studio-annonce:{achat_id}",
             mode="payment", payment_method_types=["card"], locale="fr", customer_email=email,
             client_reference_id=compte_id, metadata={"achat_id": achat_id, "compte_id": compte_id, "nature": nature},
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": montant,
-                "product_data": {"name": (f"Studio Annonce — {quantite} crédits photo" if nature == "photo" else
-                                             f"Studio Annonce — {quantite} crédits vidéo ({quantite * 5} secondes)"),
-                                 "metadata": {"pack_id": pack_id, "nature": nature}}}, "quantity": 1}],
+            line_items=lignes,
             success_url=f"{site}/app/compte/?achat={achat_id}",
             cancel_url=f"{site}/app/compte/?paiement=annule",
         )

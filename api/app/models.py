@@ -153,6 +153,7 @@ class AchatCredits(Base):
     compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
     cle_demande: Mapped[str] = mapped_column(String(36))
     pack_id: Mapped[str] = mapped_column(String(20))
+    composition: Mapped[list | None] = mapped_column(JSON, nullable=True)
     nature: Mapped[str] = mapped_column(String(10), default="photo", server_default="photo")
     credits: Mapped[int] = mapped_column(Integer)
     montant_centimes: Mapped[int] = mapped_column(Integer)

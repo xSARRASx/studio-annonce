@@ -113,7 +113,8 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         compte_json = (await self.client.get("/compte")).json()
         packs = compte_json["packs_photo"]
         self.assertEqual([(p["id"], p["credits"], p["prix_centimes"]) for p in packs],
-                         [("photo10-999", 10, 999), ("photo30-2499", 30, 2499), ("photo100-5999", 100, 5999)])
+                         [("photo10-999", 10, 999), ("photo30-2499", 30, 2499),
+                          ("photo50-3499", 50, 3499), ("photo100-5999", 100, 5999)])
         self.assertEqual([(p["id"], p["credits"], p["secondes"], p["prix_centimes"]) for p in compte_json["packs_video"]],
                          [("video2-1299", 2, 10, 1299), ("video4-2199", 4, 20, 2199), ("video6-2999", 6, 30, 2999)])
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
@@ -128,6 +129,48 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.evenement(objet)).status_code, 200)
         self.assertEqual((await self.evenement(objet)).status_code, 200)
         self.assertEqual(self.solde(), 10)
+
+    async def test_panier_cumule_plusieurs_packs_et_quantites(self):
+        await self.profil()
+        cle = str(uuid4())
+        panier = {"articles": [{"pack_id": "photo10-999", "quantite": 2},
+                                {"pack_id": "photo30-2499", "quantite": 1}],
+                  "cle_demande": cle}
+        with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
+                "id": "cs_test_panier", "url": "https://checkout.stripe.com/c/pay/cs_test_panier"}, None)) as creer:
+            response = await self.client.post("/paiements/checkout", json=panier)
+            doublon = await self.client.post("/paiements/checkout", json={"articles": list(reversed(panier["articles"])),
+                                                                          "cle_demande": cle})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(doublon.json(), response.json())
+        self.assertEqual(creer.call_count, 1)
+        lignes = creer.call_args.kwargs["line_items"]
+        self.assertEqual([(l["price_data"]["unit_amount"], l["quantity"]) for l in lignes], [(999, 2), (2499, 1)])
+        achat_id = response.json()["achat_id"]
+        with self.sessions() as s:
+            achat = s.get(AchatCredits, achat_id)
+            self.assertEqual((achat.credits, achat.montant_centimes, achat.pack_id), (50, 4497, "panier-photo"))
+            self.assertEqual(achat.composition, [{"pack_id": "photo10-999", "quantite": 2},
+                                                 {"pack_id": "photo30-2499", "quantite": 1}])
+        objet = {"id": "cs_test_panier", "object": "checkout.session", "mode": "payment", "payment_status": "paid",
+                 "amount_total": 4497, "currency": "eur", "livemode": False, "client_reference_id": "a",
+                 "metadata": {"achat_id": achat_id, "compte_id": "a", "nature": "photo"}}
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual(self.solde(), 50)
+        change = await self.client.post("/paiements/checkout", json={
+            "articles": [{"pack_id": "photo50-3499", "quantite": 1}], "cle_demande": cle})
+        self.assertEqual(change.status_code, 409)
+
+    async def test_panier_refuse_melange_photo_video_et_quantite_excessive(self):
+        await self.profil()
+        melange = await self.client.post("/paiements/checkout", json={"articles": [
+            {"pack_id": "photo10-999", "quantite": 1}, {"pack_id": "video2-1299", "quantite": 1}],
+            "cle_demande": str(uuid4())})
+        self.assertEqual(melange.status_code, 400)
+        trop = await self.client.post("/paiements/checkout", json={"articles": [
+            {"pack_id": "photo10-999", "quantite": 20}, {"pack_id": "photo30-2499", "quantite": 1}],
+            "cle_demande": str(uuid4())})
+        self.assertEqual(trop.status_code, 400)
 
     async def test_achat_video_credite_un_solde_separe_et_reset_video_seulement(self):
         await self.profil()

@@ -2,10 +2,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Download, Gift, History, ShieldCheck } from "lucide-react";
-import { api, ErreurApi, type Compte } from "@/lib/api";
+import { api, ErreurApi, type Compte, type Pack } from "@/lib/api";
 import { Bouton, Champ, Message } from "@/components/ui";
 import { CreationLimits, SupportContact } from "@/components/creation-limits";
 import { useStudioAccount } from "@/components/studio-account";
+
+type Panier = Record<string, number>;
+const articlesDuPanier = (packs: Pack[], panier: Panier) => packs.flatMap(p => panier[p.id] ? [{ pack_id: p.id, quantite: panier[p.id] }] : []);
+const totalDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p) => total + p.prix_centimes * (panier[p.id] || 0), 0);
+const creditsDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p) => total + p.credits * (panier[p.id] || 0), 0);
 
 export default function AccountPage({ billing = false }: { billing?: boolean }) {
   const { compte: comptePartage } = useStudioAccount();
@@ -16,7 +21,9 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
   const [message, setMessage] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
   const [achatEnCours, setAchatEnCours] = useState("");
-  const demande = useRef<{ pack: string; cle: string } | null>(null);
+  const [panierPhoto, setPanierPhoto] = useState<Panier>({});
+  const [panierVideo, setPanierVideo] = useState<Panier>({});
+  const demande = useRef<{ signature: string; cle: string } | null>(null);
   const verrou = useRef(false);
   useEffect(() => {
     let actif = true;
@@ -62,13 +69,16 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
     finally { verrou.current = false; setEnregistrement(false); }
   }
 
-  async function acheter(pack: string) {
+  async function acheter(nature: "photo" | "video", packs: Pack[], panier: Panier) {
     if (verrou.current) return;
-    verrou.current = true; setAchatEnCours(pack); setErreur("");
-    if (demande.current?.pack !== pack) demande.current = { pack, cle: crypto.randomUUID() };
+    const articles = articlesDuPanier(packs, panier);
+    if (!articles.length) return;
+    const signature = `${nature}:${JSON.stringify(articles)}`;
+    verrou.current = true; setAchatEnCours(nature); setErreur("");
+    if (demande.current?.signature !== signature) demande.current = { signature, cle: crypto.randomUUID() };
     try {
       const resultat = await api<{ url: string | null; statut: string }>("/paiements/checkout", {
-        method: "POST", body: JSON.stringify({ pack_id: pack, cle_demande: demande.current.cle }) });
+        method: "POST", body: JSON.stringify({ articles, cle_demande: demande.current.cle }) });
       if (resultat.statut === "paye") { setCompte(await api<Compte>("/compte")); setMessage("Cet achat a déjà été ajouté à votre compte."); demande.current = null; return; }
       const url = new URL(resultat.url || "");
       if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") throw new Error("Le paiement ne peut pas être ouvert pour le moment.");
@@ -80,11 +90,26 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
     finally { verrou.current = false; setAchatEnCours(""); }
   }
 
+  function modifierPanier(nature: "photo" | "video", pack: string, delta: number) {
+    const changer = nature === "photo" ? setPanierPhoto : setPanierVideo;
+    changer(courant => {
+      const total = Object.values(courant).reduce((somme, quantite) => somme + quantite, 0);
+      const prochaine = Math.max(0, Math.min(20, (courant[pack] || 0) + delta));
+      if (delta > 0 && total >= 20) return courant;
+      const copie = { ...courant, [pack]: prochaine };
+      if (!prochaine) delete copie[pack];
+      demande.current = null;
+      return copie;
+    });
+  }
+
   const euros = (c: number) => (c / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
   const packsPhoto = compte?.packs_photo || compte?.packs || [];
   const packsVideo = compte?.packs_video || [];
   const paiementPhoto = compte?.paiement_photo_disponible ?? compte?.paiement_disponible ?? false;
   const paiementVideo = compte?.paiement_video_disponible ?? false;
+  const totalPhoto = totalDuPanier(packsPhoto, panierPhoto), creditsPhoto = creditsDuPanier(packsPhoto, panierPhoto);
+  const totalVideo = totalDuPanier(packsVideo, panierVideo), creditsVideo = creditsDuPanier(packsVideo, panierVideo);
   return <main className="st-main st-billing">
     <p className="eyebrow">{billing ? "FACTURATION" : "VOTRE ESPACE PERSONNEL"}</p>
     <h1>{billing ? "Vos crédits et vos achats." : "Mon compte"}</h1>
@@ -111,12 +136,14 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
       <section className="st-bill-block"><div className="st-block-head"><h2>Vos créations depuis le dernier achat</h2></div><CreationLimits limites={comptePartage.limites}/><CreationLimits limites={comptePartage.limites} kind="video"/><p className="connected-account-intro">Une première génération et une correction sont incluses par photo, y compris la photo offerte. Chaque correction supplémentaire nécessite 1 crédit. La génération vidéo n’est pas encore ouverte.</p></section>
       <section className="st-bill-block"><div className="st-block-head"><h2>Packs photo</h2><span>Achat ponctuel, sans abonnement.</span></div>
         {!paiementPhoto && <p className="connected-account-intro">Les tarifs sont fixés. Le paiement ouvrira dès que la génération photo aura passé sa recette de production.</p>}
-        <div className="st-packs">{packsPhoto.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{euros(p.prix_unitaire_centimes)} par photo · sans abonnement</small><Bouton disabled={!paiementPhoto || !compte?.profil_complet || !!achatEnCours} chargement={achatEnCours === p.id} onClick={() => acheter(p.id)}>{paiementPhoto ? "Choisir ce pack" : "Bientôt disponible"}</Bouton></div>)}</div>
+        <div className="st-packs">{packsPhoto.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{euros(p.prix_unitaire_centimes)} par photo · sans abonnement</small><div className="connected-pack-quantity" aria-label={`Quantité pour ${p.libelle}`}><button type="button" aria-label={`Retirer un pack ${p.libelle}`} disabled={!panierPhoto[p.id]} onClick={() => modifierPanier("photo", p.id, -1)}>−</button><b>{panierPhoto[p.id] || 0}</b><button type="button" aria-label={`Ajouter un pack ${p.libelle}`} disabled={(Object.values(panierPhoto).reduce((a, b) => a + b, 0)) >= 20} onClick={() => modifierPanier("photo", p.id, 1)}>+</button></div></div>)}</div>
+        <div className="connected-cart-summary"><span>{creditsPhoto ? `${creditsPhoto} crédits photo sélectionnés` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalPhoto)}</strong><Bouton disabled={!paiementPhoto || !compte?.profil_complet || !creditsPhoto || !!achatEnCours} chargement={achatEnCours === "photo"} onClick={() => acheter("photo", packsPhoto, panierPhoto)}>{paiementPhoto ? "Payer mon panier photo" : "Bientôt disponible"}</Bouton></div>
       </section>
       <section className="st-bill-block"><div className="st-block-head"><h2>Packs vidéo</h2><span>Des crédits séparés pour un prix clair.</span></div>
         <p className="connected-account-intro">1 crédit vidéo = 5 secondes en 720p. Les crédits photo ne sont jamais consommés par une vidéo.</p>
         {!paiementVideo && <p className="connected-account-intro">Les packs sont préparés, mais aucun paiement vidéo ne peut partir avant la validation de Higgsfield.</p>}
-        <div className="st-packs">{packsVideo.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{p.credits} crédits vidéo · {euros(p.prix_unitaire_centimes)} les 5 secondes</small><Bouton disabled={!paiementVideo || !compte?.profil_complet || !!achatEnCours} chargement={achatEnCours === p.id} onClick={() => acheter(p.id)}>{paiementVideo ? "Choisir ce pack" : "Bientôt disponible"}</Bouton></div>)}</div>
+        <div className="st-packs">{packsVideo.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{p.credits} crédits vidéo · {euros(p.prix_unitaire_centimes)} les 5 secondes</small><div className="connected-pack-quantity" aria-label={`Quantité pour ${p.libelle}`}><button type="button" aria-label={`Retirer un pack ${p.libelle}`} disabled={!panierVideo[p.id]} onClick={() => modifierPanier("video", p.id, -1)}>−</button><b>{panierVideo[p.id] || 0}</b><button type="button" aria-label={`Ajouter un pack ${p.libelle}`} disabled={(Object.values(panierVideo).reduce((a, b) => a + b, 0)) >= 20} onClick={() => modifierPanier("video", p.id, 1)}>+</button></div></div>)}</div>
+        <div className="connected-cart-summary"><span>{creditsVideo ? `${creditsVideo * 5} secondes sélectionnées` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalVideo)}</strong><Bouton disabled={!paiementVideo || !compte?.profil_complet || !creditsVideo || !!achatEnCours} chargement={achatEnCours === "video"} onClick={() => acheter("video", packsVideo, panierVideo)}>{paiementVideo ? "Payer mon panier vidéo" : "Bientôt disponible"}</Bouton></div>
       </section>
       <section className="st-bill-block"><div className="st-block-head"><h2><History size={18}/> Historique</h2><span>{compte?.registre.length || 0} opérations</span></div>
         {(compte?.registre.length || compte?.registre_video?.length) ? <ul className="st-ledger">{[...(compte?.registre || []).map(m => ({...m, nature: "photo" as const})), ...(compte?.registre_video || []).map(m => ({...m, nature: "video" as const}))].sort((a, b) => Date.parse(b.le) - Date.parse(a.le)).map((m, i) => <li key={`${m.nature}-${m.le}-${i}`}><span><strong>{m.motif}</strong><small>{new Date(m.le).toLocaleDateString("fr-FR")}</small></span><b className={m.delta < 0 ? "debit" : ""}>{m.delta > 0 ? "+" : ""}{m.delta} crédit{Math.abs(m.delta) > 1 ? "s" : ""} {m.nature}</b></li>)}</ul> : <p className="st-empty-line">Aucun crédit utilisé pour l’instant.</p>}

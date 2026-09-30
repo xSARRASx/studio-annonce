@@ -4,7 +4,7 @@ Décisions de Martin du 29 septembre 2026. Même compte, mêmes crédits et mêm
 
 ## Tarifs photo confirmés le 30 septembre
 
-Trois packs prépayés, sans abonnement : **10 crédits pour 9,99 €**, **30 crédits pour 24,99 €** et **100 crédits pour 59,99 €**. Un crédit donne droit au premier téléchargement HD d’une photo payante ; l’aperçu et la correction incluse précèdent l’achat. La première photo offerte reste téléchargeable sans filigrane. Chaque pack porte un identifiant qui fige son prix : une ancienne commande conserve toujours son montant et son nombre de crédits d’origine.
+Quatre packs prépayés, sans abonnement : **10 crédits pour 9,99 €**, **30 crédits pour 24,99 €**, **50 crédits pour 34,99 €** et **100 crédits pour 59,99 €**. Un crédit donne droit au premier téléchargement HD d’une photo payante ; l’aperçu et la correction incluse précèdent l’achat. La première photo offerte reste téléchargeable sans filigrane. Chaque pack porte un identifiant qui fige son prix : une ancienne commande conserve toujours son montant et son nombre de crédits d’origine. Le client peut cumuler plusieurs exemplaires et plusieurs packs photo dans un même panier ; le total est toujours recalculé côté serveur.
 
 Les vidéos utilisent un solde distinct pour que le client achète une durée claire sans convertir ses photos. **Un crédit vidéo représente 5 secondes en 720p**. Les packs préparés sont 2 crédits / 10 secondes à 12,99 €, 4 crédits / 20 secondes à 21,99 € et 6 crédits / 30 secondes à 29,99 €. Ils restent impossibles à acheter tant que le moteur Higgsfield n’a pas réussi sa recette réelle.
 
