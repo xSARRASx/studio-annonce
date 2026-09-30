@@ -11,6 +11,12 @@ import "./photo-gallery.css";
 
 export const exampleImage = (example: PhotoExample, side: ExampleStage['key'] | 'angle') => asset(`exemples/${example.file}-${side}.webp`);
 
+/** The same independent comparison in gallery cards, articles and detail pages. */
+export function ExampleComparison({ example, thumbnail = false, priority = false }: { example: PhotoExample; thumbnail?: boolean; priority?: boolean }) {
+  const source = (side: 'avant' | 'apres') => exampleImage(example, side).replace('.webp', `${thumbnail ? '-640' : ''}.webp`);
+  return <div className="pg-example-comparison" style={{ aspectRatio: example.ratio }}><Compare before={source('avant')} result={source('apres')} beforeAlt={example.altBefore} resultAlt={example.altAfter} label={`Comparer avant et après : ${example.title}`} priority={priority} sizes={thumbnail ? '(max-width: 650px) 90vw, 33vw' : '(max-width: 900px) 90vw, 60vw'}/></div>;
+}
+
 export function ExampleViewer({ example, priority = false }: { example: PhotoExample; priority?: boolean }) {
   const [stage, setStage] = useState<ExampleStage['key']>('apres');
   const [compare, setCompare] = useState(true);
@@ -45,9 +51,10 @@ export function PhotoGallery({ compact = false }: { compact?: boolean }) {
         <div className="pg-feature-copy"><span className="pg-room">{selected.room} · {selected.category}</span><h3>{selected.title}</h3><p>{selected.detail}</p><div className="pg-request"><MessageSquareText size={18}/><div><span>La première demande</span><blockquote>« {selected.prompt} »</blockquote></div></div>{selected.correction && <div className="pg-request pg-correction"><MessageSquareText size={18}/><div><span>Une correction, ensuite</span><blockquote>« {selected.correction} »</blockquote></div></div>}<p className="pg-preserved"><Check size={16}/><span>Repères conservés : {selected.preserved.toLocaleLowerCase('fr')}.</span></p><p className="pg-virtual">{selected.virtual ? 'Projection de décoration ou de rénovation' : 'Mise en valeur et rangement'} · à partir d’une photo réelle</p><Link href={`/exemples/${selected.id}/`} className="button dark">Découvrir cette transformation <ArrowRight size={17}/></Link></div>
       </div>
     </>}
+    <p className="pg-compare-hint">Faites glisser la séparation sur chaque photo pour voir l’avant et l’après.</p>
     <div className="pg-grid">{(compact ? [PHOTO_EXAMPLES[1], PHOTO_EXAMPLES[2], PHOTO_EXAMPLES[4]] : examples).map(example => <article className={`pg-card ${!compact && selected.id === example.id ? "pg-selected" : ""}`} key={example.id}>
-      {compact ? <div className="pg-card-compare"><Compare before={exampleImage(example, "avant")} result={exampleImage(example, "apres")} beforeAlt={example.altBefore} resultAlt={example.altAfter}/></div> : <button type="button" className="pg-card-image" aria-label={`Comparer : ${example.title}`} aria-pressed={selected.id === example.id} onClick={() => { setSelected(example); history.replaceState(null, '', `#${example.id}`); document.querySelector('.pg-feature')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: "start" }); }}><Image src={exampleImage(example, "apres").replace(".webp", "-640.webp")} alt={example.altAfter} fill sizes="(max-width: 650px) 90vw, 30vw"/><span>{example.room}{example.correction ? ' · 3 versions' : ''}{example.angle ? ' · 2 points de vue' : ''}</span></button>}
-      <div className="pg-card-copy"><span>{example.category}</span><h3>{example.title}</h3><p>{example.detail}</p><Link href={`/exemples/${example.id}/`}>Découvrir l’avant / après<ArrowRight size={15}/></Link></div>
+      <div className="pg-card-compare"><ExampleComparison example={example} thumbnail/><span className="pg-card-room">{example.room}</span></div>
+      <div className="pg-card-copy"><span>{example.category}</span><h3>{example.title}</h3><p>{example.detail}</p><Link href={`/exemples/${example.id}/`}>Voir l’exemple en détail<ArrowRight size={15}/></Link></div>
     </article>)}</div>
     <div className="pg-foot"><p>Huit photographies de quatre logements, retouchées pour ces exemples. Les propositions de décoration et de rénovation sont des projections virtuelles, présentées avec leur original.</p>{compact && <Link className="button outlined" href="/demo/exemples/">Voir les {PHOTO_EXAMPLES.length} exemples <ArrowRight size={17}/></Link>}</div>
   </section>;

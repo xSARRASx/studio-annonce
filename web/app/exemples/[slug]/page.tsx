@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PHOTO_EXAMPLES, findPhotoExample } from "../../../../shared/photo-examples";
-import { ExampleViewer, GuidedExample } from "../../demo/photo-gallery";
+import { ExampleViewer, GuidedExample, ExampleComparison } from "../../demo/photo-gallery";
 import { PublicHeader, PublicFooter } from "../../demo/aide/PublicChrome";
 import "../../demo/studio.css";
 import "../../demo/aide/public-pages.css";
@@ -34,7 +33,7 @@ export default async function ExamplePage({ params }: { params: Promise<{ slug: 
       <div className="editorial-comparison"><ExampleViewer example={example} priority/></div>
       <div className="editorial-detail"><article className="editorial-prose"><h2>Ce que cette retouche change.</h2>{example.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}<h2>Les repères de la pièce.</h2><p>{example.preserved}. Garder ces éléments reconnaissables permet de comparer la proposition au logement photographié.</p><p className="editorial-source">Photo de départ : <a href={`https://www.airbnb.fr/rooms/${example.listing}`} target="_blank" rel="noopener noreferrer nofollow">{example.sourceTitle}, {example.location} — annonce Airbnb ↗</a>. La version retouchée est un exemple Studio Annonce.</p></article><aside className="editorial-brief"><span className="public-eyebrow">LA DEMANDE UTILISÉE</span><blockquote>« {example.prompt} »</blockquote><p>La photo et la demande restent ensemble. Vous pouvez comparer, puis préciser ce que vous souhaitez ajuster.</p><Link className="button dark" href={`/demo/#decouvrir/${example.id}`}>Voir le parcours guidé →</Link></aside></div>
       <GuidedExample exampleId={example.id}/>
-      <section className="editorial-related"><h2>D’autres idées pour votre logement.</h2><div className="editorial-cards">{related.map(item => <Link className="editorial-card" key={item.id} href={`/exemples/${item.id}/`}><Image src={`/demo/exemples/${item.file}-apres-640.webp`} alt={item.altAfter} width={640} height={Math.round(640 / item.ratio)}/><div><span>{item.category}</span><h3>{item.title}</h3><p>Découvrir l’avant / après →</p></div></Link>)}</div></section>
+      <section className="editorial-related"><h2>D’autres idées pour votre logement.</h2><div className="editorial-cards">{related.map(item => <article className="editorial-card" key={item.id}><ExampleComparison example={item} thumbnail/><div className="editorial-card-copy"><span>{item.category}</span><h3><Link href={`/exemples/${item.id}/`}>{item.title}</Link></h3><p><Link href={`/exemples/${item.id}/`}>Voir l’exemple en détail →</Link></p></div></article>)}</div></section>
     </main><PublicFooter/>
   </div>;
 }

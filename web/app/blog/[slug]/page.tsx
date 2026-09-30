@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { ExampleComparison } from "../../demo/photo-gallery";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findArticle, publishedArticles } from "../articles";
@@ -25,8 +25,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   return <div className="studio-demo public-info editorial"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }}/><PublicHeader current="blog"/><main className="editorial-main">
     <nav className="editorial-breadcrumb" aria-label="Fil d’Ariane"><Link href="/">Accueil</Link><span>/</span><Link href="/blog/">Blog</Link></nav>
     <article><header className="editorial-heading"><span className="public-eyebrow">{article.category}</span><h1>{article.title}</h1><p>{article.intro}</p><p className="editorial-date">Par Studio Annonce · <time dateTime={article.date}>{new Date(`${article.date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</time></p></header>
-      <figure className="editorial-cover"><Image src={`/demo/exemples/${cover.file}-apres.webp`} alt={cover.altAfter} width={1440} height={1080} priority/><figcaption>Une proposition de décoration autour du canapé existant. <Link href={`/exemples/${cover.id}/`}>Comparer avec l’original →</Link></figcaption></figure>
-      <div className="editorial-prose article-body">{article.sections.map(section => <section key={section.title}><h2>{section.title}</h2>{section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}{section.examples && <div className="article-examples">{section.examples.map(slug => { const item = findPhotoExample(slug)!; return <Link key={slug} href={`/exemples/${slug}/`}><Image src={`/demo/exemples/${item.file}-apres-640.webp`} alt={item.altAfter} width={180} height={120}/><span>{item.title}<small>Voir l’avant / après →</small></span></Link>; })}</div>}</section>)}</div>
+      <figure className="editorial-cover"><ExampleComparison example={cover} priority/><figcaption>Une proposition de décoration autour du canapé existant. <Link href={`/exemples/${cover.id}/`}>Comparer avec l’original →</Link></figcaption></figure>
+      <div className="editorial-prose article-body">{article.sections.map(section => <section key={section.title}><h2>{section.title}</h2>{section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}{section.examples && <div className="article-examples">{section.examples.map(slug => { const item = findPhotoExample(slug)!; return <div className="article-example" key={slug}><ExampleComparison example={item} thumbnail/><Link href={`/exemples/${slug}/`}>{item.title}<small>Voir l’exemple en détail →</small></Link></div>; })}</div>}</section>)}</div>
     </article><section className="public-next"><div><h2>Votre photo, votre idée.</h2><p>Découvrez comment une demande devient une proposition dans le parcours guidé.</p></div><Link className="button dark" href={`/demo/#decouvrir/${cover.id}`}>Explorer le parcours →</Link></section>
   </main><PublicFooter/></div>;
 }

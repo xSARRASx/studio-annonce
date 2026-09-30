@@ -10,15 +10,15 @@ export function Brand({ onClick }: { onClick: () => void }) {
   return <button className="brand" onClick={onClick} aria-label="Studio Annonce, accueil"><span className="brand-mark"><Image src={asset("porte-lumineuse.svg")} alt="" width={40} height={44}/></span><span>studio<span className="brand-light">annonce</span></span></button>;
 }
 
-export function Compare({ result = asset("salon-apres.webp"), before = asset("salon-avant.webp"), compact = false, watermarked = false, priority = false, beforeAlt = "Photo originale", resultAlt = "Version sélectionnée" }: { result?: string; before?: string; compact?: boolean; watermarked?: boolean; priority?: boolean; beforeAlt?: string; resultAlt?: string }) {
+export function Compare({ result = asset("salon-apres.webp"), before = asset("salon-avant.webp"), compact = false, watermarked = false, priority = false, beforeAlt = "Photo originale", resultAlt = "Version sélectionnée", label = "Comparer la photo avant et après", sizes = "(max-width: 800px) 100vw, 65vw" }: { result?: string; before?: string; compact?: boolean; watermarked?: boolean; priority?: boolean; beforeAlt?: string; resultAlt?: string; label?: string; sizes?: string }) {
   const [split, setSplit] = useState(44);
   return <div className={`comparison ${compact ? "compact" : ""}`}>
-    <Image src={result} alt={resultAlt} fill sizes="(max-width: 800px) 100vw, 65vw" priority={priority} unoptimized/>
-    <div className="before-layer" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}><Image src={before} alt={beforeAlt} fill sizes="(max-width: 800px) 100vw, 65vw" priority={priority} unoptimized/></div>
+    <Image src={result} alt={resultAlt} fill sizes={sizes} priority={priority} unoptimized/>
+    <div className="before-layer" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}><Image src={before} alt={beforeAlt} fill sizes={sizes} priority={priority} unoptimized/></div>
     {watermarked && <PreviewWatermark from={split}/>}
     <span className="photo-label before-label">Avant</span><span className="photo-label after-label">Après <Sparkles size={12}/></span>
     <div className="compare-divider" style={{ left: `${split}%` }}><span><ChevronRight size={15} style={{ transform: "rotate(180deg)" }}/><ChevronRight size={15}/></span></div>
-    <input aria-label="Comparer la photo avant et après" aria-valuetext={`${split} % de la photo originale`} className="compare-range" type="range" min="0" max="100" value={split} onChange={event => setSplit(Number(event.target.value))}/>
+    <input aria-label={label} aria-valuetext={`${split} % de la photo originale`} className="compare-range" type="range" min="0" max="100" value={split} onChange={event => setSplit(Number(event.target.value))}/>
   </div>;
 }
 

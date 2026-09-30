@@ -109,3 +109,6 @@
 .video-coming-soon p{font-size:14px;line-height:1.6}
 @media(max-width:800px){.projects-main{padding:27px 6% 45px}.projects-heading{align-items:flex-start;flex-direction:column;margin-bottom:24px}.projects-heading h1{font-size:29px}.projects-actions{width:100%}.projects-actions .button{flex:1}.projects-empty{margin:20px auto 0;padding:30px 18px}.projects-empty h2{font-size:25px}.projects-empty>p:not(.section-kicker){font-size:14px}.first-project-actions{grid-template-columns:1fr;gap:10px;margin-top:23px}.first-project-card{min-height:94px;padding:16px}.project-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.project-card-copy{padding:12px}.project-card-copy strong{font-size:13px}.project-card-copy small{font-size:11px}.project-card-copy>span{font-size:12px}.video-project-main{padding:24px 6% 45px}.video-project-main h1{font-size:24px}}
 @media(max-width:470px){.project-cards{grid-template-columns:1fr}.projects-actions{flex-direction:column}.projects-actions .button{flex:auto;width:100%}}
+
+/* Keep each comparison usable by mouse, touch and keyboard. */
+.compare-range{touch-action:pan-y}.comparison:has(.compare-range:focus-visible){outline:3px solid #a18849;outline-offset:-3px}.comparison:has(.compare-range:focus-visible) .compare-divider>span{box-shadow:0 0 0 3px #a18849}.compare-divider>span{min-width:44px;min-height:44px}
