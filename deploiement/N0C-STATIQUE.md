@@ -2,6 +2,16 @@
 
 Le site Next.js statique est servi sur `https://studioannonce.fr/`, et FastAPI par Python 3.11 / Passenger sur `/api`, dans `~/studioapi` hors de `public_html`. L'aperçu Expo est sous `/mobile/`, présenté dans `/mobile-preview/`. L'accueil donne accès au compte réel et à la démonstration. La démonstration `/demo/` et les anciens brouillons mobiles restent locaux. La nouvelle entrée mobile utilise le compte serveur ; les données de démonstration ne sont pas transférées en crédits réels.
 
+## Publication du 30 septembre : panier cumulable et images rapides
+
+Les packs photo publiés sont désormais 10 crédits à 9,99 €, 30 à 24,99 €, 50 à 34,99 € et 100 à 59,99 €. Le compte web et l'aperçu mobile permettent de choisir plusieurs exemplaires d'un même pack et de cumuler plusieurs packs photo dans un paiement, par exemple deux packs de 10 ou un pack de 10 avec un pack de 30. Le serveur regroupe les doublons, recalcule chaque prix depuis son catalogue, limite le panier à vingt packs et refuse de mélanger des crédits photo et vidéo. Une clé de demande identique ne peut créditer qu'une fois le panier confirmé. La migration ajoute uniquement la composition JSON de la commande ; les anciens achats simples restent compatibles.
+
+Le chargement lent de la vitrine venait des sept PNG d'exemple, qui totalisaient environ 17 Mo. Les mêmes visuels sont maintenant servis en WebP, pour environ 1 Mo au total. Les deux images du comparateur d'accueil passent de 5,5 Mo à environ 240 Ko et sont préchargées ; les images plus basses restent différées. La vidéo d'exemple de 2,9 Mo n'obtient son adresse qu'à l'approche de sa section. Lors du contrôle réseau après publication, `salon-apres.webp` répondait avec 126 978 octets, contre 2 840 035 octets pour l'ancien PNG. La composition visuelle du comparateur a été contrôlée après publication.
+
+Livraison publiée à **12:40:39 UTC** depuis les commits `8a0d141`, `c90721f` et `074fc0b` sur `codex-travail`. Sauvegarde préalable : `~/sauvegardes-studio/panier-20260930T122336Z/`, avec les empreintes SHA-256 `e9990b14ba56f378ffda74584fdbf262a6a0555ac6db5feae20a3b9406cd4af7` pour `public_html`, `12e77c85b98bae7f8ae721068bc5c03bc3c07357840fe929f1a58b0ca548a157` pour l'application API et `da2e00a0925367b276e4db130de307ca68faafd415c427f622afe8d044fda2f4` pour SQLite. L'empreinte du `.env` est restée `df5fa758842e6d04d0be8e5ee7f947d470b633331dd3b9669d0bb0bb496d9802`.
+
+Recette : 84 tests API, 49 tests web et 22 tests de logique mobile réussis ; TypeScript, lint, exports web et Expo réussis. Après migration, l'intégrité SQLite est `ok`, les comptes, photos, achats et registres ont les mêmes nombres de lignes que la sauvegarde, et le catalogue serveur expose bien les quatre packs. Les routes publiques web et mobile répondent 200 ; `/api/compte` et `/api/admin/vue-ensemble` répondent 401 sans session. Les paiements et les moteurs IA restent fermés : cette publication n'a lancé aucun encaissement ni appel fournisseur.
+
 ## Publication du 30 septembre : tarif et notifications
 
 Le pack confirmé est désormais **10 crédits photo pour 9,99 €**, sans abonnement. L'identifiant `photo10-999` évite de modifier le sens d'une ancienne commande. Le tarif est identique dans la page publique, le compte web, la démonstration et le compte mobile. Les achats restent indisponibles jusqu'à la validation des fournisseurs.
