@@ -27,10 +27,10 @@ export function sampleProject(kind: MediaKind): DemoProject {
     id: "example-salon", title: "Le salon", property: "Appartement Lumière", kind, sample: true,
     createdAt: now, updatedAt: now, selected: "decor", draft: "",
     versions: [
-      { id: "original", label: "Photo originale", src: asset("salon-avant.png"), note: "Le point de départ, toujours conservé." },
-      { id: "light", label: "Plus de lumière", src: asset("salon-apres.png"), note: "Une lumière douce et un intérieur rangé." },
-      { id: "terracotta", label: "Déco terracotta", src: asset("salon-deco.png"), virtual: true, note: "Une première proposition, conservée dans l’historique." },
-      { id: "decor", label: "Décoration complète", src: asset("salon-deco-complete.png"), virtual: true, note: "Mobilier, luminaires et objets entièrement repensés." },
+      { id: "original", label: "Photo originale", src: asset("salon-avant.webp"), note: "Le point de départ, toujours conservé." },
+      { id: "light", label: "Plus de lumière", src: asset("salon-apres.webp"), note: "Une lumière douce et un intérieur rangé." },
+      { id: "terracotta", label: "Déco terracotta", src: asset("salon-deco.webp"), virtual: true, note: "Une première proposition, conservée dans l’historique." },
+      { id: "decor", label: "Décoration complète", src: asset("salon-deco-complete.webp"), virtual: true, note: "Mobilier, luminaires et objets entièrement repensés." },
     ],
   };
 }

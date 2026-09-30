@@ -53,7 +53,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
     photos: miennes.filter(p => p.property === l).sort((a, b) => b.updatedAt - a.updatedAt),
   })).filter(g => g.photos.length);
   const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
-    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.png")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
+    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.webp")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
     <span className="st-row-main"><strong>{p.title}</strong><small>{p.kind === "video" ? "Vidéo" : "Photo"} · {p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}</small></span>
     <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
     <ChevronRight size={20} className="st-chevron"/>
@@ -61,8 +61,8 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
   /* Les exemples ne sont pas un logement : ils ont leur partie à eux, toujours la même, tout en bas. */
   const vus = new Set(exemples.map(p => p.kind));
   const cartesExemples = [
-    { kind: "photo" as const, image: "salon-deco-complete.png", titre: "Le salon", type: "Photo", texte: "Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions." },
-    { kind: "video" as const, image: "visite/sejour.png", titre: "La visite", type: "Vidéo", texte: "Une maquette de visite montée à partir de photos fictives. Découvrez le rythme et les mouvements." },
+    { kind: "photo" as const, image: "salon-deco-complete.webp", titre: "Le salon", type: "Photo", texte: "Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions." },
+    { kind: "video" as const, image: "visite/sejour.webp", titre: "La visite", type: "Vidéo", texte: "Une maquette de visite montée à partir de photos fictives. Découvrez le rythme et les mouvements." },
   ];
   const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
     <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Deux exemples pour explorer le studio. Ils sont séparés de vos créations et ne coûtent rien.</p></div>
@@ -75,8 +75,8 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
   if (!miennes.length) return <main className="st-main">
     <section className="st-first">
       <div className="st-first-art" aria-hidden="true">
-        <div className="st-first-card st-c1"><Image src={asset("salon-avant.png")} alt="" fill sizes="220px" unoptimized/></div>
-        <div className="st-first-card st-c2"><Image src={asset("salon-apres.png")} alt="" fill sizes="220px" unoptimized/></div>
+        <div className="st-first-card st-c1"><Image src={asset("salon-avant.webp")} alt="" fill sizes="220px" unoptimized/></div>
+        <div className="st-first-card st-c2"><Image src={asset("salon-apres.webp")} alt="" fill sizes="220px" unoptimized/></div>
         <span className="st-first-plus"><Plus size={26}/></span>
       </div>
       <div className="st-first-copy">

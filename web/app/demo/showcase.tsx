@@ -6,10 +6,10 @@ import { asset } from "./library";
 
 /* Les quatre versions réelles du salon d'exemple, dans l'ordre où elles ont été produites. */
 const lxVersions = [
-  { id: "original", label: "Votre photo", demande: "La photo prise au téléphone", src: asset("salon-avant.png") },
-  { id: "lumiere", label: "Plus de lumière", demande: "« Un salon plus lumineux, range un peu »", src: asset("salon-apres.png") },
-  { id: "terracotta", label: "Couleurs chaudes", demande: "« Des tons terracotta, plus chaleureux »", src: asset("salon-deco.png") },
-  { id: "deco", label: "Toute la déco", demande: "« Change toute la déco, garde la pièce »", src: asset("salon-deco-complete.png") },
+  { id: "original", label: "Votre photo", demande: "La photo prise au téléphone", src: asset("salon-avant.webp") },
+  { id: "lumiere", label: "Plus de lumière", demande: "« Un salon plus lumineux, range un peu »", src: asset("salon-apres.webp") },
+  { id: "terracotta", label: "Couleurs chaudes", demande: "« Des tons terracotta, plus chaleureux »", src: asset("salon-deco.webp") },
+  { id: "deco", label: "Toute la déco", demande: "« Change toute la déco, garde la pièce »", src: asset("salon-deco-complete.webp") },
 ];
 
 /* Incline doucement un objet 3D selon la position du pointeur, et le remet à plat quand il sort. */
@@ -67,9 +67,9 @@ export function LxSteps() {
     <div className="lx-steps">
       <article className="lx-step lx-peach">
         <div className="lx-scene">
-          <div className="lx-phone-photo lx-p1"><Image src={asset("visite/cuisine.png")} alt="" fill sizes="160px" unoptimized/></div>
-          <div className="lx-phone-photo lx-p2"><Image src={asset("visite/chambre.png")} alt="" fill sizes="160px" unoptimized/></div>
-          <div className="lx-phone-photo lx-p3"><Image src={asset("salon-avant.png")} alt="" fill sizes="180px" unoptimized/></div>
+          <div className="lx-phone-photo lx-p1"><Image src={asset("visite/cuisine.webp")} alt="" fill sizes="160px" unoptimized/></div>
+          <div className="lx-phone-photo lx-p2"><Image src={asset("visite/chambre.webp")} alt="" fill sizes="160px" unoptimized/></div>
+          <div className="lx-phone-photo lx-p3"><Image src={asset("salon-avant.webp")} alt="" fill sizes="180px" unoptimized/></div>
           <span className="lx-float lx-f-upload"><ImagePlus size={22}/></span>
         </div>
         <div className="lx-step-copy"><span className="journey-number">01</span><h3>Déposez vos photos.</h3><p>Même de travers, même un peu en désordre.</p></div>
@@ -84,7 +84,7 @@ export function LxSteps() {
       </article>
       <article className="lx-step lx-sage">
         <div className="lx-scene">
-          <div className="lx-hd"><Image src={asset("salon-apres.png")} alt="" fill sizes="220px" unoptimized/><span className="lx-hd-tag">HD</span></div>
+          <div className="lx-hd"><Image src={asset("salon-apres.webp")} alt="" fill sizes="220px" unoptimized/><span className="lx-hd-tag">HD</span></div>
           <span className="lx-float lx-f-check"><Check size={24}/></span>
           <span className="lx-float lx-f-dl"><Download size={18}/> Gardée</span>
         </div>
@@ -111,11 +111,11 @@ export function LxListing() {
       <div className="lx-browser">
         <div className="lx-browser-bar"><span/><span/><span/><em>votre-annonce</em></div>
         <div className="lx-gallery">
-          <div className="lx-g-main"><Image src={asset("salon-apres.png")} alt="Salon retouché" fill sizes="(max-width: 800px) 60vw, 380px" unoptimized/></div>
-          <div><Image src={asset("visite/sejour.png")} alt="Séjour retouché" fill sizes="180px" unoptimized/></div>
-          <div><Image src={asset("visite/cuisine.png")} alt="Cuisine retouchée" fill sizes="180px" unoptimized/></div>
-          <div><Image src={asset("visite/chambre.png")} alt="Chambre retouchée" fill sizes="180px" unoptimized/></div>
-          <div><Image src={asset("salon-deco-complete.png")} alt="Salon avec une nouvelle décoration" fill sizes="180px" unoptimized/></div>
+          <div className="lx-g-main"><Image src={asset("salon-apres.webp")} alt="Salon retouché" fill sizes="(max-width: 800px) 60vw, 380px" unoptimized/></div>
+          <div><Image src={asset("visite/sejour.webp")} alt="Séjour retouché" fill sizes="180px" unoptimized/></div>
+          <div><Image src={asset("visite/cuisine.webp")} alt="Cuisine retouchée" fill sizes="180px" unoptimized/></div>
+          <div><Image src={asset("visite/chambre.webp")} alt="Chambre retouchée" fill sizes="180px" unoptimized/></div>
+          <div><Image src={asset("salon-deco-complete.webp")} alt="Salon avec une nouvelle décoration" fill sizes="180px" unoptimized/></div>
         </div>
         <div className="lx-listing-text"><strong>Appartement lumineux, 2 pièces</strong><span>4 voyageurs · 1 chambre · 1 salle de bain</span></div>
       </div>
@@ -127,8 +127,19 @@ export function LxListing() {
 
 /* 4. La suite : la visite vidéo, annoncée comme telle. */
 export function LxVideo() {
-  return <section className="lx-section lx-video-section" aria-labelledby="lx-video-title">
-    <div className="lx-video-phone"><video src={asset("visite-guidee-demo.mp4")} poster={asset("visite/sejour.png")} autoPlay muted loop playsInline aria-label="Aperçu d’une visite en vidéo"/></div>
+  const section = useRef<HTMLElement>(null);
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const element = section.current;
+    if (!element || typeof IntersectionObserver === "undefined") { setActive(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setActive(true); observer.disconnect(); }
+    }, { rootMargin: "400px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return <section ref={section} className="lx-section lx-video-section" aria-labelledby="lx-video-title">
+    <div className="lx-video-phone"><video src={active ? asset("visite-guidee-demo.mp4") : undefined} poster={asset("visite/sejour.webp")} autoPlay={active} preload="none" muted loop playsInline aria-label="Aperçu d’une visite en vidéo"/></div>
     <div className="lx-video-copy">
       <span className="lx-soon"><Film size={14}/> Bientôt</span>
       <h2 id="lx-video-title">La visite en vidéo.</h2>

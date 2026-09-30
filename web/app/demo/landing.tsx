@@ -10,7 +10,7 @@ return <>
       <main>
         <section className="hero">
           <div className="hero-copy"><div className="intro-pill"><Sparkles size={15}/> Le studio photo de votre logement</div><h1>De belles photos.<br/><em>Pour votre annonce.</em></h1><p className="hero-description">Éclairez, rangez ou aménagez votre pièce en quelques mots.</p><div className="hero-actions"><Link className="button dark" href="/connexion/">Créer mon compte <ArrowRight size={18}/></Link><button className="button" onClick={() => onStudio()}>Voir la démo</button></div><p className="hero-reassurance"><Check size={16}/> Votre pièce, simplement mise en valeur.</p></div>
-          <div className="hero-visual"><Compare/><div className="visual-caption">Faites glisser pour comparer.</div></div>
+          <div className="hero-visual"><Compare priority/><div className="visual-caption">Faites glisser pour comparer.</div></div>
         </section>
         <LxDeck/>
         <LxSteps/>

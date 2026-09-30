@@ -7,27 +7,27 @@ import { ArrowLeftRight, ArrowUpRight, Check, Sparkles } from "lucide-react";
 import "../studio.css";
 
 const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const before = `${base}/demo/salon-avant.png`;
+const before = `${base}/demo/salon-avant.webp`;
 const examples = [
   {
     id: "lumiere",
     label: "Plus de lumière",
     detail: "Éclaircir la pièce en gardant le mobilier.",
-    image: `${base}/demo/salon-apres.png`,
+    image: `${base}/demo/salon-apres.webp`,
     alt: "Salon d’exemple éclairci, avec son mobilier conservé",
   },
   {
     id: "ambiance",
     label: "Nouvelle ambiance",
     detail: "Faire évoluer les couleurs et l’atmosphère.",
-    image: `${base}/demo/salon-deco.png`,
+    image: `${base}/demo/salon-deco.webp`,
     alt: "Salon d’exemple dans une ambiance terracotta",
   },
   {
     id: "decoration",
     label: "Décoration complète",
     detail: "Remplacer le mobilier et repenser la pièce.",
-    image: `${base}/demo/salon-deco-complete.png`,
+    image: `${base}/demo/salon-deco-complete.webp`,
     alt: "Salon d’exemple entièrement redécoré",
   },
 ] as const;
