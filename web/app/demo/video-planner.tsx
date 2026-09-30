@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, Film, Images, Info, Search, Sparkles, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Film, Images, Info, Search, Sparkles, Upload, X } from "lucide-react";
 import { BriefAssistant } from "./brief-assistant";
 import { videoVisitContext } from "../../../shared/video-visit";
 import { storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
@@ -29,6 +29,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, storageKey 
   const [adding, setAdding] = useState(false);
   const [importError, setImportError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const briefPanel = useRef<HTMLElement>(null);
   const photos = library.projects.filter(project => project.kind === "photo" && !project.sample);
   const properties = [...new Set(photos.map(project => project.property))];
   const currentProperty = properties.includes(property) ? property : "";
@@ -133,10 +134,10 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, storageKey 
       <h2 id="video-idea-title"><span className="st-step-number">3</span> Votre idée</h2>
       <label className="st-video-label" htmlFor="video-idea">Décrivez le trajet ou l’ambiance que vous imaginez</label>
       <textarea id="video-idea" value={idea} maxLength={4000} rows={5} onChange={event => setIdea(event.target.value)} placeholder="Ex. : une caméra flotte du salon vers la cuisine, s’attarde sur la lumière et termine sur la chambre…"/>
-      <BriefAssistant kind="video" request={idea} context={context} onUse={value => { setBrief(value); setBriefIdea(idea); setBriefContext(context); }}/>
+      <BriefAssistant kind="video" request={idea} context={context} onUse={value => { setBrief(value); setBriefIdea(idea); setBriefContext(context); requestAnimationFrame(() => briefPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }}/>
     </section>
 
-    {brief && <section className="st-step" aria-labelledby="video-brief-title"><h2 id="video-brief-title"><span className="st-step-number">4</span> Votre brief vidéo</h2><p className="st-video-label">Votre idée et vos réponses sont réunies. Vous pouvez relire le texte complet et le modifier.</p>{(briefIdea !== idea || briefContext !== context) && <p className="st-video-changed" role="status">{briefIdea === null || briefContext === null ? "Ce brief est ancien. Vérifiez qu’il correspond encore à votre idée et aux photos choisies." : "L’idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’assistant pour actualiser le brief, ou ajustez le texte ci-dessous."}</p>}<details className="st-video-brief-details"><summary><span><CheckCircle2 size={19}/>Voir et modifier le brief complet</span><ChevronDown size={18}/></summary><textarea aria-label="Brief vidéo modifiable" value={brief} rows={10} onChange={event => setBrief(event.target.value)}/></details></section>}
+    {brief && <section ref={briefPanel} className="st-step" aria-labelledby="video-brief-title"><h2 id="video-brief-title"><span className="st-step-number">4</span> Votre demande vidéo complète</h2><p className="st-video-label">Voici le texte préparé à partir de votre idée et de vos réponses. Rien à recopier : les autres champs servent seulement à ajouter des précisions si vous le souhaitez.</p>{(briefIdea !== idea || briefContext !== context) && <p className="st-video-changed" role="status">{briefIdea === null || briefContext === null ? "Ce brief est ancien. Vérifiez qu’il correspond encore à votre idée et aux photos choisies." : "L’idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’assistant pour actualiser le brief, ou ajustez le texte ci-dessous."}</p>}<div className="st-video-brief-details"><p className="st-video-label"><CheckCircle2 size={19}/> Votre texte reste modifiable ci-dessous.</p><textarea aria-label="Brief vidéo modifiable" value={brief} rows={10} onChange={event => setBrief(event.target.value)}/></div></section>}
 
     <section className="st-video-next" aria-label="Suite de la création vidéo"><div className="st-video-next-icon"><Film size={22}/></div><div><h2>Votre brief reste modifiable.</h2><p>La retouche des photos, la génération des plans et l’estimation du coût seront proposées ici lorsque les moteurs seront connectés. Une visite longue devra être testée en plusieurs plans puis assemblée ; la continuité de la caméra ne peut pas être garantie à partir de photos seules.</p></div><span><Sparkles size={15}/> Démonstration</span></section>
     <p className="st-video-local"><Info size={15}/> Votre brouillon reste dans ce navigateur si son stockage est disponible. Aucune photo ni demande n’est envoyée à un moteur distant depuis cet aperçu.</p>

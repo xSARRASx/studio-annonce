@@ -47,7 +47,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
   const { draft, setDraft, ready, notice, saved } = useLocalDraft(`studio-annonce.mobile.${kind}-plan.v1`, emptyDraft, readDraft);
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(12);
-  const [showBrief, setShowBrief] = useState(false);
+  const [showBrief, setShowBrief] = useState(true);
   const photos = projects.filter(project => project.source === 'photo');
   const selected = draft.selectedIds.map(id => photos.find(project => project.id === id)).filter((project): project is (typeof photos)[number] => !!project);
   const matching = photos.filter(project => normalize(`${project.title} ${logementOf(project)}`).includes(normalize(search.trim())));
@@ -133,7 +133,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
       <MobileBriefAssistant kind={kind} request={draft.idea} context={context} onUse={applyBrief} storageKey={`studio-annonce.mobile.assistant.${kind}-plan.v1`}/>
 
       {!!draft.brief && <View style={styles.panel}>
-        <Text style={styles.readyLabel}>✓ VOTRE DESCRIPTION EST PRÊTE</Text>
+        <Text style={styles.readyLabel}>✓ VOTRE DESCRIPTION EST PRÊTE</Text><Text style={styles.small}>Vos réponses sont réunies ci-dessous. Rien à recopier : les autres champs permettent seulement d’ajouter des précisions.</Text>
         <Text style={styles.section}>{kind === 'image' ? 'Votre image prend forme.' : 'Votre visite a une direction.'}</Text>
         {staleBrief && <Text style={styles.warning}>Votre idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’aide pour actualiser le brief, ou ajustez la description.</Text>}
         <Pressable accessibilityRole="button" aria-expanded={showBrief} accessibilityState={{ expanded: showBrief }} onPress={() => setShowBrief(value => !value)} style={styles.disclosure}><Text style={styles.disclosureText}>{showBrief ? 'Masquer la description −' : 'Relire et modifier la description +'}</Text></Pressable>

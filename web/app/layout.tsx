@@ -6,6 +6,7 @@ import "./globals.css";
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://studioannonce.fr"),
   title: "Studio Annonce",
   description: "Découvrez Studio Annonce : préparez vos photos immobilières et explorez le studio en démonstration.",
 };

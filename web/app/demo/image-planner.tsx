@@ -82,9 +82,9 @@ export function ImagePlanner({ onBack, onPhoto, storageKey = STORAGE_KEY }: { st
     </section>
 
     {brief && <section className="st-step ip-result" aria-labelledby="image-brief-title">
-      <div className="ip-result-heading"><CheckCircle2 size={22} aria-hidden="true"/><div><h2 id="image-brief-title">Votre image a une direction.</h2><p>La description est prête. Vous pouvez encore l’ajuster.</p></div></div>
+      <div className="ip-result-heading"><CheckCircle2 size={22} aria-hidden="true"/><div><h2 id="image-brief-title">Votre image a une direction.</h2><p>Vos réponses sont réunies ci-dessous. Rien à recopier : relisez votre demande et ajustez-la si vous le souhaitez.</p></div></div>
       {idea !== briefIdea && <p className="ip-changed">Votre idée a changé depuis cette description. Reprenez l’assistant pour l’actualiser, ou modifiez le texte ci-dessous.</p>}
-      <details className="ip-brief"><summary>Relire et modifier la description<ChevronDown size={17} aria-hidden="true"/></summary><label className="ip-brief-label" htmlFor="image-brief">Description complète de l’image</label><textarea id="image-brief" value={brief} maxLength={20000} rows={9} onChange={event => setBrief(event.target.value)}/></details>
+      <details className="ip-brief" open><summary>Relire et modifier la description<ChevronDown size={17} aria-hidden="true"/></summary><label className="ip-brief-label" htmlFor="image-brief">Description complète de l’image</label><textarea id="image-brief" value={brief} maxLength={20000} rows={9} onChange={event => setBrief(event.target.value)}/></details>
     </section>}
 
     <aside className="ip-next" aria-label="À propos de la création d’images">

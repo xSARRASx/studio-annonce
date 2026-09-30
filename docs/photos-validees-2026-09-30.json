@@ -1,0 +1,66 @@
+[
+  {
+    "id": "salon-canape-rouille",
+    "code": "A1",
+    "listingUrl": "https://www.airbnb.fr/rooms/1704921171164605079",
+    "sourceFile": "1704921171164605079-01.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "A1.png"
+  },
+  {
+    "id": "chambre-bleu-petrole",
+    "code": "A2",
+    "listingUrl": "https://www.airbnb.fr/rooms/1704921171164605079",
+    "sourceFile": "1704921171164605079-10.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "A2.png"
+  },
+  {
+    "id": "terrasse-mobilier-teck",
+    "code": "B1",
+    "listingUrl": "https://www.airbnb.fr/rooms/53294695",
+    "sourceFile": "53294695-01.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "B1.png"
+  },
+  {
+    "id": "chambre-terracotta",
+    "code": "B2",
+    "listingUrl": "https://www.airbnb.fr/rooms/53294695",
+    "sourceFile": "53294695-07.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "B2.png"
+  },
+  {
+    "id": "salon-lumiere-naturelle",
+    "code": "C1",
+    "listingUrl": "https://www.airbnb.fr/rooms/1117348194050702366",
+    "sourceFile": "1117348194050702366-01.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "C1.png"
+  },
+  {
+    "id": "cuisine-prune-bois",
+    "code": "C2",
+    "listingUrl": "https://www.airbnb.fr/rooms/1117348194050702366",
+    "sourceFile": "1117348194050702366-07.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "C2.png"
+  },
+  {
+    "id": "cuisine-bleu-parquet",
+    "code": "D1",
+    "listingUrl": "https://www.airbnb.fr/rooms/49940232",
+    "sourceFile": "49940232-01.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "D1.png"
+  },
+  {
+    "id": "sejour-canape-olive",
+    "code": "D2",
+    "listingUrl": "https://www.airbnb.fr/rooms/49940232",
+    "sourceFile": "49940232-02.jpg",
+    "approval": "Martin : utilise tout, mets tout ça dans le site — 30 septembre 2026",
+    "generatedProposal": "D2.png"
+  }
+]

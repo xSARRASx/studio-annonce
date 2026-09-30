@@ -38,7 +38,7 @@ export default function Layout() {
     <Tabs.Screen name="index" options={{ title: 'Mes créations' }}/>
     <Tabs.Screen name="creer" options={{ title: 'Créer' }}/>
     <Tabs.Screen name="compte" options={{ title: 'Mon compte' }}/>
-    <Tabs.Screen name="local" options={{ href: null }}/>
+    <Tabs.Screen name="exemples" options={{ href: null }}/><Tabs.Screen name="local" options={{ href: null }}/>
     <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></AccountConnection></StudioProvider>;
 }
 

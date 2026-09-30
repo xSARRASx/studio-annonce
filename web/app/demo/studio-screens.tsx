@@ -7,6 +7,7 @@ import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoPr
 import { BriefAssistant } from "./brief-assistant";
 import { CreationBack } from "./creation-hub";
 import "./studio-screens.css";
+import "./photo-gallery.css";
 
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 export const UNASSIGNED_PROPERTY = "Sans logement";
@@ -65,7 +66,8 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
     { kind: "video" as const, image: "visite/sejour.webp", titre: "La visite", type: "Vidéo", texte: "Une maquette de visite montée à partir de photos fictives. Découvrez le rythme et les mouvements." },
   ];
   const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
-    <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Deux exemples pour explorer le studio. Ils sont séparés de vos créations et ne coûtent rien.</p></div>
+    <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Des parcours préparés, séparés de vos créations. Aucun crédit utilisé.</p></div>
+    <div className="pg-app-entry"><div><strong>8 photos, des transformations à explorer.</strong><p>Photo originale, demande et proposition : découvrez le parcours pas à pas.</p></div><Link href="/demo/#decouvrir/salon-canape-rouille">Découvrir le parcours <ArrowRight size={17}/></Link><Link href="/demo/exemples/">Tous les exemples <ArrowUpRight size={17}/></Link></div>
     <div className="st-examples-grid">{cartesExemples.map(c => <button key={c.kind} className="st-ex-card" disabled={busy} onClick={() => onExample(c.kind)}>
       <span className="st-ex-img"><Image src={asset(c.image)} alt="" fill sizes="(max-width: 700px) 90vw, 320px" unoptimized/><span className="st-ex-type">{c.kind === "video" ? <Film size={12}/> : <Images size={12}/>} {c.type}</span></span>
       <span className="st-ex-body"><strong>{c.titre}</strong><small>{c.texte}</small><span className="st-ex-go">{vus.has(c.kind) ? "Rouvrir" : "Ouvrir l’exemple"} <ArrowRight size={14}/></span></span>
