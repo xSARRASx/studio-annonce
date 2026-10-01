@@ -1,5 +1,13 @@
 # Studio Annonce sur N0C — état vérifié le 30 septembre 2026
 
+## Publication du 1er octobre : préparer les photos d'une annonce
+
+La route privée `/app/importer/` permet d'enregistrer le lien HTTPS d'une annonce, de choisir plusieurs photos depuis son appareil, d'en sélectionner certaines et de voir le nombre maximal de crédits si toutes leurs retouches sont gardées en HD. Le client avance ensuite sur chaque photo retenue. Le compte mobile utilise le même serveur et propose aussi la sélection de plusieurs photos. L'ajout et la sélection ne débitent aucun crédit. Le lien est une référence enregistrée avec le logement ; les images de l'annonce ne sont pas extraites automatiquement.
+
+Version `a14c3d9` publiée le 1er octobre 2026 sur le compte N0C `vzbbtadpbm`, puis texte d'explication clarifié. Sauvegarde préalable vérifiée sur l'ordinateur : `/Users/more/Documents/Codex/studio-annonce-backups/import-annonce-20261001T085632Z/` (site, application API et export SQL de la base ; `PRAGMA integrity_check` = `ok`). Le quota du compte empêchait une nouvelle archive complète côté serveur ; l'archive partielle créée par cette tentative a été supprimée après contrôle de la sauvegarde locale. La migration additive a ajouté `logements.source_url`, sans modifier les nombres de comptes, logements, photos ou achats. `public_html/.htaccess`, le `.env`, les fichiers clients et les sauvegardes antérieures ont été conservés.
+
+Recette : 96 tests API, 42 tests de logique web, 22 tests de logique mobile, lint/typecheck et exports web/mobile réussis. Après publication, `/api/sante`, `/app/importer/` et `/mobile/nouvelle/` répondent 200 ; l'écran web a été vu dans une session cliente connectée. La version mobile publiée répond, mais le compte mobile n'était pas connecté lors du contrôle navigateur. Le moteur photo, les paiements et la vidéo restent désactivés. La clé OpenAI est présente côté serveur, sans crédit API disponible ; aucune clé Higgsfield n'y est installée. Aucun appel de génération ni encaissement réel n'a été lancé.
+
 Le site Next.js statique est servi sur `https://studioannonce.fr/`, et FastAPI par Python 3.11 / Passenger sur `/api`, dans `~/studioapi` hors de `public_html`. L'aperçu Expo est sous `/mobile/`, présenté dans `/mobile-preview/`. L'accueil donne accès au compte réel et à la démonstration. La démonstration `/demo/` et les anciens brouillons mobiles restent locaux. La nouvelle entrée mobile utilise le compte serveur ; les données de démonstration ne sont pas transférées en crédits réels.
 
 ## Publication du 30 septembre : panier cumulable et images rapides

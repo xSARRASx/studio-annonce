@@ -78,7 +78,7 @@ export default function ImporterAnnonce() {
       <label className="batch-label">Nom du logement<input value={nom} onChange={event => setNom(event.target.value)} maxLength={120} placeholder="Ex. : Appartement du centre" disabled={occupe}/></label>
       <label className="batch-label"><span><Link2 size={16}/> Lien de votre annonce <small>facultatif</small></span><input type="url" inputMode="url" value={lien} onChange={event => setLien(event.target.value)} maxLength={1000} placeholder="https://www.airbnb.fr/rooms/…" disabled={occupe || !!logementCree}/></label>
       {!lienValide(lien) && <p className="batch-error" role="alert">Collez un lien HTTPS valide.</p>}
-      <p className="batch-note">Le lien est conservé avec votre logement. Pour l’instant, choisissez les photos depuis votre appareil : Airbnb et Booking ne permettent pas leur extraction automatique sans accès autorisé.</p>
+      <p className="batch-note">Le lien reste enregistré avec votre logement. L’import automatique depuis une annonce n’est pas encore disponible : ajoutez vos photos depuis votre appareil.</p>
       <button className="batch-picker" type="button" onClick={() => champ.current?.click()} disabled={occupe || photos.length >= 40}><Images size={22}/><span>Choisir plusieurs photos</span><small>Jusqu’à 40 photos · aucun crédit débité à l’ajout</small></button>
       <input ref={champ} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => ajouter(event.target.files)}/>
     </div>
