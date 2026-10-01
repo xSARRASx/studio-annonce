@@ -6,16 +6,20 @@ from .config import reglages
 
 
 def disponible() -> bool:
-    return reglages.IA_ACTIVE and bool(reglages.OPENAI_API_KEY or reglages.GEMINI_API_KEY)
+    if not reglages.IA_ACTIVE:
+        return False
+    if reglages.FOURNISSEUR_IMAGE == "gemini":
+        return bool(reglages.GEMINI_API_KEY)
+    return bool(reglages.OPENAI_API_KEY)
 
 
 async def analyser(image_jpeg: bytes) -> dict:
-    if reglages.OPENAI_API_KEY:
-        return await openai_vision.analyser(image_jpeg)
-    return await gemini.analyser(image_jpeg)
+    if reglages.FOURNISSEUR_IMAGE == "gemini":
+        return await gemini.analyser(image_jpeg)
+    return await openai_vision.analyser(image_jpeg)
 
 
 async def reformuler_demande(analyse: dict | None, historique: list[str], demande: str) -> str:
-    if reglages.OPENAI_API_KEY:
-        return await openai_vision.reformuler_demande(analyse, historique, demande)
-    return await gemini.reformuler_demande(analyse, historique, demande)
+    if reglages.FOURNISSEUR_IMAGE == "gemini":
+        return await gemini.reformuler_demande(analyse, historique, demande)
+    return await openai_vision.reformuler_demande(analyse, historique, demande)

@@ -62,6 +62,35 @@ class VisionOpenAI(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(vision.disponible())
             self.assertFalse(retouche.disponible())
 
+    async def test_mode_gemini_ignore_la_cle_openai_sans_credit(self):
+        analyse = {"piece": "salon"}
+        with patch.object(vision.reglages, "IA_ACTIVE", True), patch.object(
+            vision.reglages, "OPENAI_API_KEY", "cle-openai-epuisee"
+        ), patch.object(vision.reglages, "GEMINI_API_KEY", "cle-gemini"), patch.object(
+            vision.reglages, "FOURNISSEUR_IMAGE", "gemini"
+        ), patch.object(gemini, "analyser", new_callable=AsyncMock, return_value=analyse) as analyser, patch.object(
+            gemini, "reformuler_demande", new_callable=AsyncMock, return_value="Consigne Gemini"
+        ) as reformuler, patch.object(openai_vision, "analyser", new_callable=AsyncMock) as analyse_openai, patch.object(
+            openai_vision, "reformuler_demande", new_callable=AsyncMock
+        ) as reformulation_openai:
+            self.assertTrue(vision.disponible())
+            self.assertTrue(retouche.disponible())
+            self.assertEqual(await vision.analyser(b"image"), analyse)
+            self.assertEqual(await vision.reformuler_demande(analyse, [], "Plus de lumière"), "Consigne Gemini")
+            analyser.assert_awaited_once_with(b"image")
+            reformuler.assert_awaited_once_with(analyse, [], "Plus de lumière")
+            analyse_openai.assert_not_awaited()
+            reformulation_openai.assert_not_awaited()
+
+    async def test_mode_gemini_ne_souvre_pas_sans_sa_cle(self):
+        with patch.object(vision.reglages, "IA_ACTIVE", True), patch.object(
+            vision.reglages, "OPENAI_API_KEY", "cle-openai"
+        ), patch.object(vision.reglages, "GEMINI_API_KEY", ""), patch.object(
+            vision.reglages, "FOURNISSEUR_IMAGE", "gemini"
+        ):
+            self.assertFalse(vision.disponible())
+            self.assertFalse(retouche.disponible())
+
 
 class ConsignesFournisseurs(unittest.IsolatedAsyncioTestCase):
     async def test_demande_detaillee_preservee_si_openai_oublie_des_choix(self):
