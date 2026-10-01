@@ -107,10 +107,10 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
 }
 
 /* Nouvelle retouche : une page à rouvrir à chaque fois. Logement, photos, idée. */
-export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine, maxRequest = 20000 }: {
+export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine, onBatch, maxRequest = 20000 }: {
   maxRequest?: number;
   library: DemoLibrary; busy: boolean; initial?: string;
-  onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void; onImagine: () => void;
+  onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void; onImagine: () => void; onBatch?: () => void;
 }) {
   const logements = logementsDe(library, false);
   const [choix, setChoix] = useState(initial && initial !== UNASSIGNED_PROPERTY ? logements.includes(initial) ? initial : "__nouveau" : "");
@@ -142,6 +142,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
     <CreationBack onClick={onCancel}/>
     <p className="eyebrow">{premiere ? "VOTRE PREMIÈRE RETOUCHE" : "NOUVELLE RETOUCHE"}</p>
     <h1>{premiere ? "On commence par une photo." : "Une nouvelle photo à sublimer."}</h1>
+    {onBatch && <button type="button" className="st-imagine-link" onClick={onBatch}><Images size={16}/> J’ai une annonce et plusieurs photos <ArrowRight size={15}/></button>}
     <button type="button" className="st-imagine-link" onClick={onImagine}><Sparkles size={16}/> Créer une image sans photo de départ <ArrowRight size={15}/></button>
     {!library.freeUsed && <p className="st-offer"><Sparkles size={16}/> Votre première photo retouchée est offerte.</p>}
     <form className="st-form" onSubmit={creer}>

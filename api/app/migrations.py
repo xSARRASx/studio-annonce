@@ -28,6 +28,9 @@ def migrer(engine=moteur):
         colonnes_photos = {c["name"] for c in inspect(connexion).get_columns("photos")}
         if "demande_brouillon" not in colonnes_photos:
             connexion.execute(text("ALTER TABLE photos ADD COLUMN demande_brouillon TEXT NOT NULL DEFAULT ''"))
+        colonnes_logements = {c["name"] for c in inspect(connexion).get_columns("logements")}
+        if "source_url" not in colonnes_logements:
+            connexion.execute(text("ALTER TABLE logements ADD COLUMN source_url VARCHAR(1000) NOT NULL DEFAULT ''"))
         # Une session existante atteste d'une validation du code email. Ne pas
         # inventer d'événements de connexion historiques dans le nouveau journal.
         connexion.execute(text("""UPDATE comptes SET email_verifie_le =

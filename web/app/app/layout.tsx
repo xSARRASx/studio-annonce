@@ -11,8 +11,8 @@ import "../demo/workspace.css";
 import "../demo/studio-screens.css";
 import "./studio-connected.css";
 
-const tools = ["creer", "nouvelle", "creer-image", "video-photos", "visite"];
-const titles: Record<string, string> = { creer: "Créer", nouvelle: "Retoucher une photo", "creer-image": "Créer une image", "video-photos": "Vidéo → photos", visite: "Photos → vidéo", facturation: "Facturation", compte: "Mon compte", photo: "Votre photo", logement: "Mes créations", admin: "Administration" };
+const tools = ["creer", "nouvelle", "importer", "creer-image", "video-photos", "visite"];
+const titles: Record<string, string> = { creer: "Créer", nouvelle: "Retoucher une photo", importer: "Mon annonce", "creer-image": "Créer une image", "video-photos": "Vidéo → photos", visite: "Photos → vidéo", facturation: "Facturation", compte: "Mon compte", photo: "Votre photo", logement: "Mes créations", admin: "Administration" };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const routeur = useRouter();

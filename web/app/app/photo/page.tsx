@@ -25,7 +25,10 @@ function dateLisible(date: string | null): string | null {
 function Atelier() {
   const { compte, sante } = useStudioAccount();
   const retoucheDisponible = !!sante?.retouche_disponible;
-  const id = useSearchParams().get("id") || "";
+  const parametres = useSearchParams();
+  const id = parametres.get("id") || "";
+  const lot = (parametres.get("lot") || "").split(",").filter(Boolean);
+  const suivante = lot[lot.indexOf(id) + 1];
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [courante, setCourante] = useState<Version | null>(null);
   const [voirAvant, setVoirAvant] = useState(false);
@@ -243,6 +246,7 @@ function Atelier() {
         <Link className="text-action" href="/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
       </aside></div>
       {propositionVideo && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si vos photos devenaient une vidéo&nbsp;?</h2><p>Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat.</p></div><Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link></section>}
+      {suivante && <div className="batch-next"><span>Photo {lot.indexOf(id) + 1} sur {lot.length} · votre sélection</span><Link className="button dark" href={`/app/photo/?id=${suivante}&lot=${encodeURIComponent(lot.join(","))}`}>Passer à la photo suivante <ArrowRight size={17}/></Link></div>}
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"
         className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-7 text-fg shadow-2xl backdrop:bg-black/65 sm:p-9">

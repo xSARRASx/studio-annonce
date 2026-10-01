@@ -85,6 +85,7 @@ class Logement(Base):
     nom: Mapped[str] = mapped_column(String(120), default="Mon logement")
     ville: Mapped[str] = mapped_column(String(120), default="")
     type_annonce: Mapped[str] = mapped_column(String(40), default="location")  # location, vente, vacances
+    source_url: Mapped[str] = mapped_column(String(1000), default="", server_default="")
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
     compte: Mapped[Compte] = relationship(back_populates="logements")
     photos: Mapped[list[Photo]] = relationship(back_populates="logement", order_by="Photo.ordre")

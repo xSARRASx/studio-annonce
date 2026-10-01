@@ -101,9 +101,9 @@ export default function MonStudio() {
     {["studio", "nouvelle", "creer-image"].includes(screen) && <div className="connected-limits"><CreationLimits limites={compte.limites}/></div>}
     {screen === "visite" && <div className="connected-limits"><CreationLimits limites={compte.limites} kind="video"/></div>}
     {screen === "studio" && <PhotoList library={library} source={projectSource} now={now} busy={busy} onCreate={() => go("creer")} onAddPhoto={name => { setProperty(name); go("nouvelle"); }} onExample={setExample} onOpen={project => router.push(`/app/photo/?id=${project.id}`)}/>}
-    {screen === "creer" && <CreationHub onChoose={go}/>}
+    {screen === "creer" && <CreationHub onChoose={go} onImportPhotos={() => router.push("/app/importer/")}/>}
     {screen === "nouvelle" && sante && !sante.retouche_disponible && <div className="connected-service" role="status"><Info size={17}/><p>Vous pouvez préparer votre photo. La retouche IA est momentanément indisponible ; aucun crédit n’est consommé.</p></div>}
-    {visited.includes("nouvelle") && <div hidden={screen !== "nouvelle"}><CreateView maxRequest={4000} key={property} library={library} busy={busy} initial={property} onCancel={() => go("creer")} onImagine={() => go("creer-image")} onExample={() => setExample("photo")} onCreate={async (files, home, draft) => {
+    {visited.includes("nouvelle") && <div hidden={screen !== "nouvelle"}><CreateView maxRequest={4000} key={property} library={library} busy={busy} initial={property} onCancel={() => go("creer")} onImagine={() => go("creer-image")} onBatch={() => router.push("/app/importer/")} onExample={() => setExample("photo")} onCreate={async (files, home, draft) => {
       const added = await addPhotos(files, home, draft);
       router.push(`/app/photo/?id=${added[0].id}`);
     }}/></div>}

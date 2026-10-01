@@ -12,7 +12,7 @@ export type Account = {
   registre_video: { delta: number; motif: string; le: string }[];
 };
 export type Health = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
-export type Property = { id: string; nom: string; ville: string; type_annonce: string; photos: { id: string; vignette: string; essais: number; gardee: boolean }[] };
+export type Property = { id: string; nom: string; ville: string; type_annonce: string; source_url: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean }[] };
 export type PhotoVersion = { id: string; numero: number; apercu: string; hd: boolean; consigne: string };
 export type AccountPhoto = {
   id: string; logement_id: string; ordre: number; original: string; vignette: string; offerte: boolean;
