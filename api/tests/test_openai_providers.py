@@ -1,12 +1,14 @@
 """Contrats des fournisseurs photo sans crédit ni requête réseau."""
 import io
 import json
+import base64
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from PIL import Image
 
-from app import openai_images, openai_vision, retouche, vision
+from app import gemini, openai_images, openai_vision, retouche, vision
+from app.consignes_photo import REGLE_RETOUCHE
 
 
 def photo(largeur: int, hauteur: int) -> bytes:
@@ -59,6 +61,53 @@ class VisionOpenAI(unittest.IsolatedAsyncioTestCase):
         ), patch.object(retouche.reglages, "FOURNISSEUR_IMAGE", "openai"):
             self.assertFalse(vision.disponible())
             self.assertFalse(retouche.disponible())
+
+
+class ConsignesFournisseurs(unittest.IsolatedAsyncioTestCase):
+    async def test_demande_detaillee_preservee_si_openai_oublie_des_choix(self):
+        demande = "Peins en bleu pétrole. Garde le radiateur. Remplace le carrelage par du parquet chêne."
+        with patch.object(openai_vision, "_appel", new=AsyncMock(return_value="Rends la pièce plus belle.")) as appel:
+            consigne = await openai_vision.reformuler_demande({"piece": "salon"}, ["Murs blancs"], demande)
+        self.assertIn(demande, consigne)
+        self.assertIn(REGLE_RETOUCHE, appel.call_args.args[0]["input"][0]["content"])
+
+    async def test_reformulation_longue_non_tronquee(self):
+        precision = "Conserve exactement le radiateur sous la fenêtre de gauche."
+        with patch.object(openai_vision, "_appel", new=AsyncMock(return_value="Choix précis. " * 350 + precision)):
+            consigne = await openai_vision.reformuler_demande(None, [], "Refais la décoration.")
+        self.assertIn(precision, consigne)
+
+    async def test_gemini_preserve_aussi_la_demande_et_les_reperes(self):
+        demande = "Refais tout le mobilier, murs terracotta, sol en parquet ; garde les fenêtres."
+        reponse = {"candidates": [{"content": {"parts": [{"text": "Améliore la décoration."}]}}]}
+        with patch.object(gemini, "_appel", new=AsyncMock(return_value=reponse)) as appel:
+            consigne = await gemini.reformuler_demande(None, [], demande)
+        self.assertIn(demande, consigne)
+        self.assertIn(REGLE_RETOUCHE, appel.call_args.args[1]["contents"][0]["parts"][0]["text"])
+
+    async def test_regles_et_demande_atteignent_la_retouche_openai(self):
+        resultat = photo(100, 100)
+        rep = Mock(status_code=200, headers={})
+        rep.json.return_value = {"data": [{"b64_json": base64.b64encode(resultat).decode()}]}
+        client = AsyncMock()
+        client.post.return_value = rep
+        demande = "Remplace le sol par du parquet, conserve le radiateur."
+        with patch.object(openai_images.httpx, "AsyncClient") as constructeur, patch.object(
+            openai_images, "_cle", return_value="cle-test"
+        ), patch.object(openai_images, "enregistrer"):
+            constructeur.return_value.__aenter__.return_value = client
+            self.assertEqual(await openai_images.retoucher(photo(1024, 768), demande), resultat)
+        self.assertEqual(client.post.call_args.kwargs["data"]["prompt"], REGLE_RETOUCHE + demande)
+
+    async def test_regles_et_demande_atteignent_la_retouche_gemini(self):
+        resultat = photo(100, 100)
+        reponse = {"candidates": [{"content": {"parts": [{"inlineData": {
+            "data": base64.b64encode(resultat).decode()
+        }}]}}]}
+        demande = "Change le mobilier et la peinture, garde les portes."
+        with patch.object(gemini, "_appel", new=AsyncMock(return_value=reponse)) as appel:
+            self.assertEqual(await gemini.retoucher(photo(1024, 768), demande), resultat)
+        self.assertEqual(appel.call_args.args[1]["contents"][0]["parts"][0]["text"], REGLE_RETOUCHE + demande)
 
 
 if __name__ == "__main__":

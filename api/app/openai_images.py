@@ -11,7 +11,7 @@ from PIL import Image
 
 from .config import reglages
 from .usage import enregistrer
-from .gemini import REGLE_RETOUCHE
+from .consignes_photo import REGLE_RETOUCHE
 
 API = "https://api.openai.com/v1/images/edits"
 

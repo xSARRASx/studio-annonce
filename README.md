@@ -4,6 +4,7 @@ Prototype photo immobilier web et mobile. [studioannonce.fr](https://studioannon
 
 - [Démonstration publique](https://studioannonce.fr/demo/) et [aperçu mobile interactif](https://studioannonce.fr/mobile-preview/).
 - [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages, API, vérifications et fonctions encore indisponibles.
+- [Contrôle retouche du 1er octobre](VERIFICATION-RETOUCHE-2026-10-01.md) : crédit API épuisé confirmé, consignes photo communes publiées et limites de l'abonnement ChatGPT.
 - [Compte connecté](https://studioannonce.fr/connexion/) : prénom, nom, email vérifié et première photo rattachée au compte.
 - [Coûts fournisseur et simulations privées](COUTS-PHOTOS-2026-09-29.md) : tarifs vérifiés, hypothèses distinctes des mesures.
 - [Grille photo et vidéo](TARIFS-PHOTO-VIDEO-2026-09-30.md) : packs dégressifs, deux soldes et garde-fous d’ouverture.

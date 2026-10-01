@@ -8,7 +8,7 @@ import httpx
 
 from .config import reglages
 from .usage import enregistrer
-from .gemini import CONSIGNE_ANALYSE
+from .consignes_photo import CONSIGNE_ANALYSE, consigne_complete, contexte_reformulation
 
 API = "https://api.openai.com/v1/responses"
 
@@ -71,12 +71,7 @@ async def analyser(image_jpeg: bytes) -> dict:
 
 
 async def reformuler_demande(analyse: dict | None, historique: list[str], demande: str) -> str:
-    contexte = json.dumps(analyse or {}, ensure_ascii=False)
-    texte = await _appel({"input": [{"role": "user", "content": (
-        "Tu es un retoucheur photo immobilier. Décris en français, en une à trois phrases, "
-        "la retouche demandée pour un modèle d'image. Préserve la géométrie, les portes, "
-        "fenêtres et équipements fixes. Ne réponds que par la consigne.\n"
-        f"Analyse : {contexte}\nHistorique : {' | '.join(historique) or 'aucun'}\n"
-        f"Nouvelle demande : {demande}"
-    )}]})
-    return texte[:4000]
+    texte = await _appel({"input": [{"role": "user", "content":
+        contexte_reformulation(analyse, historique, demande)
+    }]})
+    return consigne_complete(demande, texte)
