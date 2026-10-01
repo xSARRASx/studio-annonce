@@ -67,7 +67,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
   ];
   const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
     <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Des parcours préparés, séparés de vos créations. Aucun crédit utilisé.</p></div>
-    <div className="pg-app-entry"><div><strong>8 photos, des transformations à explorer.</strong><p>Photo originale, demande et proposition : découvrez le parcours pas à pas.</p></div><Link href="/demo/#decouvrir/salon-canape-rouille">Découvrir le parcours <ArrowRight size={17}/></Link><Link href="/demo/exemples/">Tous les exemples <ArrowUpRight size={17}/></Link></div>
+    <div className="pg-app-entry"><div><strong>8 photos, des transformations à explorer.</strong><p>Photo originale, demande et proposition : découvrez le parcours pas à pas.</p></div><Link href="/exemples/salon-canape-rouille/#parcours">Découvrir le parcours <ArrowRight size={17}/></Link><Link href="/exemples/">Tous les exemples <ArrowUpRight size={17}/></Link></div>
     <div className="st-examples-grid">{cartesExemples.map(c => <button key={c.kind} className="st-ex-card" disabled={busy} onClick={() => onExample(c.kind)}>
       <span className="st-ex-img"><Image src={asset(c.image)} alt="" fill sizes="(max-width: 700px) 90vw, 320px" unoptimized/><span className="st-ex-type">{c.kind === "video" ? <Film size={12}/> : <Images size={12}/>} {c.type}</span></span>
       <span className="st-ex-body"><strong>{c.titre}</strong><small>{c.texte}</small><span className="st-ex-go">{vus.has(c.kind) ? "Rouvrir" : "Ouvrir l’exemple"} <ArrowRight size={14}/></span></span>

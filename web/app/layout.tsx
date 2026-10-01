@@ -8,7 +8,7 @@ const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL("https://studioannonce.fr"),
   title: "Studio Annonce",
-  description: "Découvrez Studio Annonce : préparez vos photos immobilières et explorez le studio en démonstration.",
+  description: "Studio Annonce réunit vos logements, vos photos et vos demandes de retouche dans un seul espace.",
 };
 export const viewport: Viewport = { themeColor: "#f8f7f2", colorScheme: "light" };
 

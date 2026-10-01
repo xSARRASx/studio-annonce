@@ -7,6 +7,8 @@ import { Logo } from "@/components/logo";
 import { API, api, jeton, poserJeton, type Sante } from "@/lib/api";
 import { Bouton, Champ, Message } from "@/components/ui";
 
+const destinationPhoto = () => new URLSearchParams(window.location.search).get("suite") === "photo";
+
 export default function Connexion() {
   const routeur = useRouter();
   const verrou = useRef(false);
@@ -22,7 +24,7 @@ export default function Connexion() {
   const [indisponible, setIndisponible] = useState(false);
   const [renvoiDans, setRenvoiDans] = useState(0);
   const [confirmationEnvoi, setConfirmationEnvoi] = useState("");
-  useEffect(() => { if (jeton()) routeur.replace("/app/"); }, [routeur]);
+  useEffect(() => { if (jeton()) routeur.replace(destinationPhoto() ? "/app/#nouvelle" : "/app/"); }, [routeur]);
   useEffect(() => {
     const controle = new AbortController();
     fetch(`${API}/sante`, { cache: "no-store", signal: controle.signal })
@@ -58,9 +60,9 @@ export default function Connexion() {
         if (!r.profil_complet && inscription) {
           try {
             await api("/compte/profil", { method: "PATCH", body: JSON.stringify({ prenom, nom }) });
-          } catch { routeur.replace("/app/compte/"); return; }
+          } catch { routeur.replace(destinationPhoto() ? "/app/compte/?suite=photo" : "/app/compte/"); return; }
         }
-        routeur.replace(r.profil_complet || inscription ? "/app/" : "/app/compte/");
+        routeur.replace(r.profil_complet || inscription ? (destinationPhoto() ? "/app/#nouvelle" : "/app/") : (destinationPhoto() ? "/app/compte/?suite=photo" : "/app/compte/"));
       }
     } catch (e) { setErreur((e as Error).message); }
     finally { verrou.current = false; setChargement(false); }
@@ -88,8 +90,8 @@ export default function Connexion() {
       <div className="apparait rounded-3xl bg-surface border border-line p-6 sm:p-8 max-w-md w-full mx-auto shadow-xl">
         {!service?.connexion_disponible ? <>
           <h2 className="text-xl font-semibold">{indisponible || service ? "La connexion est momentanément indisponible" : "Vérification du service…"}</h2>
-          <p className="text-fg-muted text-sm mt-3">Vous pouvez découvrir le studio de démonstration en attendant.</p>
-          <Link href="/demo/#studio" className="mt-6 inline-flex text-accent">Explorer la démonstration</Link>
+          <p className="text-fg-muted text-sm mt-3">Réessayez dans un instant. Vos photos et vos demandes déjà enregistrées restent dans votre compte.</p>
+          <button type="button" onClick={() => window.location.reload()} className="mt-6 inline-flex text-accent">Réessayer la connexion</button>
         </> : <>
           <span className="size-11 grid place-items-center rounded-2xl bg-accent/10 text-accent mb-5">{etape === "code" ? <Mail className="size-5"/> : <ShieldCheck className="size-5"/>}</span>
           <h2 className="text-2xl font-semibold">{etape === "code" ? "Consultez votre boîte mail" : inscription ? "Créer mon compte" : "Ravi de vous revoir"}</h2>

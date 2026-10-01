@@ -70,7 +70,7 @@ export default function MonStudio() {
         const existing = uploaded.current.get(file);
         if (existing) { added.push(existing); continue; }
         if (file.size > 30 * 1024 * 1024) throw new Error("Choisissez une photo de moins de 30 Mo.");
-        const form = new FormData(); form.append("fichier", file);
+        const form = new FormData(); form.append("fichier", file); if (draft) form.append("demande", draft);
         const photo = await api<Photo>(`/photos/${home.id}`, { method: "POST", body: form });
         const project = photoProject(photo, home);
         uploaded.current.set(file, project); added.push(project);

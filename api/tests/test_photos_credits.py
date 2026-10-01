@@ -101,6 +101,22 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.balance(), before)
         photos.retouche.retoucher.assert_not_awaited()
 
+    async def test_brouillon_retrouvable_sans_debit_et_prive(self):
+        before = self.balance()
+        texte = "Faire le lit, garder la fenêtre et la porte à leur place."
+        saved = await self.client.patch("/photos/p/demande", json={"demande": texte})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual(saved.json()["demande_brouillon"], texte)
+        reopened = await self.client.get("/photos/p")
+        self.assertEqual(reopened.json()["demande_brouillon"], texte)
+        forbidden = await self.client.patch("/photos/autre/demande", json={"demande": "Autre compte"})
+        self.assertEqual(forbidden.status_code, 404)
+        too_long = await self.client.patch("/photos/p/demande", json={"demande": "a" * 4001})
+        self.assertEqual(too_long.status_code, 422)
+        self.assertEqual((await self.client.get("/photos/p")).json()["demande_brouillon"], texte)
+        self.assertEqual(self.balance(), before)
+        photos.retouche.retoucher.assert_not_awaited()
+
     async def test_premiere_hd_debit_unique_date_utc_et_pas_de_report(self):
         first = await self.download()
         self.assertEqual(first.status_code, 200, first.text)

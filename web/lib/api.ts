@@ -56,6 +56,7 @@ export type LimiteCreation = { utilisees: number; limite: number; restantes: num
 export type LimitesCreation = { photo: LimiteCreation; video: LimiteCreation; support_url: string; support_telephone: string; support_email?: string };
 export type Photo = {
   id: string; logement_id: string; original?: string; cree_le?: string; ordre: number; offerte: boolean; vignette: string; analyse: Analyse | null;
+  demande_brouillon: string;
   essais: number; essais_restants: number; alerte: number | null; version_gardee: string | null;
   credite_le: string | null; reprise_jusqu_au: string | null; versions: Version[];
   cycle_id: string; reprise_expiree: boolean; reprise_necessaire: boolean;

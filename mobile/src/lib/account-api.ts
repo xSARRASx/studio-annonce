@@ -16,6 +16,7 @@ export type Property = { id: string; nom: string; ville: string; type_annonce: s
 export type PhotoVersion = { id: string; numero: number; apercu: string; hd: boolean; consigne: string };
 export type AccountPhoto = {
   id: string; logement_id: string; ordre: number; original: string; vignette: string; offerte: boolean;
+  demande_brouillon: string;
   essais: number; essais_restants: number; cycle_id: string; reprise_necessaire: boolean; reprise_expiree: boolean;
   credite_le: string | null; version_gardee: string | null; versions: PhotoVersion[]; filigrane?: boolean; limites?: Limits;
   analyse: { piece: string; consigne: string; question: string; defauts: string[] } | null;

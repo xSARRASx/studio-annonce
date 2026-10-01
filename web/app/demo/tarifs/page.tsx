@@ -8,6 +8,7 @@ import "../aide/public-pages.css";
 export const metadata: Metadata = {
   title: "Tarifs photo et vidéo · Studio Annonce",
   description: "Packs photo dès 0,60 € la photo et packs vidéo de 10 à 30 secondes, sans abonnement.",
+  alternates: { canonical: "/tarifs/" },
 };
 
 const packs = [
@@ -29,7 +30,7 @@ export default function PublicPricing() {
       <main className="public-main">
         <section className="tariffs-heading" aria-labelledby="tariffs-title">
           <div><span className="public-eyebrow">VOS PHOTOS, SANS ABONNEMENT</span><h1 id="tariffs-title">Plus vous créez,<br /><em>moins chaque photo coûte.</em></h1><p>Un crédit est utilisé quand vous téléchargez une photo en HD.<br className="desktop-break" /> Les crédits restent disponibles sur votre compte.</p></div>
-          <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span></div></aside>
+          <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span><Link className="tariffs-offer-link" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link></div></aside>
         </section>
         <section className="tariffs-packs" aria-label="Packs de crédits photo">
           {packs.map(pack => <article className={`tariffs-pack${pack.credits === 50 ? " tariffs-pack-featured" : ""}`} key={pack.credits}>
@@ -41,10 +42,10 @@ export default function PublicPricing() {
             <div className="tariffs-pack-line"><Check size={15} aria-hidden="true" /><span>1 photo HD = 1 crédit</span></div>
           </article>)}
         </section>
-        <p className="tariffs-availability">À partir de 9,99 € · achat ponctuel · aucun abonnement.</p>
+        <p className="tariffs-availability">Packs photo sans abonnement. Leur achat ouvrira avec la retouche IA.</p>
         <section className="tariffs-included" aria-labelledby="included-title"><h2 id="included-title">Dans chaque photo payante</h2><div><span><ImagePlus size={20} aria-hidden="true" /><strong>1 correction incluse</strong><small>Après la première génération</small></span><span><Download size={20} aria-hidden="true" /><strong>Téléchargement HD</strong><small>Votre version choisie</small></span><span><Clock3 size={20} aria-hidden="true" /><strong>7 jours pour ajuster</strong><small>Avec la correction restante</small></span><span><History size={20} aria-hidden="true" /><strong>Historique des versions</strong><small>Pour revoir les propositions</small></span></div></section>
         <section className="tariffs-timeline" aria-labelledby="timeline-title">
-          <div className="tariffs-timeline-heading"><span className="public-eyebrow">LE CRÉDIT, SANS SURPRISE</span><h2 id="timeline-title">Ce qui se passe<br /><em>après le téléchargement.</em></h2><Link href="/demo/aide/#versions">Comprendre les 7 jours <ArrowRight size={16} aria-hidden="true" /></Link></div>
+          <div className="tariffs-timeline-heading"><span className="public-eyebrow">LE CRÉDIT, SANS SURPRISE</span><h2 id="timeline-title">Ce qui se passe<br /><em>après le téléchargement.</em></h2><Link href="/aide/#versions">Comprendre les 7 jours <ArrowRight size={16} aria-hidden="true" /></Link></div>
           <ol>
             <li><span className="timeline-number">1</span><div><strong>Vous gardez votre photo</strong><p>Le premier téléchargement HD consomme un crédit. Un message confirme la date de fin de vos retouches.</p></div></li>
             <li><span className="timeline-number">2</span><div><strong>Vous avez 7 jours pour ajuster</strong><p>Utilisez la correction incluse si elle reste disponible. Toute correction supplémentaire coûte 1 crédit. Le délai ne redémarre pas à chaque téléchargement.</p></div></li>
@@ -62,7 +63,7 @@ export default function PublicPricing() {
           <p className="tariffs-availability">Les packs vidéo ouvriront après la validation finale du moteur de génération. Aucun paiement vidéo ne peut partir avant.</p>
         </section>
         <div className="tariffs-conditions"><p>Une première génération et une correction sont incluses par photo. Ensuite, chaque correction coûte 1 crédit photo. Les nouvelles créations sont limitées à 30 photos ou 10 vidéos depuis le dernier achat correspondant. Un ancien téléchargement ne remet pas les compteurs à zéro.</p><p>Les aperçus payants sont protégés par un filigrane ajouté hors génération. La photo offerte et les fichiers achetés se téléchargent sans filigrane. Les crédits photo et vidéo sont deux soldes distincts.</p></div>
-        <section className="public-next"><div><span className="public-eyebrow">D’ABORD, FAITES-VOUS UNE IDÉE</span><h2>Découvrez le studio à votre rythme.</h2><p>Explorez les exemples et le parcours, sans achat.</p></div><Link className="button dark" href="/demo/#studio">Essayer la démonstration <ArrowRight size={17} aria-hidden="true" /></Link></section>
+        <section className="public-next"><div><span className="public-eyebrow">PRÉPAREZ VOS PHOTOS</span><h2>Votre espace vous attend.</h2><p>Créez votre compte, ajoutez votre logement et préparez vos demandes.</p></div><Link className="button dark" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={17} aria-hidden="true" /></Link></section>
       </main>
       <PublicFooter />
     </div>

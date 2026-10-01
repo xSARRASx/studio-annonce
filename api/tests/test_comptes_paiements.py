@@ -257,10 +257,14 @@ class Migration(unittest.TestCase):
             with engine.begin() as c:
                 c.execute(text("CREATE TABLE comptes (id VARCHAR PRIMARY KEY, email VARCHAR UNIQUE, cree_le TIMESTAMP, photos_offertes_utilisees INTEGER)"))
                 c.execute(text("INSERT INTO comptes VALUES ('existant','existant@example.com',CURRENT_TIMESTAMP,1)"))
+                c.execute(text("CREATE TABLE photos (id VARCHAR PRIMARY KEY, logement_id VARCHAR, cle_originale VARCHAR)"))
+                c.execute(text("INSERT INTO photos VALUES ('ancienne-photo','ancien-logement','original.jpg')"))
             migrer(engine); migrer(engine)
             with engine.connect() as c:
                 r=c.execute(text("SELECT email,prenom,nom,photos_offertes_utilisees FROM comptes")).one()
                 self.assertEqual(tuple(r),('existant@example.com','','',1))
+                photo=c.execute(text("SELECT cle_originale,demande_brouillon FROM photos WHERE id='ancienne-photo'")).one()
+                self.assertEqual(tuple(photo),('original.jpg',''))
             engine.dispose()
 
     def test_migration_admin_aucun_droit_implicite_et_validation_par_session_seulement(self):

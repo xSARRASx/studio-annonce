@@ -11,7 +11,7 @@ const APPLI_MOBILE = (process.env.NEXT_PUBLIC_MOBILE_URL || "https://studioannon
 export default function MobilePreview() {
   const [device, setDevice] = useState<"iphone" | "android">("iphone");
   return <main className="mobile-preview-shell">
-    <Link className="preview-back" href="/demo/#studio"><ArrowLeft size={16}/> Retour au studio</Link>
+    <Link className="preview-back" href="/"><ArrowLeft size={16}/> Retour au site</Link>
     <section className="preview-intro">
       <p className="preview-kicker">STUDIO ANNONCE · APPLICATION</p>
       <h1>Votre studio.<br/><em>Dans votre poche.</em></h1>

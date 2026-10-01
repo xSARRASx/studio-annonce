@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Download, Gift, History, ShieldCheck } from "lucide-react";
 import { api, ErreurApi, type Compte, type Pack } from "@/lib/api";
 import { Bouton, Champ, Message } from "@/components/ui";
@@ -13,6 +14,7 @@ const totalDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p)
 const creditsDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p) => total + p.credits * (panier[p.id] || 0), 0);
 
 export default function AccountPage({ billing = false }: { billing?: boolean }) {
+  const router = useRouter();
   const { compte: comptePartage } = useStudioAccount();
   const [compte, setCompte] = useState<Compte | null>(null);
   const [prenom, setPrenom] = useState("");
@@ -65,6 +67,7 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
     try {
       setCompte(await api<Compte>("/compte/profil", { method: "PATCH", body: JSON.stringify({ prenom, nom }) }));
       setMessage("Votre profil est enregistré."); window.dispatchEvent(new Event("studio:credits-updated"));
+      if (new URLSearchParams(window.location.search).get("suite") === "photo") router.replace("/app/#nouvelle");
     } catch (e) { setErreur((e as Error).message); }
     finally { verrou.current = false; setEnregistrement(false); }
   }
@@ -126,7 +129,7 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
           <div><Bouton type="submit" chargement={enregistrement} disabled={!prenom.trim() || !nom.trim()}>Enregistrer mon profil</Bouton>{compte?.profil_complet && <Link href="/app/" className="text-action">Mes créations <ArrowRight size={15}/></Link>}</div>
         </form>
       </section>
-      <div className="st-free"><Gift size={22}/><div><strong>{compte?.photo_offerte_disponible ? "Votre première photo est offerte" : "Votre studio vous attend"}</strong><p>Vos photos, vos demandes et leurs différentes versions au même endroit.</p></div><Link className="text-action" href="/app/#creer">Créer <ArrowRight size={15}/></Link></div>
+      <div className="st-free"><Gift size={22}/><div><strong>{compte?.photo_offerte_disponible ? "Votre première photo est offerte" : "Votre studio vous attend"}</strong><p>Vos photos, vos demandes et leurs différentes versions au même endroit.</p></div><Link className="text-action" href={compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/#creer"}>{compte?.photo_offerte_disponible ? "Préparer ma photo offerte" : "Créer"} <ArrowRight size={15}/></Link></div>
       <Link className="connected-billing-link text-action" href="/app/facturation/">Consulter mes crédits et mes achats <ArrowRight size={15}/></Link>
     </> : <>
       <div className="st-bill-top">

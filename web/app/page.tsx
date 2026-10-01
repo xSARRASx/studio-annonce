@@ -1,5 +1,6 @@
-import StudioDemo from "./demo/studio-demo";
+import Landing from "./demo/landing";
 import type { Metadata } from "next";
+import "./demo/studio.css";
 
 export const metadata: Metadata = {
   title: "Studio Annonce — retouche photo immobilière et décoration virtuelle",
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function Accueil() {
-  return <StudioDemo />;
+  return <div className="studio-demo"><Landing /></div>;
 }

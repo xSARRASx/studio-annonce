@@ -98,6 +98,7 @@ class Photo(Base):
     cle_originale: Mapped[str] = mapped_column(String(300))       # fichier d'origine dans le stockage
     cle_vignette: Mapped[str] = mapped_column(String(300), default="")
     analyse: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # ce que l'IA a vu, sa consigne, sa question
+    demande_brouillon: Mapped[str] = mapped_column(Text, default="", server_default="")
     offerte: Mapped[int] = mapped_column(Integer, default=0)      # 1 = la photo offerte du compte
     essais: Mapped[int] = mapped_column(Integer, default=0)
     credite_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 1er téléchargement HD

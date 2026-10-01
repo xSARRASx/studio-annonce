@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
@@ -71,6 +71,7 @@ def _vue_photo(s: Session, p: Photo) -> dict:
         "id": p.id, "logement_id": p.logement_id, "ordre": p.ordre, "offerte": bool(p.offerte),
         "vignette": stockage.url_publique(p.cle_vignette), "original": stockage.url_publique(p.cle_originale),
         "cree_le": _utc(p.cree_le), "analyse": p.analyse,
+        "demande_brouillon": p.demande_brouillon or "",
         "essais": p.essais, "essais_cycle": periode["essais_cycle"], "essais_restants": restants,
         "alerte": restants if restants in reglages.ALERTES_ESSAIS_RESTANTS else None,
         "version_gardee": p.version_gardee_id, "credite_le": _utc(p.credite_le),
@@ -121,7 +122,7 @@ def _abandonner(s: Session, compte_id: str, photo_id: str, jeton: str) -> None:
 
 
 @routeur.post("/{logement_id}")
-async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Compte = Depends(compte_complet),
+async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: str = Form(default="", max_length=4000), compte: Compte = Depends(compte_complet),
                   s: Session = Depends(session)):
     compte_id = compte.id
     logement = s.get(Logement, logement_id)
@@ -138,7 +139,7 @@ async def deposer(logement_id: str, fichier: UploadFile = File(...), compte: Com
     logement = s.get(Logement, logement_id)
     if not logement or logement.compte_id != compte_id:
         raise HTTPException(404, "Logement introuvable.")
-    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="")
+    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="", demande_brouillon=demande)
     s.add(photo); s.flush()
     photo.cle_originale = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/original.jpg", original, "image/jpeg")
     photo.cle_vignette = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/vignette.webp", images.vignette(original), "image/webp")
@@ -262,6 +263,19 @@ def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_
 @routeur.get("/{photo_id}")
 def voir(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     return _vue_photo(s, _photo_du_compte(s, compte, photo_id))
+
+
+class DemandeBrouillon(BaseModel):
+    demande: str = Field(max_length=4000)
+
+
+@routeur.patch("/{photo_id}/demande")
+def enregistrer_demande(photo_id: str, d: DemandeBrouillon,
+                        compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
+    p = _photo_du_compte(s, compte, photo_id)
+    p.demande_brouillon = d.demande
+    s.commit()
+    return {"demande_brouillon": p.demande_brouillon}
 
 
 @routeur.post("/{photo_id}/versions/{version_id}/telecharger")

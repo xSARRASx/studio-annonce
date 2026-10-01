@@ -27,7 +27,7 @@ def reduire(im: Image.Image, largeur_max: int) -> Image.Image:
 
 def en_jpeg(im: Image.Image, qualite: int = 90) -> bytes:
     sortie = io.BytesIO()
-    im.save(sortie, "JPEG", quality=qualite, optimize=True)
+    im.save(sortie, "JPEG", quality=qualite, optimize=True, progressive=True)
     return sortie.getvalue()
 
 
@@ -56,8 +56,10 @@ def filigraner(im: Image.Image, texte: str = "STUDIO ANNONCE · APERÇU") -> Ima
 
 
 def preparer_envoi_ia(donnees: bytes) -> bytes:
-    """Ce qu'on envoie au modèle : au plus 2048 px de large. Assez pour lui, quatre fois plus rapide à envoyer."""
-    return en_jpeg(reduire(ouvrir(donnees), reglages.LARGEUR_ENVOI_IA), 92)
+    """Photo source privée : bord long borné, orientation corrigée et JPEG compact."""
+    im = ouvrir(donnees)
+    im.thumbnail((reglages.LARGEUR_ENVOI_IA, reglages.LARGEUR_ENVOI_IA), Image.LANCZOS)
+    return en_jpeg(im, 88)
 
 
 def vignette(donnees: bytes) -> bytes:

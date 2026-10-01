@@ -120,7 +120,7 @@ export default function StudioDemo() {
   const nav = (hash: string) => { go(hash); setMenu(false); };
   return <div className="studio-demo">
     <div className="demo-ribbon"><span className="status-dot"/> Démonstration <span className="ribbon-detail">· aucune génération automatique ni facturation réelle</span></div>
-    {!inStudio ? <Landing onStudio={() => go("studio")}/> : <div className="workspace studio-workspace">
+    {!inStudio ? <Landing/> : <div className="workspace studio-workspace">
       {menu && <button className="sidebar-scrim" aria-label="Fermer le menu" onClick={() => setMenu(false)}/>}
       <aside className={`sidebar ${menu ? "is-open" : ""}`}><Brand onClick={() => nav("")}/><button className="close-menu icon-button" aria-label="Fermer le menu" onClick={() => setMenu(false)}><X/></button>
         <div className="sidebar-section-label">VOTRE ESPACE</div>
@@ -218,9 +218,19 @@ function PhotoEditor({ project, source, busy, now, onChange, onDownload, onRenam
   const [compare, setCompare] = useState(false);
   const [allVersions, setAllVersions] = useState(true);
   const [draft, setDraft] = useState(project.draft);
+  const [savedMessage, setSavedMessage] = useState("");
   const version = selectedVersion(project);
   const index = project.versions.findIndex(item => item.id === version.id);
   const expired = isExpired(project, now);
+  async function saveRequest() {
+    if (isExpired(project)) { onRenew(); return; }
+    const saved = await onChange(item => {
+      if (isExpired(item)) throw new Error("La période de retouche vient de se terminer. Reprenez cette photo avec un crédit de démonstration pour enregistrer une nouvelle demande.");
+      item.draft = draft.trim();
+    });
+    setSavedMessage(saved ? "Demande enregistrée dans cette démo, sur cet appareil. Aucune image n’a été générée." : "La demande n’a pas pu être enregistrée. Réessayez.");
+    if (saved) onNotice("Votre demande est enregistrée dans la démo. Aucune image n’a été générée.");
+  }
   return <main className="editor-main work-editor">
     <button className="text-action back-to-projects" onClick={() => go("studio")}><ArrowLeft size={16}/> Mes créations</button>
     <div className="editor-title"><div><p className="eyebrow">{project.property}</p><h1>{project.title}<button className="icon-button rename-button" onClick={onRename} aria-label="Renommer cette photo"><Pencil size={16}/></button></h1><p>{project.sample ? "Photo d’exemple · toutes les propositions sont conservées" : "Votre photo originale · conservée sur cet appareil"}</p></div><div className="editor-actions"><button className={`button outlined ${project.saved === version.id ? "is-kept" : ""}`} disabled={busy} onClick={() => void onChange(item => { item.saved = version.id; })}><Heart size={17} fill={project.saved === version.id ? "currentColor" : "none"}/>{project.saved === version.id ? "Version gardée" : "Garder"}</button><button id="photo-download" className="button dark" disabled={busy} onClick={onDownload}><Download size={17}/>{busy ? "Un instant…" : index === 0 ? "Télécharger l’original" : "Télécharger en HD"}</button></div></div>
@@ -232,11 +242,12 @@ function PhotoEditor({ project, source, busy, now, onChange, onDownload, onRenam
         {allVersions && <div className="work-version-list" id="photo-versions">{project.versions.map((item, number) => <button key={item.id} className={item.id === version.id ? "version-row is-selected" : "version-row"} aria-pressed={item.id === version.id} disabled={busy} onClick={() => { setCompare(false); void onChange(photo => { photo.selected = item.id; }); }}><Image src={source(project, item)} alt="" width={92} height={62} unoptimized/><span><small>{number === 0 ? "LE POINT DE DÉPART" : `VERSION ${number}`}</small><strong>{item.label}</strong><span>{item.note}</span></span>{project.saved === item.id ? <Heart size={17} fill="currentColor"/> : item.id === version.id ? <CheckCircle2 size={19}/> : <ChevronRight size={18}/>}</button>)}</div>}
       </div>
     </section><aside className="edit-controls"><p className="section-kicker">VOTRE PROCHAINE IDÉE</p><h2>Qu’est-ce qu’on change ?</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
-      <form className="draft-form" onSubmit={event => { event.preventDefault(); if (isExpired(project)) { onRenew(); return; } void onChange(item => { if (isExpired(item)) throw new Error("La période de retouche vient de se terminer. Reprenez cette photo avec un crédit de démonstration pour enregistrer une nouvelle demande."); item.draft = draft.trim(); }).then(saved => { if (saved) onNotice("Votre demande est enregistrée avec cette photo. La génération automatique n’est pas encore connectée."); }); }}>
-        <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={20000} value={draft} disabled={expired} onChange={event => setDraft(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>{!expired && <BriefAssistant kind="photo" request={draft} onUse={setDraft}/>}<button className="button dark" type="submit" disabled={busy || (!expired && !draft.trim())}>{expired ? "Reprendre la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
+      <form className="draft-form" onSubmit={event => { event.preventDefault(); void saveRequest(); }}>
+        <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={20000} value={draft} disabled={expired} onChange={event => { setDraft(event.target.value); setSavedMessage(""); }} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>{!expired && <BriefAssistant kind="photo" request={draft} onUse={value => { setDraft(value); setSavedMessage(""); }}/>}<button className="button dark" type="submit" disabled={busy || (!expired && !draft.trim())}>{expired ? "Reprendre la retouche" : "Enregistrer dans cette démo"}<ArrowRight size={17}/></button>
+        {savedMessage && <p className="demo-help" role="status">{savedMessage}</p>}
       </form>
       {!expired && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} onClick={() => setDraft(idea)}>{idea}<Plus size={14}/></button>)}</div>}
-      <div className="generation-state"><Sparkles size={18}/><p><strong>Génération à connecter</strong>Les versions d’exemple sont déjà préparées. Vos demandes sont conservées pour la suite.</p></div>
+      <div className="generation-state"><Sparkles size={18}/><p><strong>Cette page est une démonstration.</strong>Elle garde votre demande dans ce navigateur, sans créer une nouvelle image. <Link href="/connexion/">Ouvrir mon compte</Link> pour préparer une vraie retouche.</p></div>
       {version.virtual && <div className="virtual-note"><Info size={17}/><p>Ce mobilier est virtuel. Pensez à le préciser dans votre annonce.</p></div>}
       <Link className="text-action" href="/demo/aide/#credits">Comprendre les crédits et les 7 jours <ArrowUpRight size={15}/></Link>
     </aside></div>

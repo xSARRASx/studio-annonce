@@ -11,6 +11,7 @@ import { CreationLimits } from "@/components/creation-limits";
 import { PreviewWatermark } from "@/components/preview-watermark";
 import { Compare } from "../../demo/studio-parts";
 import { BriefAssistant } from "../../demo/brief-assistant";
+import { GenerationWait } from "@/components/generation-wait";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
 
@@ -48,7 +49,8 @@ function Atelier() {
       if (annule) return;
       setErreur("");
       poser(p, p.versions.at(-1) || null);
-      try { setDemande(sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) || ""); } catch {}
+      try { setDemande(p.demande_brouillon || sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) || ""); }
+      catch { setDemande(p.demande_brouillon ?? ""); }
       if (!p.analyse && retoucheDisponible && !p.limites?.photo.bloque) {
         setOccupe("analyse");
         p = await api<Photo>(`/photos/${id}/analyser`, { method: "POST" });
@@ -97,9 +99,9 @@ function Atelier() {
     setErreur(""); setOccupe("essai");
     if (texte) setBulles((b) => [...b, { de: "moi", texte }]);
     try {
+      await api(`/photos/${photo.id}/demande`, { method: "PATCH", body: JSON.stringify({ demande: texte }) });
       const p = await api<Photo>(`/photos/${photo.id}/essai`, { method: "POST", body: JSON.stringify({ demande: texte, depuis_version_id: courante?.id || null }) });
       poser(p, p.versions.at(-1) || null);
-      setDemande("");
       const restants = p.essais_restants;
       window.dispatchEvent(new Event("studio:credits-updated"));
       setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : "Une correction supplémentaire coûte 1 crédit."}` }]);
@@ -193,9 +195,14 @@ function Atelier() {
   const original = photo?.original || photo?.vignette;
   const image = !courante ? original : courante.apercu;
 
-  function saveDraft() {
-    try { sessionStorage.setItem(`studio:${compte.id}:photo:${id}:draft`, demande); setBulles(b => [...b, { de: "ia", texte: "Votre demande est conservée dans ce navigateur. Vous pourrez lancer la retouche dès que le service sera disponible." }]); }
-    catch { setErreur("Le navigateur n’a pas pu enregistrer la demande. Gardez une copie de votre texte."); }
+  async function saveDraft() {
+    if (!photo || occupe) return;
+    setErreur("");
+    try {
+      await api(`/photos/${photo.id}/demande`, { method: "PATCH", body: JSON.stringify({ demande }) });
+      try { sessionStorage.setItem(`studio:${compte.id}:photo:${id}:draft`, demande); } catch { /* Le compte conserve la demande. */ }
+      setBulles(b => [...b, { de: "ia", texte: "Demande enregistrée avec votre photo. Vous la retrouverez sur le site et dans l’application mobile." }]);
+    } catch (e) { setErreur((e as ErreurApi).message); }
   }
 
   return (
@@ -204,6 +211,7 @@ function Atelier() {
       <div className="editor-title"><div><p className="eyebrow">VOTRE PHOTO</p><h1>{photo?.analyse?.piece || "Votre photo"}</h1><p>Votre original est conservé avec toutes ses versions.</p></div><div className="editor-actions">
         <Bouton data-photo-download onClick={telecharger} disabled={!courante || !!occupe || (periodeExpiree && !courante.hd)} chargement={occupe === "hd"}><Download size={17}/> {photo?.credite_le || photo?.offerte ? "Télécharger en HD" : "Garder en HD · 1 crédit"}</Bouton>
       </div></div>
+      {occupe === "essai" && <GenerationWait/>}
       <div className="editor-grid"><section className="image-panel">
         <div className="result-status"><span><CheckCircle2 size={16}/>{courante ? `Version ${courante.numero}` : "Photo originale"}</span><small>{photo?.offerte && !photo.credite_le ? "Photo offerte" : "Original préservé"}</small></div>
         {image ? voirAvant && courante ? <Compare before={original} result={courante.apercu} watermarked={filigrane}/> : <div className="full-result connected-full-result"><img src={image} draggable={false} alt={courante ? "Votre photo retouchée" : "Votre photo originale"}/>{filigrane && <PreviewWatermark/>}{occupe === "essai" && <div role="status" className="connected-photo-pending"><Sparkles size={22}/> Retouche en cours…</div>}</div> : <div className="full-result connected-photo-pending">{erreur ? "La photo n’a pas pu être chargée." : "Chargement de votre photo…"}</div>}
@@ -219,11 +227,12 @@ function Atelier() {
         {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} génération{photo.essais_restants > 1 ? "s" : ""} restante{photo.essais_restants > 1 ? "s" : ""}</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
         <p className="demo-help">Première génération + 1 correction incluse. Chaque correction supplémentaire coûte 1 crédit.</p>
         <CreationLimits limites={limites} compact/>
-        <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else saveDraft(); }}>
+        <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else void saveDraft(); }}>
           <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire || creationBloquee} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
           {!repriseNecessaire && !creationBloquee && <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>}
           {demande.length > 4000 && <p className="st-error" role="alert">Raccourcissez votre demande à 4 000 caractères maximum. Votre texte est conservé.</p>}
           <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || creationBloquee || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Lancer la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
+          {retoucheDisponible && <button className="text-action" type="button" disabled={!photo || !!occupe || !demande.trim()} onClick={() => void saveDraft()}>Enregistrer pour plus tard</button>}
         </form>
         {!repriseNecessaire && !creationBloquee && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
         {!retoucheDisponible && <div className="generation-state"><Info size={18}/><p><strong>Retouche momentanément indisponible</strong>Préparez votre demande. Aucun crédit n’est consommé.</p></div>}
@@ -231,7 +240,7 @@ function Atelier() {
         {finPeriode && !repriseNecessaire && <p className="demo-help">Générations restantes utilisables jusqu’au {finPeriode}.</p>}
         <Message texte={erreur}/>
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
-        <Link className="text-action" href="/demo/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
+        <Link className="text-action" href="/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
       </aside></div>
       {propositionVideo && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si vos photos devenaient une vidéo&nbsp;?</h2><p>Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat.</p></div><Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link></section>}
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}

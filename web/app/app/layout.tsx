@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       api<Compte>("/compte").then(valeur => {
         if (annule) return;
         setErreurCompte(""); setCompte(valeur);
-        if (!valeur.profil_complet && !chemin.startsWith("/app/compte")) routeur.replace("/app/compte/");
+        if (!valeur.profil_complet && !chemin.startsWith("/app/compte")) routeur.replace(window.location.hash === "#nouvelle" ? "/app/compte/?suite=photo" : "/app/compte/");
       }).catch((erreur: ErreurApi) => {
         if (annule) return;
         if (erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion/"); }
@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="studio-sidebar-note"><ShieldCheck size={19}/><p>Votre espace à vous.<small>Vos photos et leurs versions, retrouvées dans votre compte.</small></p></div>
         <div className="sidebar-bottom">
           {compte && <button className="connected-identity" onClick={() => nav("/app/compte/")}><span>{(compte.prenom || "M").slice(0, 1)}</span><strong>{compte.prenom || "Mon compte"}<small>Mon espace personnel</small></strong></button>}
-          <Link className="studio-help-link" href="/demo/aide/">Une question ? Consulter l’aide</Link>
+          <Link className="studio-help-link" href="/aide/">Une question ? Consulter l’aide</Link>
           <button className="back-site" onClick={() => nav("/")}><ArrowLeft size={15}/> Retour au site</button>
           <button className="connected-logout" disabled={deconnexionEnCours} onClick={deconnecter}><LogOut size={15}/> {deconnexionEnCours ? "Déconnexion…" : "Se déconnecter"}</button>
         </div>
@@ -97,7 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="workspace-header">
           <button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu" aria-expanded={menu}><Menu/></button>
           <div className="breadcrumb"><button onClick={() => nav(creating ? "/app/#creer" : "/app/")}>{creating ? "Créer" : "Mon studio"}</button><ChevronRight size={13}/><strong>{titles[screen] || "Mes créations"}</strong></div>
-          <button className="workspace-credit" onClick={() => nav("/app/facturation/")}><span className="status-dot"/>{compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}{compte?.photo_offerte_disponible && <span className="connected-gift">+ 1 photo offerte</span>}</button>
+          <button className="workspace-credit" aria-label={compte?.photo_offerte_disponible ? "Préparer ma photo offerte" : "Voir mes crédits"} onClick={() => nav(compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/facturation/")}><span className="status-dot"/>{compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}{compte?.photo_offerte_disponible && <span className="connected-gift">+ 1 photo offerte</span>}</button>
         </header>
         {erreurCompte && <div className="connected-service" role="alert"><Info size={17}/><p>{erreurCompte}</p><button className="text-action" onClick={() => window.dispatchEvent(new Event("studio:credits-updated"))}>Réessayer</button></div>}
         {compte ? <StudioAccount.Provider key={compte.id} value={{ compte, sante, screen }}>{children}</StudioAccount.Provider> : !erreurCompte && <main className="st-main"><p role="status">Ouverture de votre studio…</p></main>}
