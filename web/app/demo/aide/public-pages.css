@@ -90,7 +90,7 @@
 .tariffs-unit{font-size:12px;color:#838e76;margin:7px 0 23px!important}
 .tariffs-pack-line{padding-top:16px;border-top:1px solid #dfe5d5;display:flex;gap:7px;align-items:center;margin-top:auto;font-size:10px;color:#73815e;line-height:1.6}
 .tariffs-pack-line svg{flex-shrink:0}
-.tariffs-video{margin-top:72px;padding-top:62px;border-top:1px solid #e0e3d7;scroll-margin-top:20px}
+.tariffs-video{margin-top:30px;padding-top:29px;border-top:1px solid #e0e3d7;scroll-margin-top:20px}
 #packs-photo{scroll-margin-top:20px}
 .tariffs-video-heading{max-width:760px}.tariffs-video-heading h2{margin:14px 0 16px}.tariffs-video-heading p{color:#7c8574;line-height:1.8}
 .tariffs-availability{text-align:center;font-size:12px;color:#828a76;margin-top:16px!important}
@@ -128,7 +128,7 @@
   .public-info .public-footer{padding:24px 6%;gap:20px}.public-footer p{display:none}.public-footer nav{font-size:11px;gap:17px}.public-info .public-footer .public-brand{font-size:18px}
   .tariffs-heading{grid-template-columns:1fr;gap:25px}.tariffs-offer{max-width:none;align-items:center;gap:19px;padding:20px 22px;margin:0}.tariffs-offer strong{font-size:18px;margin:4px 0 7px}.tariffs-offer br{display:none}.tariffs-gift{display:grid;place-items:center;background:#e4ecd7;border-radius:50%;width:45px;height:45px}.tariffs-offer div>span{font-size:12px}
   .tariffs-shortcuts{grid-template-columns:1fr;gap:10px;margin-top:24px}.tariffs-shortcuts a{padding:17px 43px 17px 18px}.tariffs-shortcuts a>strong{font-size:18px}.tariffs-shortcuts a>small{font-size:11px}.tariffs-shortcuts a>svg{right:17px}
-  .tariffs-packs,.tariffs-packs.tariffs-three-packs{grid-template-columns:1fr;gap:11px;margin-top:27px}.tariffs-pack{padding:21px 18px 17px}.public-info .tariffs-pack h2{font-size:34px;margin:13px 0 7px}.tariffs-pack h2>span{font-size:16px}.tariffs-pack-description{font-size:11px;min-height:0}.tariffs-amount{font-size:34px;margin-top:20px}.tariffs-unit{font-size:11px}.tariffs-pack-line{font-size:9px;gap:5px}.tariffs-pack-line svg{width:12px}.tariffs-availability{font-size:11px}.tariffs-video{margin-top:48px;padding-top:42px}
+  .tariffs-packs,.tariffs-packs.tariffs-three-packs{grid-template-columns:1fr;gap:11px;margin-top:27px}.tariffs-pack{padding:21px 18px 17px}.public-info .tariffs-pack h2{font-size:34px;margin:13px 0 7px}.tariffs-pack h2>span{font-size:16px}.tariffs-pack-description{font-size:11px;min-height:0}.tariffs-amount{font-size:34px;margin-top:20px}.tariffs-unit{font-size:11px}.tariffs-pack-line{font-size:9px;gap:5px}.tariffs-pack-line svg{width:12px}.tariffs-availability{font-size:11px}.tariffs-video{margin-top:25px;padding-top:25px}
   .tariffs-included{margin-top:26px;padding:27px 0}.tariffs-included>div{gap:23px 15px}.tariffs-included>div>span{grid-template-columns:22px 1fr;gap:5px 6px}.tariffs-included strong{font-size:11px}.tariffs-included small{font-size:10px}.tariffs-included svg{width:18px}
   .tariffs-timeline{grid-template-columns:1fr;gap:27px;margin-top:32px}.public-info .tariffs-timeline h2{font-size:28px;margin:10px 0 18px}.tariffs-timeline-heading a{font-size:12px}.tariffs-timeline li{gap:14px}.tariffs-timeline strong{font-size:14px}.tariffs-timeline li p{font-size:12px}.tariffs-conditions{grid-template-columns:1fr;gap:14px;margin-top:31px;font-size:11px;padding-top:22px}
 }
