@@ -14,6 +14,7 @@ import { BriefAssistant } from "../../demo/brief-assistant";
 import { GenerationWait } from "@/components/generation-wait";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
+type VideoCreee = { id: string; statut: string; duree: number; erreur: string; url: string };
 
 function dateLisible(date: string | null): string | null {
   if (!date || Number.isNaN(Date.parse(date))) return null;
@@ -24,6 +25,7 @@ function dateLisible(date: string | null): string | null {
 
 function Atelier() {
   const { compte, sante } = useStudioAccount();
+  const gratuit = compte.gratuit_illimite;
   const retoucheDisponible = !!sante?.retouche_disponible;
   const parametres = useSearchParams();
   const id = parametres.get("id") || "";
@@ -39,6 +41,10 @@ function Atelier() {
   const [infoTelechargement, setInfoTelechargement] = useState<{ offerte: boolean; dateLimite: string | null; reprise?: boolean } | null>(null);
   const [confirmationReprise, setConfirmationReprise] = useState(false);
   const [propositionVideo, setPropositionVideo] = useState(false);
+  const [video, setVideo] = useState<VideoCreee | null>(null);
+  const [demandeVideo, setDemandeVideo] = useState("Mouvement de caméra doux et réaliste dans cette pièce, sans changer les ouvertures ni le mobilier.");
+  const [videoOccupe, setVideoOccupe] = useState(false);
+  const [videoErreur, setVideoErreur] = useState("");
   const [horloge, setHorloge] = useState(() => Date.now());
   const dialogue = useRef<HTMLDialogElement>(null);
   const retourFocus = useRef<HTMLElement | null>(null);
@@ -87,6 +93,29 @@ function Atelier() {
     window.addEventListener("focus", refresh);
     return () => { active = false; window.removeEventListener("focus", refresh); };
   }, [id]);
+  useEffect(() => {
+    if (!id || !gratuit) return;
+    let actif = true;
+    api<VideoCreee | null>(`/videos/photos/${id}/derniere`).then(v => { if (actif) setVideo(v); }).catch(() => {});
+    return () => { actif = false; };
+  }, [id, gratuit]);
+  useEffect(() => {
+    if (!video || !["preparation", "en_attente", "clips", "montage"].includes(video.statut)) return;
+    const minuterie = window.setInterval(() => {
+      api<VideoCreee>(`/videos/${video.id}`).then(setVideo).catch(() => setVideoErreur("Le suivi vidéo est momentanément indisponible. Réessayez dans un instant."));
+    }, 5000);
+    return () => window.clearInterval(minuterie);
+  }, [video?.id, video?.statut]);
+
+  async function creerVideo() {
+    if (!photo || videoOccupe || !demandeVideo.trim()) return;
+    setVideoOccupe(true); setVideoErreur("");
+    try {
+      const resultat = await api<VideoCreee>(`/videos/photos/${photo.id}`, { method: "POST", body: JSON.stringify({ demande: demandeVideo.trim() }) });
+      setVideo(resultat);
+    } catch (e) { setVideoErreur((e as ErreurApi).message); }
+    finally { setVideoOccupe(false); }
+  }
   const dialogueOuvert = !!infoTelechargement || confirmationReprise;
   useEffect(() => {
     const element = dialogue.current;
@@ -107,7 +136,7 @@ function Atelier() {
       poser(p, p.versions.at(-1) || null);
       const restants = p.essais_restants;
       window.dispatchEvent(new Event("studio:credits-updated"));
-      setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : "Une correction supplémentaire coûte 1 crédit."}` }]);
+      setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : gratuit ? "Vous pouvez ajouter gratuitement une correction." : "Une correction supplémentaire coûte 1 crédit."}` }]);
     } catch (e) {
       const err = e as ErreurApi;
       if ([402, 403, 429].includes(err.statut)) {
@@ -138,12 +167,13 @@ function Atelier() {
       // Laisser le navigateur prendre en charge le fichier avant de libérer l'URL.
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       setPropositionVideo(true);
-      if (resultat.creditConsomme || resultat.premierePhotoOfferte) {
+      if (resultat.creditConsomme || resultat.premierePhotoOfferte || (gratuit && !photo.credite_le)) {
         setInfoTelechargement({ offerte: resultat.premierePhotoOfferte, dateLimite: dateLisible(resultat.repriseJusquAu) });
         window.dispatchEvent(new Event("studio:credits-updated"));
       }
       const limite = dateLisible(resultat.repriseJusquAu);
-      setBulles((b) => [...b, { de: "ia", texte: resultat.premierePhotoOfferte
+      setBulles((b) => [...b, { de: "ia", texte: gratuit ? "Votre photo est prête en HD, sans débit de crédit."
+        : resultat.premierePhotoOfferte
         ? "Votre photo offerte est prête en HD. Aucun crédit n'a été utilisé."
         : resultat.creditConsomme ? `Votre photo est prête en HD. Un crédit a été utilisé.${limite ? ` La correction incluse, si elle reste disponible, est utilisable jusqu’au ${limite}.` : ""}`
         : "Téléchargement HD relancé. Aucun crédit supplémentaire n'a été utilisé." }]);
@@ -212,7 +242,7 @@ function Atelier() {
     <main className="editor-main work-editor">
       <Link href="/app/" className="text-action back-to-projects"><ArrowLeft size={16}/> Mes créations</Link>
       <div className="editor-title"><div><p className="eyebrow">VOTRE PHOTO</p><h1>{photo?.analyse?.piece || "Votre photo"}</h1><p>Votre original est conservé avec toutes ses versions.</p></div><div className="editor-actions">
-        <Bouton data-photo-download onClick={telecharger} disabled={!courante || !!occupe || (periodeExpiree && !courante.hd)} chargement={occupe === "hd"}><Download size={17}/> {photo?.credite_le || photo?.offerte ? "Télécharger en HD" : "Garder en HD · 1 crédit"}</Bouton>
+        <Bouton data-photo-download onClick={telecharger} disabled={!courante || !!occupe || (periodeExpiree && !courante.hd)} chargement={occupe === "hd"}><Download size={17}/> {gratuit || photo?.credite_le || photo?.offerte ? "Télécharger en HD" : "Garder en HD · 1 crédit"}</Bouton>
       </div></div>
       {occupe === "essai" && <GenerationWait/>}
       <div className="editor-grid"><section className="image-panel">
@@ -228,7 +258,7 @@ function Atelier() {
       </section><aside className="edit-controls">
         <p className="section-kicker">VOTRE PROCHAINE IDÉE</p><h2>Qu’est-ce qu’on change ?</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
         {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} génération{photo.essais_restants > 1 ? "s" : ""} restante{photo.essais_restants > 1 ? "s" : ""}</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
-        <p className="demo-help">Première génération + 1 correction incluse. Chaque correction supplémentaire coûte 1 crédit.</p>
+        <p className="demo-help">Première génération + 1 correction incluse. {gratuit ? "Vos corrections supplémentaires sont gratuites." : "Chaque correction supplémentaire coûte 1 crédit."}</p>
         <CreationLimits limites={limites} compact/>
         <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else void saveDraft(); }}>
           <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire || creationBloquee} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
@@ -239,13 +269,19 @@ function Atelier() {
         </form>
         {!repriseNecessaire && !creationBloquee && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
         {!retoucheDisponible && <div className="generation-state"><Info size={18}/><p><strong>Retouche momentanément indisponible</strong>Préparez votre demande. Aucun crédit n’est consommé.</p></div>}
-        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Générations disponibles utilisées"}</strong>1 crédit débloque une seule correction, utilisable pendant 7 jours. Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>Ajouter 1 correction · 1 crédit</Bouton></div></div>}
+        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Générations disponibles utilisées"}</strong>{gratuit ? "Ajoutez gratuitement une correction, utilisable pendant 7 jours." : "1 crédit débloque une seule correction, utilisable pendant 7 jours."} Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>{gratuit ? "Ajouter 1 correction gratuite" : "Ajouter 1 correction · 1 crédit"}</Bouton></div></div>}
         {finPeriode && !repriseNecessaire && <p className="demo-help">Générations restantes utilisables jusqu’au {finPeriode}.</p>}
         <Message texte={erreur}/>
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
         <Link className="text-action" href="/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
       </aside></div>
-      {propositionVideo && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si vos photos devenaient une vidéo&nbsp;?</h2><p>Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat.</p></div><Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link></section>}
+      {((!gratuit && propositionVideo) || (gratuit && sante?.video_disponible && (propositionVideo || photo?.credite_le))) && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si votre photo devenait une vidéo&nbsp;?</h2><p>{gratuit ? "Testez un clip immobilier de 5 secondes, offert sur votre compte. La caméra reste dans la pièce photographiée." : "Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat."}</p>
+        {gratuit && <><p className="demo-help">Phase pilote : cinq clips au maximum par logement et par jour, sans débit sur votre compte.</p><label htmlFor="video-request">Votre idée pour le mouvement</label><textarea id="video-request" rows={3} maxLength={3000} value={demandeVideo} onChange={event => setDemandeVideo(event.target.value)}/></>}
+        {gratuit && video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut) && <GenerationWait type="video"/>}
+        {gratuit && video?.statut === "prete" && video.url && <video controls playsInline src={video.url} aria-label="Votre vidéo créée"/>}
+        {gratuit && video?.statut === "echec" && <p role="alert">{video.erreur || "La vidéo n'a pas abouti."}</p>}
+        {gratuit && videoErreur && <p role="alert">{videoErreur}</p>}
+      </div>{gratuit ? <button type="button" className="button dark" disabled={videoOccupe || !demandeVideo.trim() || !!video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut)} onClick={() => void creerVideo()}>{videoOccupe ? "Démarrage…" : video?.statut === "prete" ? "Créer un autre clip" : "Créer mon clip de 5 secondes"} <ArrowRight size={17}/></button> : <Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link>}</section>}
       {suivante && <div className="batch-next"><span>Photo {lot.indexOf(id) + 1} sur {lot.length} · votre sélection</span><Link className="button dark" href={`/app/photo/?id=${suivante}&lot=${encodeURIComponent(lot.join(","))}`}>Passer à la photo suivante <ArrowRight size={17}/></Link></div>}
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"
@@ -257,18 +293,18 @@ function Atelier() {
         <h2 id="download-info-title" className="mt-2 pr-9 text-2xl font-semibold tracking-tight">{confirmationReprise ? "Ajouter une correction ?" : infoTelechargement?.reprise ? "Votre correction est disponible" : "Votre photo est prête en HD"}</h2>
         <div id="download-info-copy" className="mt-4 space-y-3 text-base leading-7 text-fg-muted">
           {confirmationReprise ? <>
-            <p><strong className="text-fg">1 crédit sera utilisé maintenant pour une seule correction.</strong> Vous aurez 7 jours pour la lancer. Ses versions précédentes sont conservées et les téléchargements HD sont inclus.</p>
-            <p className="text-sm">En cas d’échec de la génération, cette correction reste disponible dans la période en cours. Cet achat remet le compteur de créations photo à zéro, sans modifier celui des vidéos.</p>
+            <p><strong className="text-fg">{gratuit ? "Cette correction est gratuite sur votre compte." : "1 crédit sera utilisé maintenant pour une seule correction."}</strong> Vous aurez 7 jours pour la lancer. Ses versions précédentes sont conservées et les téléchargements HD sont inclus.</p>
+            <p className="text-sm">En cas d’échec de la génération, cette correction reste disponible dans la période en cours. La reprise remet le compteur de créations photo à zéro, sans modifier celui des vidéos.</p>
           </> : <>
-            <p>{infoTelechargement?.reprise ? "Un crédit a été utilisé pour ajouter une seule correction." : infoTelechargement?.offerte ? "C’est votre photo offerte : aucun crédit n’a été utilisé." : "Un crédit a été utilisé pour votre premier téléchargement HD."}</p>
+            <p>{gratuit ? "Votre compte propriétaire crée et télécharge gratuitement." : infoTelechargement?.reprise ? "Un crédit a été utilisé pour ajouter une seule correction." : infoTelechargement?.offerte ? "C’est votre photo offerte : aucun crédit n’a été utilisé." : "Un crédit a été utilisé pour votre premier téléchargement HD."}</p>
             {infoTelechargement?.dateLimite ? <p>{infoTelechargement.reprise ? "Votre correction est utilisable" : "La correction incluse, si elle reste disponible, est utilisable"} jusqu’au <strong className="text-fg">{infoTelechargement.dateLimite}</strong>.</p> : <p>La date limite n’a pas été reçue du serveur. Rechargez la page pour consulter la période exacte ; aucun nouveau délai n’est créé par ce message.</p>}
-            <p>Chaque correction supplémentaire coûte 1 crédit. Un ancien téléchargement ne prolonge pas le délai et ne remet aucun compteur à zéro.</p>
+            <p>{gratuit ? "Les corrections supplémentaires restent gratuites." : "Chaque correction supplémentaire coûte 1 crédit."} Un ancien téléchargement ne prolonge pas le délai et ne remet aucun compteur à zéro.</p>
           </>}
         </div>
         <p className="mt-5 border-t border-line pt-4 text-xs leading-5 text-fg-muted">Toutes vos versions restent dans l’historique. Les fichiers HD déjà préparés restent téléchargeables.</p>
         {confirmationReprise ? <div className="mt-6 flex gap-3">
           <Bouton variante="secondaire" onClick={fermerDialogue} disabled={occupe === "reprise"}>Annuler</Bouton>
-          <Bouton onClick={reprendre} chargement={occupe === "reprise"} disabled={!!occupe}>Confirmer · 1 crédit</Bouton>
+          <Bouton onClick={reprendre} chargement={occupe === "reprise"} disabled={!!occupe}>{gratuit ? "Confirmer gratuitement" : "Confirmer · 1 crédit"}</Bouton>
         </div> : <Bouton className="mt-6 w-full" onClick={fermerDialogue}>J’ai compris</Bouton>}
       </dialog>}
     </main>

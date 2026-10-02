@@ -66,8 +66,9 @@ export type Photo = {
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
   source_url: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean }[] };
 export type Pack = { id: string; nature: "photo" | "video"; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
-export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
+export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; video_disponible?: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
 export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean; solde: number; solde_video: number; photo_offerte_disponible: boolean;
+  gratuit_illimite: boolean;
   limites: LimitesCreation;
   packs: Pack[]; packs_photo: Pack[]; packs_video: Pack[];
   registre: { delta: number; motif: string; le: string }[]; registre_video: { delta: number; motif: string; le: string }[] };

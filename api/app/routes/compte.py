@@ -41,6 +41,7 @@ def moi(compte: Compte = Depends(compte_courant), s: Session = Depends(session))
                                  .order_by(MouvementCreditVideo.id.desc()).limit(50)).scalars().all()
     return {"id": compte.id, "email": compte.email, "prenom": compte.prenom, "nom": compte.nom,
             "role": compte.role,
+            "gratuit_illimite": compte.role == "proprietaire",
             "profil_complet": bool(compte.prenom and compte.nom and compte.profil_complete_le),
             "paiement_disponible": photo_disponible(),
             "paiement_photo_disponible": photo_disponible(),

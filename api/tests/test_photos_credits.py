@@ -93,6 +93,33 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
     async def download(self, p="p", v="v"):
         return await self.client.post(f"/photos/{p}/versions/{v}/telecharger")
 
+    async def test_proprietaire_utilise_le_meme_parcours_sans_debit(self):
+        with self.sessions() as s:
+            compte = s.get(Compte, "a")
+            compte.role = "proprietaire"
+            s.query(MouvementCredit).filter(MouvementCredit.compte_id == "a").delete()
+            s.add(QuotaCreation(compte_id="a", nature="photo", utilisees=29))
+            s.commit()
+        with patch.object(photos.reglages, "IA_PUBLIQUE", False):
+            vue = (await self.client.get("/photos/p")).json()
+            self.assertFalse(vue["filigrane"])
+            self.assertEqual(self.balance(), 0)
+            resultat = await self.download()
+            self.assertEqual(resultat.status_code, 200)
+            self.assertEqual(resultat.headers["X-Photo-Credit-Consomme"], "0")
+            self.assertEqual(self.balance(), 0)
+            with self.sessions() as s:
+                self.assertEqual(s.get(QuotaCreation, ("a", "photo")).utilisees, 0)
+            with self.sessions() as s:
+                p = s.get(Photo, "p")
+                p.essais = 2
+                s.commit()
+            vue = (await self.client.get("/photos/p")).json()
+            reprise = await self.client.post("/photos/p/reprendre", json={"cycle_id": vue["cycle_id"]})
+            self.assertEqual(reprise.status_code, 200)
+            self.assertEqual(reprise.json()["essais_restants"], 1)
+            self.assertEqual(self.balance(), 0)
+
     async def test_retouche_pilote_reservee_au_proprietaire(self):
         self.update_photo(analyse=None)
         with patch.object(photos.reglages, "IA_PUBLIQUE", False):

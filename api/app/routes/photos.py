@@ -67,6 +67,7 @@ def _vue_version(v: Version, autorisee: bool = False) -> dict:
 def _vue_photo(s: Session, p: Photo) -> dict:
     periode = _periode(s, p)
     restants = max(0, periode["limite"] - periode["essais_cycle"])
+    proprietaire = acces_ia.gratuit_proprietaire(s.get(Compte, p.logement.compte_id))
     return {
         "id": p.id, "logement_id": p.logement_id, "ordre": p.ordre, "offerte": bool(p.offerte),
         "vignette": stockage.url_publique(p.cle_vignette), "original": stockage.url_publique(p.cle_originale),
@@ -77,8 +78,8 @@ def _vue_photo(s: Session, p: Photo) -> dict:
         "version_gardee": p.version_gardee_id, "credite_le": _utc(p.credite_le),
         "reprise_jusqu_au": _utc(periode["fin"]), "reprise_commence_le": _utc(periode["debut"]),
         "reprise_expiree": periode["expiree"], "reprise_necessaire": periode["necessaire"],
-        "cycle_id": periode["cycle_id"], "versions": [_vue_version(v, bool(p.offerte or p.credite_le)) for v in p.versions],
-        "filigrane": not bool(p.offerte or p.credite_le),
+        "cycle_id": periode["cycle_id"], "versions": [_vue_version(v, bool(proprietaire or p.offerte or p.credite_le)) for v in p.versions],
+        "filigrane": not bool(proprietaire or p.offerte or p.credite_le),
         "limites": limites.vue(s, p.logement.compte_id),
     }
 
@@ -245,12 +246,14 @@ def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_
     if not periode["necessaire"]:
         return _vue_photo(s, p)  # une période active n'est jamais facturée à nouveau
     _operation_libre(s, p.id)
-    if credits.solde(s, compte_id) < 1:
+    gratuit = acces_ia.gratuit_proprietaire(compte)
+    if not gratuit and credits.solde(s, compte_id) < 1:
         raise HTTPException(402, "Il vous faut un crédit pour reprendre cette photo.")
     instant = maintenant()
     reprise = ReprisePhoto(photo_id=p.id, commence_le=instant, essais_depart=p.essais)
     s.add(reprise); s.flush()
-    credits.mouvement(s, compte, -1, "Une correction photo supplémentaire (HD incluse)", f"reprise:{reprise.id}")
+    if not gratuit:
+        credits.mouvement(s, compte, -1, "Une correction photo supplémentaire (HD incluse)", f"reprise:{reprise.id}")
     limites.reinitialiser(s, compte_id, "photo")
     # Une reprise peut suivre l'épuisement des essais avant le premier téléchargement.
     # Ce crédit inclut la HD, sans second débit au prochain téléchargement.
@@ -287,7 +290,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     if not v or v.photo_id != p.id:
         raise HTTPException(404, "Version introuvable.")
     periode = _periode(s, p)
-    if p.credite_le is None and not p.offerte and credits.solde(s, compte_id) < 1:
+    if p.credite_le is None and not p.offerte and not acces_ia.gratuit_proprietaire(compte) and credits.solde(s, compte_id) < 1:
         raise HTTPException(402, "Il vous faut un crédit pour télécharger cette photo en haute qualité.")
     # Une HD déjà produite reste récupérable, même après les sept jours.
     if periode["expiree"] and not v.cle_hd:
@@ -320,11 +323,14 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
         if periode["expiree"] and not v.cle_hd:
             raise HTTPException(402, "La période s'est terminée pendant le traitement. Aucun crédit supplémentaire n'a été consommé.")
         premiere_fois = p.credite_le is None
-        credit_consomme = premiere_fois and not p.offerte
+        credit_consomme = premiere_fois and not p.offerte and not acces_ia.gratuit_proprietaire(compte)
         if credit_consomme:
             if credits.solde(s, compte_id) < 1:
                 raise HTTPException(402, "Il vous faut un crédit pour télécharger cette photo en haute qualité.")
             credits.mouvement(s, compte, -1, "Photo gardée en HD", p.id)
+        if premiere_fois and not p.offerte:
+            # Sur le compte propriétaire, garder une photo en HD joue le même
+            # rôle qu'un achat client pour la fenêtre des essais sans achat.
             limites.reinitialiser(s, compte_id, "photo")
         if premiere_fois:
             p.credite_le = maintenant()

@@ -3,19 +3,19 @@ from fastapi import FastAPI, Header, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import acces_ia, mail, stockage, paiements as service_paiement
+from . import acces_ia, higgsfield_video, mail, stockage, paiements as service_paiement
 from .config import reglages
 from .db import Base, moteur, session
 from .models import Compte, Jeton
 from sqlalchemy.orm import Session
-from .routes import auth, compte, logements, photos, paiements, admin
+from .routes import auth, compte, logements, photos, paiements, admin, videos
 
 Base.metadata.create_all(moteur)
 
 app = FastAPI(title="Studio Annonce", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-Photo-Credit-Consomme", "X-Photo-Offerte", "X-Photo-Reprise-Jusqu-Au"])
-for r in (auth, logements, photos, compte, paiements, admin):
+for r in (auth, logements, photos, videos, compte, paiements, admin):
     app.include_router(r.routeur)
 
 
@@ -28,7 +28,7 @@ async def donnees_privees(request, call_next):
     racine = request.scope.get("root_path", "").rstrip("/")
     if racine and chemin.startswith(racine + "/"):
         chemin = chemin[len(racine):]
-    if chemin.startswith(("/admin", "/compte", "/auth", "/photos", "/logements", "/fichiers")):
+    if chemin.startswith(("/admin", "/compte", "/auth", "/photos", "/videos", "/logements", "/fichiers")):
         response.headers["Cache-Control"] = "private, no-store"
     return response
 
@@ -54,6 +54,7 @@ def sante(authorization: str = Header(default=""), s: Session = Depends(session)
         "ok": True,
         "connexion_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
         "retouche_disponible": acces_ia.autorise(compte),
+        "video_disponible": acces_ia.gratuit_proprietaire(compte) and higgsfield_video.disponible(),
         "paiement_disponible": service_paiement.photo_disponible(),
         "paiement_photo_disponible": service_paiement.photo_disponible(),
         "paiement_video_disponible": service_paiement.video_disponible(),

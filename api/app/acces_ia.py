@@ -12,3 +12,8 @@ def autorise(compte: Compte | None = None) -> bool:
     if reglages.IA_PUBLIQUE:
         return True
     return bool(compte and compte.statut == "actif" and compte.role == "proprietaire")
+
+
+def gratuit_proprietaire(compte: Compte | None) -> bool:
+    """Même parcours que les clients, sans débit pour le propriétaire du service."""
+    return bool(compte and compte.statut == "actif" and compte.role == "proprietaire")
