@@ -4,6 +4,7 @@ import { ArrowLeft, Cookie, Mail, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/confidentialite/" },
   title: "Confidentialité et cookies · Studio Annonce",
   description: "Comment Studio Annonce utilise vos données, vos photos et vos choix de cookies.",
 };

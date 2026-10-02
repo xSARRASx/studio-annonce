@@ -1,0 +1,110 @@
+"""Check the generated public SEO surface, not source-code snapshots.
+Run from web/: python3 tests/seo-export.py [out-directory]
+"""
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import urljoin, urlparse, unquote
+import json
+import sys
+import xml.etree.ElementTree as ET
+
+ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else 'out').resolve()
+ORIGIN = 'https://studioannonce.fr'
+errors = []
+
+class Page(HTMLParser):
+    def __init__(self, path):
+        super().__init__()
+        self.tags = []
+        self.title = ''
+        self.in_title = False
+        self.jsonld = []
+        self.ld = None
+        self.feed(path.read_text())
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        self.tags.append((tag, attrs))
+        if tag == 'title': self.in_title = True
+        if tag == 'script' and attrs.get('type') == 'application/ld+json': self.ld = ''
+
+    def handle_data(self, text):
+        if self.in_title: self.title += text
+        if self.ld is not None: self.ld += text
+
+    def handle_endtag(self, tag):
+        if tag == 'title': self.in_title = False
+        if tag == 'script' and self.ld is not None:
+            self.jsonld.append(json.loads(self.ld))
+            self.ld = None
+
+    def attrs(self, tag):
+        return [attrs for name, attrs in self.tags if name == tag]
+
+    def meta(self, name):
+        return [a.get('content', '') for a in self.attrs('meta') if a.get('name', a.get('property')) == name]
+
+
+def check(condition, message):
+    if not condition: errors.append(message)
+
+
+def file_for(url):
+    path = unquote(urlparse(url).path).lstrip('/')
+    candidate = ROOT / path
+    return candidate / 'index.html' if not Path(path).suffix else candidate
+
+urls = [node.text for node in ET.parse(ROOT / 'sitemap.xml').findall('.//{*}loc')]
+check(len(urls) == len(set(urls)), 'Duplicate sitemap URLs')
+pages = {}
+for url in urls:
+    check(url.startswith(ORIGIN + '/'), f'Unexpected origin: {url}')
+    check(not any(urlparse(url).path.startswith(prefix) for prefix in ['/app/', '/connexion/', '/demo/', '/mobile']), f'Private/demo URL in sitemap: {url}')
+    target = file_for(url)
+    check(target.is_file(), f'Missing exported page: {url}')
+    if not target.is_file(): continue
+    page = pages[url] = Page(target)
+    check(bool(page.title.strip()), f'Missing title: {url}')
+    check(len(page.meta('description')) == 1 and bool(page.meta('description')[0]), f'Description missing/duplicated: {url}')
+    check(len(page.attrs('h1')) == 1, f'Expected one H1: {url}')
+    check([a.get('href') for a in page.attrs('link') if a.get('rel') == 'canonical'] == [url], f'Canonical mismatch: {url}')
+    check(not any('noindex' in r for r in page.meta('robots')), f'Noindex in sitemap: {url}')
+    check(page.attrs('html')[0].get('lang') == 'fr', f'Language mismatch: {url}')
+    for image in page.attrs('img'):
+        check('alt' in image, f'Missing alt attribute: {url}')
+    for asset in [a.get('src') for a in page.attrs('img')] + page.meta('og:image'):
+        if not asset: continue
+        resolved = urljoin(url, asset)
+        if urlparse(resolved).netloc == urlparse(ORIGIN).netloc:
+            check(file_for(resolved).is_file(), f'Missing image {asset} in {url}')
+    for link in page.attrs('a'):
+        resolved = urljoin(url, link.get('href', ''))
+        parsed = urlparse(resolved)
+        if parsed.netloc != urlparse(ORIGIN).netloc: continue
+        check(file_for(resolved).is_file(), f'Broken internal link {resolved} in {url}')
+        if parsed.fragment and parsed.path == urlparse(url).path:
+            check(any(a.get('id') == unquote(parsed.fragment) for _, a in page.tags), f'Broken fragment {resolved}')
+
+check(len({p.title for p in pages.values()}) == len(pages), 'Duplicate titles among canonical public pages')
+check(len({p.meta('description')[0] for p in pages.values()}) == len(pages), 'Duplicate descriptions among canonical public pages')
+blog_urls = {url for url in urls if '/blog/' in url and url != ORIGIN + '/blog/'}
+exported_blog_urls = {ORIGIN + '/blog/' + p.parent.name + '/' for p in (ROOT / 'blog').glob('*/index.html')}
+check(blog_urls == exported_blog_urls, 'Blog export and sitemap disagree (missing or unintended draft route)')
+index = pages[ORIGIN + '/blog/']
+index_links = {urljoin(ORIGIN, a.get('href', '')) for a in index.attrs('a')}
+check(blog_urls <= index_links, 'An article is missing from the blog index')
+index_list = next((item.get('mainEntity', {}) for item in index.jsonld if item.get('@type') == 'CollectionPage'), {})
+check({entry['url'] for entry in index_list.get('itemListElement', [])} == blog_urls, 'Blog structured list mismatch')
+for url in blog_urls:
+    page = pages[url]
+    graph = [entry for item in page.jsonld for entry in item.get('@graph', [])]
+    posting = next((entry for entry in graph if entry.get('@type') == 'BlogPosting'), {})
+    check(posting.get('mainEntityOfPage', {}).get('@id') == url, f'BlogPosting URL mismatch: {url}')
+    check(bool(posting.get('headline')) and bool(posting.get('datePublished')), f'Incomplete BlogPosting: {url}')
+    check(page.meta('og:url') == [url], f'Open Graph URL mismatch: {url}')
+    check(bool(page.meta('og:image')) and bool(page.meta('twitter:card')), f'Social preview missing: {url}')
+    check(any(entry.get('@type') == 'BreadcrumbList' for entry in graph), f'Missing breadcrumb schema: {url}')
+
+report = {'pages': len(pages), 'articles': len(blog_urls), 'errors': errors}
+print(json.dumps(report, ensure_ascii=False, indent=2))
+sys.exit(1 if errors else 0)

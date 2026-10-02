@@ -15,3 +15,13 @@ Un brouillon n’apparaît ni dans le blog public, ni dans les pages exportées,
 ## Publication initiale
 
 30 septembre 2026 : huit transformations approuvées par Martin, issues de quatre annonces Airbnb, et un premier article qui explique ces exemples. Les seize images avant/après sont compressées en WebP, avec seize miniatures supplémentaires pour le site. Le mobile utilise les mêmes images et donne accès au blog.
+
+## Guides SEO préparés le 2 octobre 2026
+
+Le catalogue `articles.ts` importe désormais cinq guides depuis `guides.ts`. Un statut `published` signifie « inclus dans l’export local » ; il ne prouve pas une mise en ligne. Cette série est préparée sur la branche `codex/seo-contenus-20261002`, à valider avant déploiement.
+
+Les articles peuvent définir `seoTitle`, `coverCaption`, `related` et `sources`. Une section peut ajouter une `checklist` et des liens internes `links`. Les liens de lecture complémentaire ne ciblent que des articles publiés ; les images de partage sont résolues à partir du même exemple que la couverture. La page blog expose une CollectionPage et une ItemList ; chaque article conserve BlogPosting et BreadcrumbList. Le sommaire est disponible sans JavaScript.
+
+Après compilation, lancer depuis `web` : `python3 tests/seo-export.py`. Ce contrôle parcourt les URL du sitemap et vérifie les pages HTML, les titres et descriptions uniques, les canoniques, les H1, les images, les liens et ancres internes, l’accord entre le blog exporté et le sitemap, ainsi que les données structurées des articles. Les contrôles ne mesurent ni le classement dans Google ni les performances réseau de production.
+
+Détail et consignes d’intégration : `docs/seo-20261002/COMPTE-RENDU.md`.

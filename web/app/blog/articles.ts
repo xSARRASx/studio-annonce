@@ -1,8 +1,11 @@
+import { SEO_GUIDES } from "./guides";
 /** Blog content. Drafts stay out of the index, static routes and sitemap. See docs/BLOG.md. */
 export type BlogArticle = {
   slug: string; status: "draft" | "published"; title: string; description: string;
   date: string; category: string; coverExample: string; intro: string;
-  sections: { title: string; paragraphs: string[]; examples?: string[] }[];
+  seoTitle?: string; coverCaption?: string; related?: string[];
+  sources?: { label: string; href: string }[];
+  sections: { title: string; paragraphs: string[]; examples?: string[]; checklist?: string[]; links?: { label: string; href: string }[] }[];
 };
 export const BLOG_ARTICLES: readonly BlogArticle[] = [{
   slug: "retouche-photo-immobiliere-exemples-avant-apres",
@@ -10,6 +13,9 @@ export const BLOG_ARTICLES: readonly BlogArticle[] = [{
   title: "Retouche photo immobilière : huit avant/après pour trouver votre direction.",
   description: "Lumière, peinture, mobilier ou rénovation virtuelle : huit exemples concrets pour choisir les changements à demander sur une photo de logement.",
   coverExample: "salon-canape-rouille",
+  seoTitle: "Retouche photo immobilière : 8 avant/après",
+  coverCaption: "Une proposition de décoration autour du canapé existant.",
+  related: ["home-staging-virtuel-photo-annonce", "demande-retouche-photo-immobiliere", "eclaircir-photo-interieur-sombre"],
   intro: "Entre éclaircir une pièce et changer toute sa décoration, il y a beaucoup de possibilités. Ces huit exemples partent de photographies de quatre logements. Ils montrent des choix différents, avec l’original toujours disponible pour comparer.",
   sections: [
     { title: "Commencer par ce que l’on souhaite garder.", paragraphs: [
@@ -34,6 +40,6 @@ export const BLOG_ARTICLES: readonly BlogArticle[] = [{
       "Enfin, distinguez la mise en valeur d’une photo d’une projection de travaux ou de décoration. Les nouveaux meubles, peintures et sols présentés dans ces exemples illustrent des possibilités ; ils ne prouvent pas que le logement a été rénové. Cette distinction rend l’avant/après plus compréhensible."
     ] }
   ]
-}];
+}, ...SEO_GUIDES];
 export const publishedArticles = BLOG_ARTICLES.filter(article => article.status === "published").sort((a, b) => b.date.localeCompare(a.date));
 export const findArticle = (slug: string) => publishedArticles.find(article => article.slug === slug);
