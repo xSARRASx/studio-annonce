@@ -1,5 +1,13 @@
 # Studio Annonce sur N0C — état vérifié le 30 septembre 2026
 
+## Publication du 2 octobre : entrée par lien d’annonce
+
+Le web et l’aperçu mobile expliquent désormais dès la saisie d’un lien Airbnb ou Booking.com que ce lien est conservé avec le logement, mais que les images ne sont pas extraites automatiquement. Le client peut enregistrer le lien seul pour revenir plus tard. Sur le web, il peut aussi glisser-déposer ou coller des photos qu’il possède, puis choisir celles à retoucher ; le parcours mobile propose de les choisir sur le téléphone. L’ajout de photos ne débite pas de crédit.
+
+Source `64dde9b` sur `codex-travail`, publiée sur N0C `vzbbtadpbm` par une archive allégée de 85 fichiers. Les 38 ressources visuelles de l’export mobile étaient déjà présentes sur le serveur : leurs noms correspondent exactement à l’export, donc elles n’ont pas été recopiées. L’archive allégée a été contrôlée par SHA-256 (`9a977f20b0a0a9a7e2412c5e8c9ec4558d5be40b712c43d1566d19cafc370557`) et par `unzip -tq` avant extraction. Les pages publiées `/app/importer/index.html` et `/mobile/nouvelle/index.html` correspondent à l’export ; l’empreinte de l’accueil est restée identique.
+
+La sauvegarde d’avant publication a été téléchargée, contrôlée et conservée à `/Users/more/Documents/Codex/studio-annonce-backups/import-liens-20261002-prepublication.tgz` (SHA-256 `c43a7d6cdcfba446a36bb749ff44df86c40326050f5435d1f131a33580f93daf`). Le quota du compte empêchait de conserver la sauvegarde et l’archive complète sur le serveur : après vérification de la copie locale, seule la sauvegarde temporaire de cette opération a été retirée du compte N0C. Les sauvegardes antérieures, l’API, la base, le `.env` et `.htaccess` n’ont pas été modifiés. Les pages en ligne ont été ouvertes ; l’entrée web redirige correctement un visiteur non connecté vers `/connexion/`, et l’entrée mobile affiche la connexion. La saisie authentifiée d’une annonce n’a pas été rejouée en production.
+
 ## Pilote photo du 2 octobre 2026
 
 Le serveur OpenAI a produit une vraie retouche de contrôle après recharge, et la génération photo est ouverte seulement au compte propriétaire. La clé Higgsfield serveur est installée et son authentification a été validée sans génération vidéo. Les 97 tests API passent ; `/api/sante` confirme que la retouche est disponible pour la session propriétaire et fermée pour les visiteurs. Les paiements et la vidéo restent désactivés. Voir [le compte rendu et les limites du pilote](../docs/PILOTE-PHOTO-2026-10-02.md). Les sections datées ci-dessous conservent l'état constaté lors de leurs publications précédentes.
