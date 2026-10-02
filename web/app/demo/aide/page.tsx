@@ -6,9 +6,10 @@ import "../studio.css";
 import "./public-pages.css";
 
 export const metadata: Metadata = {
-  title: "Aide & questions fréquentes · Studio Annonce",
-  description: "Comprendre les crédits photo, les versions et les 7 jours de retouches sur Studio Annonce.",
+  title: "Aide : retouche photo, crédits et versions | Studio Annonce",
+  description: "Questions sur les photos immobilières, les demandes de retouche, les crédits, les versions et les 7 jours d’ajustement sur Studio Annonce.",
   alternates: { canonical: "/aide/" },
+  openGraph: { title: "Aide et questions fréquentes | Studio Annonce", description: "Retouche photo, crédits, versions et disponibilité des outils, expliqués simplement.", url: "/aide/", locale: "fr_FR", type: "website" },
 };
 
 const topics = [
@@ -59,8 +60,8 @@ export default function HelpPage() {
       <main className="public-main">
         <div className="help-heading">
           <span className="public-eyebrow">LE GUIDE DU STUDIO</span>
-          <h1>Quelques réponses.<br /><em>Et c’est plus clair.</em></h1>
-          <p>Les crédits, les versions, les 7 jours de retouches.<br className="desktop-break" /> L’essentiel pour savoir où vous allez.</p>
+          <h1>La retouche photo.<br /><em>En clair.</em></h1>
+          <p>Photos immobilières, demandes de retouche, crédits et versions : les réponses pour préparer votre projet et savoir quels outils sont disponibles.</p>
         </div>
         <section className="help-essentials" aria-label="Les trois repères à retenir">
           <article><Download size={22} aria-hidden="true" /><strong>1 photo HD = 1 crédit</strong><p>Utilisé au premier téléchargement. La première photo sera offerte. <Link href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={14} aria-hidden="true" /></Link></p></article>
@@ -80,7 +81,7 @@ export default function HelpPage() {
                 {topic.questions.map((item, questionIndex) => (
                   <details className="help-question" key={item.question} open={index === 0 && questionIndex === 0}>
                     <summary>{item.question}<Plus size={19} aria-hidden="true" /></summary>
-                    <div><p>{item.answer}</p>{topic.id === "credits" && questionIndex === 1 && <Link href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link>}{topic.id === "credits" && questionIndex === 3 && <Link href="/tarifs/">Découvrir les tarifs <ArrowRight size={15} aria-hidden="true" /></Link>}</div>
+                    <div><p>{item.answer}</p>{topic.id === "commencer" && questionIndex === 2 && <Link href="/blog/photos-immobilieres-smartphone/">Lire le guide photo au smartphone <ArrowRight size={15} aria-hidden="true" /></Link>}{topic.id === "credits" && questionIndex === 1 && <Link href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link>}{topic.id === "credits" && questionIndex === 3 && <Link href="/tarifs/">Découvrir les tarifs <ArrowRight size={15} aria-hidden="true" /></Link>}{topic.id === "versions" && questionIndex === 3 && <Link href="/exemples/">Comparer les aménagements virtuels <ArrowRight size={15} aria-hidden="true" /></Link>}</div>
                   </details>
                 ))}
               </section>

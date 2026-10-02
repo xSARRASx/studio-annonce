@@ -1,0 +1,25 @@
+.application-page .public-main{max-width:1220px}
+.application-hero{max-width:940px;padding:32px 0 64px}
+.application-page .application-hero h1{font-size:clamp(40px,5vw,65px);line-height:1.12;margin:18px 0 22px}
+.application-hero>p:first-of-type{max-width:780px;font-size:17px;line-height:1.8;color:#687261}
+.application-actions{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
+.application-status{max-width:800px;padding:17px 20px;border-left:3px solid #87986e;background:#f0f2e9;color:#5b694e;font-size:13px;line-height:1.7}
+.application-section{padding:53px 0;border-top:1px solid #dfe3d7}
+.application-section-heading{max-width:760px;margin-bottom:27px}
+.application-page .application-section h2,.application-page .application-mobile h2{font-size:clamp(29px,3.4vw,42px);line-height:1.2;letter-spacing:-1.1px;margin:12px 0}
+.application-section-heading>p{color:#747e6d;line-height:1.75}
+.application-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.application-steps article,.application-function-grid article{min-width:0;padding:26px;border:1px solid #e1e5d8;border-radius:14px;background:#fffefa}
+.application-steps article{display:flex;flex-direction:column;align-items:flex-start}
+.application-step-number{font-size:11px;letter-spacing:1px;color:#83916f;margin-bottom:24px}
+.application-steps article>svg{color:#82946c;margin-bottom:13px}
+.application-page h3{font-size:18px;line-height:1.3;font-weight:550;color:#44513b;margin-bottom:11px}
+.application-steps p,.application-function-grid p,.application-mobile p{color:#707a69;line-height:1.75;font-size:14px}
+.application-steps a{margin-top:auto;padding-top:20px;color:#4f6840;text-decoration:underline;text-underline-offset:3px;font-size:13px}
+.application-function-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.application-function-grid article{background:#f5f6ee}
+.application-mobile{display:grid;grid-template-columns:45px minmax(0,1fr) auto;align-items:center;gap:25px;padding:35px 0;border-top:1px solid #dfe3d7}
+.application-mobile>svg{color:#82946c}
+.application-mobile p{max-width:640px}
+.application-mobile .button{white-space:nowrap}
+@media(max-width:760px){.application-hero{padding:20px 0 43px}.application-hero>p:first-of-type{font-size:15px}.application-section{padding:38px 0}.application-steps{grid-template-columns:1fr}.application-steps article{padding:22px}.application-step-number{margin-bottom:10px}.application-function-grid{grid-template-columns:1fr}.application-mobile{grid-template-columns:34px minmax(0,1fr);gap:14px}.application-mobile .button{grid-column:1/-1;white-space:normal}}

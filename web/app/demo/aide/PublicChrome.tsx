@@ -13,13 +13,14 @@ function Brand() {
   );
 }
 
-export function PublicHeader({ current }: { current: "tarifs" | "aide" | "exemples" | "blog" }) {
+export function PublicHeader({ current }: { current: "tarifs" | "aide" | "exemples" | "blog" | "application" }) {
   return (
     <>
       <header className="public-header">
         <Brand />
         <nav aria-label="Navigation du site">
           <Link href="/exemples/" aria-current={current === "exemples" ? "page" : undefined}>Exemples</Link>
+          <Link href="/application/" aria-current={current === "application" ? "page" : undefined}>Application</Link>
           <Link href="/tarifs/" aria-current={current === "tarifs" ? "page" : undefined}>Tarifs</Link>
           <Link href="/aide/" aria-current={current === "aide" ? "page" : undefined}>Aide</Link>
           <Link href="/blog/" aria-current={current === "blog" ? "page" : undefined}>Blog</Link>
@@ -37,6 +38,7 @@ export function PublicFooter() {
       <p>Un nouveau regard sur votre intérieur.</p>
       <nav aria-label="Liens de bas de page">
         <Link href="/">Accueil</Link>
+        <Link href="/application/">Application</Link>
         <Link href="/tarifs/">Tarifs</Link>
         <Link href="/aide/">Aide</Link>
         <Link href="/blog/">Blog</Link>

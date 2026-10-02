@@ -6,9 +6,10 @@ import "../studio.css";
 import "../aide/public-pages.css";
 
 export const metadata: Metadata = {
-  title: "Tarifs photo et vidéo · Studio Annonce",
-  description: "Packs photo dès 0,60 € la photo et packs vidéo de 5 à 30 secondes, sans abonnement.",
+  title: "Tarifs retouche photo immobilière et vidéo | Studio Annonce",
+  description: "Comparez les packs photo de 9,99 € à 59,99 € et les tarifs vidéo prévus. Les achats restent fermés pendant la phase pilote.",
   alternates: { canonical: "/tarifs/" },
+  openGraph: { title: "Tarifs photo et vidéo | Studio Annonce", description: "Packs sans abonnement, de 10 à 100 crédits photo. Achats fermés pendant la phase pilote.", url: "/tarifs/", locale: "fr_FR", type: "website" },
 };
 
 const packs = [
@@ -30,7 +31,7 @@ export default function PublicPricing() {
       <PublicHeader current="tarifs" />
       <main className="public-main">
         <section className="tariffs-heading" aria-labelledby="tariffs-title">
-          <div><span className="public-eyebrow">PHOTOS ET VIDÉOS · SANS ABONNEMENT</span><h1 id="tariffs-title">Vos créations,<br /><em>au prix clair.</em></h1><p>Choisissez vos crédits photo ou vidéo. Les packs sont séparés et cumulables : plus vous en prenez, moins chaque création coûte.</p></div>
+          <div><span className="public-eyebrow">PHOTOS ET VIDÉOS · SANS ABONNEMENT</span><h1 id="tariffs-title">Vos créations,<br /><em>au prix clair.</em></h1><p>Voici les tarifs prévus pour la retouche photo immobilière et les vidéos. Les packs sont séparés et cumulables ; leurs achats restent fermés pendant la phase pilote.</p></div>
           <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span><Link className="tariffs-offer-link" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link></div></aside>
         </section>
         <nav className="tariffs-shortcuts" aria-label="Voir les tarifs par création"><a href="#packs-photo"><span>PHOTOS</span><strong>10 photos dès 9,99 €</strong><small>La première est offerte · 1 crédit par photo gardée</small><ArrowRight size={19} aria-hidden="true" /></a><a href="#packs-video"><span>VIDÉOS</span><strong>5 s dès 6,99 € · 30 s à 29,99 €</strong><small>1 crédit par essai de 5 secondes · tarif dégressif</small><ArrowRight size={19} aria-hidden="true" /></a></nav>

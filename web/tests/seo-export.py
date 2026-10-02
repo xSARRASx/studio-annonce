@@ -57,6 +57,7 @@ def file_for(url):
 urls = [node.text for node in ET.parse(ROOT / 'sitemap.xml').findall('.//{*}loc')]
 check(len(urls) == len(set(urls)), 'Duplicate sitemap URLs')
 pages = {}
+incoming = {url: set() for url in urls}
 for url in urls:
     check(url.startswith(ORIGIN + '/'), f'Unexpected origin: {url}')
     check(not any(urlparse(url).path.startswith(prefix) for prefix in ['/app/', '/connexion/', '/demo/', '/mobile']), f'Private/demo URL in sitemap: {url}')
@@ -77,16 +78,41 @@ for url in urls:
         resolved = urljoin(url, asset)
         if urlparse(resolved).netloc == urlparse(ORIGIN).netloc:
             check(file_for(resolved).is_file(), f'Missing image {asset} in {url}')
+    for source in page.attrs('source'):
+        for candidate in source.get('srcset', '').split(','):
+            asset = candidate.strip().split(' ')[0]
+            if asset:
+                resolved = urljoin(url, asset)
+                if urlparse(resolved).netloc == urlparse(ORIGIN).netloc:
+                    check(file_for(resolved).is_file(), f'Missing responsive image {asset} in {url}')
     for link in page.attrs('a'):
         resolved = urljoin(url, link.get('href', ''))
         parsed = urlparse(resolved)
         if parsed.netloc != urlparse(ORIGIN).netloc: continue
+        destination = f'{parsed.scheme}://{parsed.netloc}{parsed.path}'
+        if destination in incoming and destination != url: incoming[destination].add(url)
+        check(not parsed.path.startswith('/demo/'), f'Public page links to duplicate/demo route: {resolved} in {url}')
         check(file_for(resolved).is_file(), f'Broken internal link {resolved} in {url}')
         if parsed.fragment and parsed.path == urlparse(url).path:
             check(any(a.get('id') == unquote(parsed.fragment) for _, a in page.tags), f'Broken fragment {resolved}')
 
 check(len({p.title for p in pages.values()}) == len(pages), 'Duplicate titles among canonical public pages')
 check(len({p.meta('description')[0] for p in pages.values()}) == len(pages), 'Duplicate descriptions among canonical public pages')
+for url, sources in incoming.items():
+    check(bool(sources), f'Public page has no incoming link from another sitemap page: {url}')
+for alias, canonical in {'/demo/tarifs/': '/tarifs/', '/demo/aide/': '/aide/', '/demo/exemples/': '/exemples/'}.items():
+    duplicate = Page(ROOT / alias.lstrip('/') / 'index.html')
+    check([a.get('href') for a in duplicate.attrs('link') if a.get('rel') == 'canonical'] == [ORIGIN + canonical], f'Duplicate route canonical mismatch: {alias}')
+studio_demo = Page(ROOT / 'demo/index.html')
+check(any('noindex' in value for value in studio_demo.meta('robots')), 'Studio demonstration route must not be indexed')
+check(not any(a.get('rel') == 'canonical' and a.get('href') == ORIGIN + '/' for a in studio_demo.attrs('link')), 'Studio demonstration must not claim the public homepage canonical')
+for private in [ROOT / 'connexion/index.html', ROOT / 'mobile-preview/index.html', *(ROOT / 'app').glob('**/index.html')]:
+    page = Page(private)
+    check(any('noindex' in value for value in page.meta('robots')), f'Private or preview route without noindex: {private.relative_to(ROOT)}')
+robots = (ROOT / 'robots.txt').read_text()
+for noindex_path in ['/app/', '/connexion/', '/mobile-preview/']:
+    check(f'Disallow: {noindex_path}' not in robots, f'robots.txt hides noindex on {noindex_path}')
+check('Sitemap: ' + ORIGIN + '/sitemap.xml' in robots, 'robots.txt sitemap missing')
 blog_urls = {url for url in urls if '/blog/' in url and url != ORIGIN + '/blog/'}
 exported_blog_urls = {ORIGIN + '/blog/' + p.parent.name + '/' for p in (ROOT / 'blog').glob('*/index.html')}
 check(blog_urls == exported_blog_urls, 'Blog export and sitemap disagree (missing or unintended draft route)')

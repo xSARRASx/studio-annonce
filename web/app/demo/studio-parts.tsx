@@ -10,11 +10,11 @@ export function Brand({ onClick }: { onClick: () => void }) {
   return <button className="brand" onClick={onClick} aria-label="Studio Annonce, accueil"><span className="brand-mark"><Image src={asset("porte-lumineuse.svg")} alt="" width={40} height={44}/></span><span>studio<span className="brand-light">annonce</span></span></button>;
 }
 
-export function Compare({ result = asset("salon-apres.webp"), before = asset("salon-avant.webp"), compact = false, watermarked = false, priority = false, beforeAlt = "Photo originale", resultAlt = "Version sélectionnée", label = "Comparer la photo avant et après", sizes = "(max-width: 800px) 100vw, 65vw" }: { result?: string; before?: string; compact?: boolean; watermarked?: boolean; priority?: boolean; beforeAlt?: string; resultAlt?: string; label?: string; sizes?: string }) {
+export function Compare({ result = asset("salon-apres.webp"), before = asset("salon-avant.webp"), resultSmall, beforeSmall, compact = false, watermarked = false, priority = false, beforeAlt = "Photo originale", resultAlt = "Version sélectionnée", label = "Comparer la photo avant et après", sizes = "(max-width: 800px) 100vw, 65vw" }: { result?: string; before?: string; resultSmall?: string; beforeSmall?: string; compact?: boolean; watermarked?: boolean; priority?: boolean; beforeAlt?: string; resultAlt?: string; label?: string; sizes?: string }) {
   const [split, setSplit] = useState(44);
   return <div className={`comparison ${compact ? "compact" : ""}`}>
-    <Image src={result} alt={resultAlt} fill sizes={sizes} priority={priority} unoptimized/>
-    <div className="before-layer" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}><Image src={before} alt={beforeAlt} fill sizes={sizes} priority={priority} unoptimized/></div>
+    <picture>{resultSmall && <source media="(max-width: 480px)" srcSet={resultSmall}/>}<Image src={result} alt={resultAlt} fill sizes={sizes} priority={priority && !resultSmall} loading={priority && resultSmall ? "eager" : undefined} fetchPriority={priority ? "high" : undefined} unoptimized/></picture>
+    <div className="before-layer" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}><picture>{beforeSmall && <source media="(max-width: 480px)" srcSet={beforeSmall}/>}<Image src={before} alt={beforeAlt} fill sizes={sizes} priority={priority && !beforeSmall} loading={priority && beforeSmall ? "eager" : undefined} unoptimized/></picture></div>
     {watermarked && <PreviewWatermark from={split}/>}
     <span className="photo-label before-label">Avant</span><span className="photo-label after-label">Après <Sparkles size={12}/></span>
     <div className="compare-divider" style={{ left: `${split}%` }}><span><ChevronRight size={15} style={{ transform: "rotate(180deg)" }}/><ChevronRight size={15}/></span></div>

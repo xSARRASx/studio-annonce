@@ -34,3 +34,7 @@ Les 18 guides supplémentaires sont répartis dans `guides-pieces.ts`, `guides-t
 `coverExample` est facultatif. Un sujet sans illustration pertinente n’affiche pas de couverture ; sa carte de partage reste textuelle. Ne pas inventer une illustration de cas client pour remplir ce champ. Les références d’exemples, les sujets et les liens de lecture sont vérifiés par `node --test tests/seo-content.test.mjs`, à lancer depuis `web` avant l’export.
 
 Le statut `published` concerne l’export de préparation. Les 23 nouveaux articles n’ont pas encore été déployés. Le rapport dans `docs/seo-20261002/COMPTE-RENDU.md` décrit les validations locales et ce qui reste à contrôler en production pour Google et les assistants IA.
+
+## Cohérence avec le reste du site
+
+Le lot du 2 octobre ne se limite plus au blog : accueil, exemples, tarifs et aide renvoient aux guides adaptés ; la page publique `/application/` explique les fonctions et leurs limites actuelles. Le plan de requêtes et les données réellement disponibles figurent dans `docs/seo-20261002/RECHERCHE-MOTS-CLES.md`. Les écrans de compte et l’aperçu mobile sont exclus de l’index par `noindex`, tandis que la présentation publique de l’application reste indexable. L’audit de l’export contrôle aussi les liens entrants et les anciennes routes canoniques.
