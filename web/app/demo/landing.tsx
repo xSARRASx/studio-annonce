@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Images, Sparkles } from "lucide-react";
 import { Brand, Compare } from "./studio-parts";
 import { LxListing, LxVideo } from "./showcase";
+import { Presentation } from "./presentation";
 import "./landing3d.css";
 import { PhotoGallery, GuidedExample, exampleImage } from "./photo-gallery";
 import { PHOTO_EXAMPLES } from "../../../shared/photo-examples";
@@ -14,6 +15,7 @@ return <>
           <div className="hero-copy"><div className="intro-pill"><Sparkles size={15}/> Le studio photo de votre logement</div><h1>De belles photos.<br/><em>Pour votre annonce.</em></h1><p className="hero-description">Éclairez, rangez ou aménagez votre pièce en quelques mots.</p><div className="hero-actions"><Link className="button dark" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={18}/></Link><Link className="button" href="/exemples/">Voir les exemples</Link></div><p className="hero-reassurance"><Check size={16}/> Votre pièce, simplement mise en valeur.</p></div>
           <div className="hero-visual"><Compare priority before={exampleImage(PHOTO_EXAMPLES[0], "avant")} result={exampleImage(PHOTO_EXAMPLES[0], "apres")} beforeAlt={PHOTO_EXAMPLES[0].altBefore} resultAlt={PHOTO_EXAMPLES[0].altAfter}/><div className="visual-caption">Faites glisser pour comparer · proposition de décoration.</div></div>
         </section>
+        <Presentation/>
         <PhotoGallery compact/>
         <GuidedExample embedded/>
         <LxListing/>
