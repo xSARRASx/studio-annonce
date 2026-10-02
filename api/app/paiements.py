@@ -35,7 +35,7 @@ def paiement_configure() -> bool:
 
 
 def photo_disponible() -> bool:
-    return bool(paiement_configure() and vision.disponible() and retouche.disponible())
+    return bool(paiement_configure() and reglages.IA_PUBLIQUE and vision.disponible() and retouche.disponible())
 
 
 def video_disponible() -> bool:

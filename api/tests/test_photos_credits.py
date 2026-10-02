@@ -39,6 +39,7 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
             patch.object(photos.retouche, "retoucher", new=AsyncMock(return_value=self.hd)),
             patch.object(photos.retouche, "disponible", return_value=True),
             patch.object(photos.vision, "disponible", return_value=True),
+            patch.object(photos.reglages, "IA_PUBLIQUE", True),
             patch.object(photos.vision, "reformuler_demande", new=AsyncMock(return_value="Une vraie consigne")),
         ]
         for p in self.patches:
@@ -91,6 +92,22 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
 
     async def download(self, p="p", v="v"):
         return await self.client.post(f"/photos/{p}/versions/{v}/telecharger")
+
+    async def test_retouche_pilote_reservee_au_proprietaire(self):
+        self.update_photo(analyse=None)
+        with patch.object(photos.reglages, "IA_PUBLIQUE", False):
+            self.assertEqual((await self.client.post("/photos/p/analyser")).status_code, 503)
+            self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 503)
+            self.assertEqual((await self.download()).status_code, 503)
+            photos.retouche.retoucher.assert_not_awaited()
+            with self.sessions() as s:
+                s.get(Compte, "a").role = "proprietaire"
+                s.commit()
+            with patch.object(photos.vision, "analyser", new=AsyncMock(return_value={
+                "piece": "Salon", "defauts": [], "consigne": "Éclaircir", "question": ""
+            })):
+                self.assertEqual((await self.client.post("/photos/p/analyser")).status_code, 200)
+            self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
 
     async def test_vue_original_independant_de_la_vignette_sans_debit(self):
         before = self.balance()

@@ -1,11 +1,13 @@
 """Le cerveau de Studio Annonce. Lancer : uvicorn app.main:app --reload"""
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import mail, retouche, stockage, vision, paiements as service_paiement
+from . import acces_ia, mail, stockage, paiements as service_paiement
 from .config import reglages
-from .db import Base, moteur
+from .db import Base, moteur, session
+from .models import Compte, Jeton
+from sqlalchemy.orm import Session
 from .routes import auth, compte, logements, photos, paiements, admin
 
 Base.metadata.create_all(moteur)
@@ -42,11 +44,16 @@ if not stockage.utilise_s3():
 
 
 @app.get("/sante")
-def sante():
+def sante(authorization: str = Header(default=""), s: Session = Depends(session)):
+    compte = None
+    if authorization.startswith("Bearer "):
+        jeton = s.get(Jeton, authorization[7:])
+        if jeton:
+            compte = s.get(Compte, jeton.compte_id)
     return {
         "ok": True,
         "connexion_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
-        "retouche_disponible": vision.disponible() and retouche.disponible(),
+        "retouche_disponible": acces_ia.autorise(compte),
         "paiement_disponible": service_paiement.photo_disponible(),
         "paiement_photo_disponible": service_paiement.photo_disponible(),
         "paiement_video_disponible": service_paiement.video_disponible(),

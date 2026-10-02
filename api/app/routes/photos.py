@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from .. import credits, images, limites, retouche, stockage, vision
+from .. import acces_ia, credits, images, limites, retouche, stockage, vision
 from ..config import reglages
 from ..db import session
 from ..models import Compte, Logement, OperationPhoto, Photo, ReprisePhoto, Version, identifiant, maintenant
@@ -155,7 +155,7 @@ async def analyser(photo_id: str, compte: Compte = Depends(compte_complet), s: S
     p = _photo_du_compte(s, compte, photo_id)
     if not p.analyse:
         limites.verifier(s, compte.id, "photo")
-        if not vision.disponible():
+        if not acces_ia.autorise(compte):
             raise HTTPException(503, "L'analyse photo n'est pas encore disponible.")
         p.analyse = await vision.analyser(stockage.lire(p.cle_originale))
         s.commit()
@@ -169,7 +169,7 @@ class DemandeEssai(BaseModel):
 
 @routeur.post("/{photo_id}/essai")
 async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
-    if not vision.disponible() or not retouche.disponible():
+    if not acces_ia.autorise(compte):
         raise HTTPException(503, "La retouche photo n'est pas encore disponible.")
     compte_id = compte.id
     compte = _verrouiller_compte(s, compte_id)
@@ -292,7 +292,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     # Une HD déjà produite reste récupérable, même après les sept jours.
     if periode["expiree"] and not v.cle_hd:
         raise HTTPException(402, "La période est terminée. Reprenez explicitement la photo avant de produire une autre version HD.")
-    if not v.cle_hd and not retouche.disponible():
+    if not v.cle_hd and not acces_ia.autorise(compte):
         raise HTTPException(503, "La génération HD n'est pas encore disponible. Aucun crédit n'a été consommé.")
     if v.cle_hd:
         contenu = stockage.lire(v.cle_hd)

@@ -1,5 +1,9 @@
 # Studio Annonce sur N0C — état vérifié le 30 septembre 2026
 
+## Pilote photo du 2 octobre 2026
+
+Le serveur OpenAI a produit une vraie retouche de contrôle après recharge, et la génération photo est ouverte seulement au compte propriétaire. La clé Higgsfield serveur est installée et son authentification a été validée sans génération vidéo. Les 97 tests API passent ; `/api/sante` confirme que la retouche est disponible pour la session propriétaire et fermée pour les visiteurs. Les paiements et la vidéo restent désactivés. Voir [le compte rendu et les limites du pilote](../docs/PILOTE-PHOTO-2026-10-02.md). Les sections datées ci-dessous conservent l'état constaté lors de leurs publications précédentes.
+
 ## Publication du 1er octobre : préparer les photos d'une annonce
 
 La route privée `/app/importer/` permet d'enregistrer le lien HTTPS d'une annonce, de choisir plusieurs photos depuis son appareil, d'en sélectionner certaines et de voir le nombre maximal de crédits si toutes leurs retouches sont gardées en HD. Le client avance ensuite sur chaque photo retenue. Le compte mobile utilise le même serveur et propose aussi la sélection de plusieurs photos. L'ajout et la sélection ne débitent aucun crédit. Le lien est une référence enregistrée avec le logement ; les images de l'annonce ne sont pas extraites automatiquement.

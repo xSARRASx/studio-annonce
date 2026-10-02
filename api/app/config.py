@@ -46,6 +46,7 @@ class Reglages(BaseSettings):
     # Qui fabrique les images : "openai" (GPT Image, choix de Martin) ou "gemini".
     OPENAI_API_KEY: str = ""
     IA_ACTIVE: bool = False  # ouvrir seulement après un essai fournisseur réussi
+    IA_PUBLIQUE: bool = False  # la recette propriétaire précède l'ouverture à tous
     FOURNISSEUR_IMAGE: str = "openai"
     MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"
     MODELE_OPENAI_ANALYSE: str = "gpt-5.4-mini"
