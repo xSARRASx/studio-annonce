@@ -20,6 +20,7 @@ from app.db import Base, session
 from app.migrations import migrer
 from app.models import AchatCredits, Compte, Jeton, MouvementCredit, MouvementCreditVideo, QuotaCreation, maintenant
 from app.routes import auth, compte, paiements, photos
+from app import paiements as catalogue
 
 
 class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
@@ -107,6 +108,13 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         with patch.object(paiements,"disponible",return_value=False):
             self.assertEqual((await self.client.post("/paiements/checkout",json={"pack_id":"photo10-999","cle_demande":str(uuid4())})).status_code,503)
         self.assertEqual((await self.client.get("/paiements/achat",headers={"Authorization":"Bearer b"})).status_code,404)
+
+    def test_video_ne_se_vend_pas_avec_la_seule_cle_higgsfield(self):
+        with patch.object(catalogue.reglages, "PAIEMENT_ACTIF", True), \
+             patch.object(catalogue.reglages, "VIDEO_ACTIVE", True), \
+             patch.object(catalogue.reglages, "VENTE_VIDEO_ACTIVE", False), \
+             patch.object(catalogue.reglages, "HF_KEY", "id:secret"):
+            self.assertFalse(catalogue.video_disponible())
 
     async def test_packs_degressifs_et_confirmation_dix_credits(self):
         await self.profil()

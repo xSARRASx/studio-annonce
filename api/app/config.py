@@ -8,6 +8,7 @@ class Reglages(BaseSettings):
     GEMINI_API_KEY: str = ""
     HF_KEY: str = ""
     VIDEO_ACTIVE: bool = False  # ouvrir seulement après une recette Higgsfield réussie
+    VENTE_VIDEO_ACTIVE: bool = False  # seulement après débit par essai et livraison client vérifiés
     DATABASE_URL: str = "sqlite:///./studio.db"
     # Stockage des fichiers, compatible S3 : Amazon S3 (AWS_REGION) ou Cloudflare R2 (R2_ACCOUNT_ID).
     S3_ACCESS_KEY_ID: str = ""

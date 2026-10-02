@@ -15,8 +15,9 @@ PACKS_PHOTO = [
      "libelle": "100 crédits photo", "prix_unitaire_centimes": 60, "avantage": "Meilleur tarif"},
 ]
 
-# Un crédit vidéo vaut cinq secondes en 720p. Il reste séparé des crédits photo
-# car le coût fournisseur et le risque de nouvelle génération sont très différents.
+# Un crédit vidéo finance un essai de cinq secondes en 720p, et non un
+# téléchargement. Un nouvel essai consommera à nouveau des crédits.
+# La vente reste fermée tant que cette règle n'est pas appliquée au parcours client.
 PACKS_VIDEO = [
     {"id": "video2-1299", "nature": "video", "credits": 2, "secondes": 10,
      "prix_centimes": 1299, "libelle": "10 secondes vidéo", "prix_unitaire_centimes": 650},
@@ -39,7 +40,7 @@ def photo_disponible() -> bool:
 
 
 def video_disponible() -> bool:
-    return bool(paiement_configure() and reglages.VIDEO_ACTIVE and reglages.HF_KEY)
+    return bool(paiement_configure() and reglages.VIDEO_ACTIVE and reglages.VENTE_VIDEO_ACTIVE and reglages.HF_KEY)
 
 
 def disponible(nature: str = "photo") -> bool:

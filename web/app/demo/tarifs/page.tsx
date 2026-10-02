@@ -53,16 +53,16 @@ export default function PublicPricing() {
           </ol>
         </section>
         <section className="tariffs-video" aria-labelledby="video-price-title">
-          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Vous achetez une durée,<br /><em>sans calcul compliqué.</em></h2><p>1 crédit vidéo représente 5 secondes en 720p. Vos crédits photo restent intacts.</p></div>
+          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Vous payez chaque essai,<br /><em>sans surprise au téléchargement.</em></h2><p>1 crédit vidéo finance un essai de 5 secondes en 720p. Chaque nouvelle génération utilise à nouveau les crédits correspondant à sa durée. Vos crédits photo restent intacts.</p></div>
           <div className="tariffs-packs tariffs-three-packs">{videoPacks.map(pack => <article className={`tariffs-pack${pack.seconds === 20 ? " tariffs-pack-featured" : ""}`} key={pack.seconds}>
             <span className="tariffs-pack-label">{pack.label}</span><h2>{pack.seconds} <span>secondes</span></h2>
             <p className="tariffs-pack-description">{pack.credits} crédits vidéo · visite immobilière 720p.</p>
             <div className="tariffs-amount">{pack.price}<span>€</span></div><p className="tariffs-unit">{pack.unit} € les 5 secondes</p>
-            <div className="tariffs-pack-line"><Clock3 size={15} aria-hidden="true" /><span>Durée utilisable pour votre montage</span></div>
+            <div className="tariffs-pack-line"><Clock3 size={15} aria-hidden="true" /><span>Durée à répartir entre vos essais</span></div>
           </article>)}</div>
-          <p className="tariffs-availability">Les packs vidéo ouvriront après la validation finale du moteur de génération. Aucun paiement vidéo ne peut partir avant.</p>
+          <p className="tariffs-availability">Avant chaque essai, le nombre de crédits sera confirmé. Un essai terminé pourra être prévisualisé et téléchargé sans second débit ; un nouvel essai sera facturé. En cas d’échec technique, les crédits réservés seront rendus. Les achats vidéo restent fermés pendant la phase pilote.</p>
         </section>
-        <div className="tariffs-conditions"><p>Une première génération et une correction sont incluses par photo. Ensuite, chaque correction coûte 1 crédit photo. Les nouvelles créations sont limitées à 30 photos ou 10 vidéos depuis le dernier achat correspondant. Un ancien téléchargement ne remet pas les compteurs à zéro.</p><p>Les aperçus payants sont protégés par un filigrane ajouté hors génération. La photo offerte et les fichiers achetés se téléchargent sans filigrane. Les crédits photo et vidéo sont deux soldes distincts.</p></div>
+        <div className="tariffs-conditions"><p>Une première génération et une correction sont incluses par photo. Ensuite, chaque correction coûte 1 crédit photo. Les nouvelles créations photo sont limitées à 30 depuis le dernier achat. Un ancien téléchargement ne remet pas ce compteur à zéro.</p><p>Les aperçus photo payants sont protégés par un filigrane ajouté hors génération. La photo offerte et les fichiers achetés se téléchargent sans filigrane. Les crédits photo et vidéo sont deux soldes distincts ; chaque essai vidéo abouti consomme les crédits annoncés avant sa création.</p></div>
         <section className="public-next"><div><span className="public-eyebrow">PRÉPAREZ VOS PHOTOS</span><h2>Votre espace vous attend.</h2><p>Créez votre compte, ajoutez votre logement et préparez vos demandes.</p></div><Link className="button dark" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={17} aria-hidden="true" /></Link></section>
       </main>
       <PublicFooter />
