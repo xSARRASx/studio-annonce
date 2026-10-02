@@ -117,6 +117,8 @@ function UploadContent() {
   const [propertyId, setPropertyId] = useState(''); const [newName, setNewName] = useState(params.logement || 'Mon logement'); const [showProperties, setShowProperties] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const [busy, setBusy] = useState(false); const [notice, setNotice] = useState('');
+  const sourceHost = (() => { try { return new URL(sourceUrl.trim()).hostname.toLowerCase(); } catch { return ''; } })();
+  const sourceName = sourceHost === 'booking.com' || sourceHost.endsWith('.booking.com') ? 'Booking.com' : sourceHost === 'airbnb.com' || sourceHost.endsWith('.airbnb.com') || /^(?:www\.)?airbnb\.(?:fr|de|es|it|be|nl|pt|ie|ca|co\.uk|com\.au)$/.test(sourceHost) ? 'Airbnb' : '';
   useEffect(() => { let active = true; void api.json<Property[]>('/logements').then(items => { if (active) { setProperties(items); if (!params.logement && items[0]) setPropertyId(items[0].id); } }).catch(error => { if (active) setNotice(message(error)); }); return () => { active = false; }; }, [api, params.logement]);
   async function pick(camera = false) {
     if (busy) return; setBusy(true); setNotice('');
@@ -137,11 +139,22 @@ function UploadContent() {
       await refresh(); setAssets([]); setSelectedUris([]); router.push({ pathname: '/retouche', params: { id: ids[0], mode: 'compte', lot: ids.join(',') } });
     } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
   }
+  async function saveSource() {
+    if (busy || !sourceUrl.trim()) return;
+    setBusy(true); setNotice('');
+    try {
+      const url = new URL(sourceUrl.trim());
+      if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) throw new Error('Collez un lien d’annonce HTTPS valide.');
+      const created = await api.json<Property>('/logements', { method: 'POST', body: JSON.stringify({ nom: newName.trim() || 'Mon logement', ville: '', type_annonce: 'location', source_url: url.toString() }) });
+      setPropertyId(created.id); setProperties(items => [...items, created]);
+      setNotice('Annonce enregistrée. Choisissez maintenant les photos que vous souhaitez améliorer.');
+    } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
+  }
   const count = assets.filter(asset => selectedUris.includes(asset.uri)).length;
   const credits = account?.gratuit_illimite ? 0 : Math.max(0, count - (account?.photo_offerte_disponible ? 1 : 0));
   return <><LimitsCard limits={account?.limites}/><View style={s.card}>{assets.length ? <><View style={s.photoGrid}>{assets.map((asset, index) => <Pressable key={asset.uri} accessibilityRole="button" accessibilityState={{ selected: selectedUris.includes(asset.uri) }} accessibilityLabel={`Photo ${index + 1}`} onPress={() => setSelectedUris(current => current.includes(asset.uri) ? current.filter(uri => uri !== asset.uri) : [...current, asset.uri])} style={[s.photoCard, selectedUris.includes(asset.uri) && s.photoCardChosen]}><Image source={{ uri: asset.uri }} style={s.thumbnail}/><Text style={s.photoTitle}>{selectedUris.includes(asset.uri) ? '✓ ' : ''}Photo {index + 1}</Text></Pressable>)}</View><View style={s.secondaryRow}><LinkButton title="Changer les photos" onPress={() => void pick()}/><LinkButton title="Ranger dans un logement" onPress={() => setShowProperties(v => !v)}/></View></> : <><View style={s.dropzone}><Text style={s.dropIcon}>＋</Text><Text style={s.cardTitle}>Choisissez vos photos</Text><Text style={s.small}>JPG, PNG ou WebP · 30 Mo maximum chacune</Text></View><Button title="Choisir dans mes photos" onPress={() => void pick()} disabled={busy || account?.limites?.photo.bloque}/><LinkButton title="Prendre une photo" onPress={() => void pick(true)}/></>}
-    {(showProperties || !properties.length) && <View style={s.group}>{properties.map(property => <LinkButton key={property.id} title={`${propertyId === property.id ? '✓ ' : ''}${property.nom}`} onPress={() => { setPropertyId(property.id); setShowProperties(false); }}/>) }{properties.length > 0 && <LinkButton title="+ Nouveau logement" onPress={() => setPropertyId('')}/>} {!propertyId && <><Field label="Nom du logement" value={newName} onChangeText={setNewName}/><Field label="Lien de votre annonce (facultatif)" value={sourceUrl} onChangeText={setSourceUrl} placeholder="https://www.airbnb.fr/rooms/…" url/></>}</View>}
-    <Text style={s.small}>Le lien est conservé avec le logement. Choisissez les photos depuis votre appareil ; l’extraction automatique des plateformes nécessite un accès autorisé.</Text>
+    {(showProperties || !properties.length) && <View style={s.group}>{properties.map(property => <LinkButton key={property.id} title={`${propertyId === property.id ? '✓ ' : ''}${property.nom}`} onPress={() => { setPropertyId(property.id); setShowProperties(false); }}/>) }{properties.length > 0 && <LinkButton title="+ Nouveau logement" onPress={() => setPropertyId('')}/>} {!propertyId && <><Field label="Nom du logement" value={newName} onChangeText={setNewName}/><Field label="Lien Airbnb ou Booking (facultatif)" value={sourceUrl} onChangeText={setSourceUrl} placeholder="https://www.airbnb.fr/rooms/…" url/>{!!sourceUrl.trim() && <Text style={s.small}>{sourceName ? `Annonce ${sourceName} reconnue. ` : 'Lien enregistré avec ce logement. '}Les photos ne sont pas récupérées automatiquement : choisissez les originaux depuis votre téléphone.</Text>}{!!sourceUrl.trim() && !assets.length && <LinkButton title={busy ? 'Enregistrement…' : 'Enregistrer l’annonce pour plus tard'} onPress={() => void saveSource()}/>}</>}</View>}
+    <Text style={s.small}>Choisissez les photos que vous possédez depuis votre appareil ; l’extraction des plateformes nécessite un accès autorisé.</Text>
     {assets.length > 0 && <><Text style={s.small}>{count} photo{count > 1 ? 's' : ''} sélectionnée{count > 1 ? 's' : ''} · si vous gardez toutes les retouches HD : {credits} crédit{credits > 1 ? 's' : ''}. Aucun débit à l’ajout.</Text><Button title={busy ? 'Import en cours…' : `Ajouter ${count} photo${count > 1 ? 's' : ''}`} onPress={() => void upload()} disabled={busy || !count || account?.limites?.photo.bloque}/></>}{!!notice && <Notice text={notice}/>}</View></>;
 }
 export function ConnectedEditor() { return <AccountScreenFrame title="Votre photo" subtitle="Comparez, ajustez, puis gardez la version qui vous plaît."><Gate><EditorContent/></Gate></AccountScreenFrame>; }
