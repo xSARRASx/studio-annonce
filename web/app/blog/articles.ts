@@ -1,8 +1,14 @@
 import { SEO_GUIDES } from "./guides";
+import { ROOM_GUIDES } from "./guides-pieces";
+import { TECHNICAL_GUIDES } from "./guides-technique";
+import { PROJECT_GUIDES } from "./guides-projets";
+export const BLOG_TOPICS = ["Pièce par pièce", "Prise de vue", "Retouche & décoration", "Images sur le web", "Organisation"] as const;
+export type BlogTopic = typeof BLOG_TOPICS[number];
 /** Blog content. Drafts stay out of the index, static routes and sitemap. See docs/BLOG.md. */
 export type BlogArticle = {
   slug: string; status: "draft" | "published"; title: string; description: string;
-  date: string; category: string; coverExample: string; intro: string;
+  date: string; category: string; coverExample?: string; intro: string;
+  topic?: BlogTopic;
   seoTitle?: string; coverCaption?: string; related?: string[];
   sources?: { label: string; href: string }[];
   sections: { title: string; paragraphs: string[]; examples?: string[]; checklist?: string[]; links?: { label: string; href: string }[] }[];
@@ -40,6 +46,6 @@ export const BLOG_ARTICLES: readonly BlogArticle[] = [{
       "Enfin, distinguez la mise en valeur d’une photo d’une projection de travaux ou de décoration. Les nouveaux meubles, peintures et sols présentés dans ces exemples illustrent des possibilités ; ils ne prouvent pas que le logement a été rénové. Cette distinction rend l’avant/après plus compréhensible."
     ] }
   ]
-}, ...SEO_GUIDES];
+}, ...SEO_GUIDES, ...ROOM_GUIDES, ...TECHNICAL_GUIDES, ...PROJECT_GUIDES];
 export const publishedArticles = BLOG_ARTICLES.filter(article => article.status === "published").sort((a, b) => b.date.localeCompare(a.date));
 export const findArticle = (slug: string) => publishedArticles.find(article => article.slug === slug);

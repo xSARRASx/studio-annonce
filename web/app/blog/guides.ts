@@ -4,7 +4,7 @@ import type { BlogArticle } from "./articles";
 export const SEO_GUIDES: readonly BlogArticle[] = [
   {
     slug: "photos-immobilieres-smartphone", status: "published", date: "2026-10-02",
-    category: "Prise de vue", seoTitle: "Photos immobilières au smartphone : le guide pratique",
+    topic: "Prise de vue", category: "Prise de vue", seoTitle: "Photos immobilières au smartphone : le guide pratique",
     title: "Photographier un logement au smartphone : préparer, cadrer, vérifier.",
     description: "Lumière, cadrage, verticales et choix des fichiers : une méthode simple pour préparer les photos de votre logement avec un téléphone.",
     coverExample: "salon-lumiere-naturelle",
@@ -102,7 +102,7 @@ export const SEO_GUIDES: readonly BlogArticle[] = [
   },
   {
     slug: "choisir-photos-annonce-location", status: "published", date: "2026-10-02",
-    category: "Annonces & sélection", seoTitle: "Photos d’annonce de location : couverture, ordre et légendes",
+    topic: "Organisation", category: "Annonces & sélection", seoTitle: "Photos d’annonce de location : couverture, ordre et légendes",
     title: "Choisir les photos d’une annonce de location : une visite qui se comprend.",
     description: "Choisissez une couverture représentative, ordonnez vos photos par pièce et écrivez des légendes utiles pour présenter clairement votre location.",
     coverExample: "terrasse-mobilier-teck", coverCaption: "Exemple de terrasse avec mobilier virtuel. Pour une annonce de location, montrez le mobilier réellement disponible ; cette proposition sert ici à expliquer la distinction.",

@@ -10,5 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default function Accueil() {
-  return <div className="studio-demo"><Landing /></div>;
+  const structured = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://studioannonce.fr/#organization", name: "Studio Annonce", url: "https://studioannonce.fr/" },
+      { "@type": "WebSite", "@id": "https://studioannonce.fr/#website", name: "Studio Annonce", alternateName: "StudioAnnonce", url: "https://studioannonce.fr/", inLanguage: "fr-FR", publisher: { "@id": "https://studioannonce.fr/#organization" } },
+    ],
+  };
+  return <div className="studio-demo"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} /><Landing /></div>;
 }

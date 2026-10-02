@@ -102,8 +102,17 @@ for url in blog_urls:
     check(posting.get('mainEntityOfPage', {}).get('@id') == url, f'BlogPosting URL mismatch: {url}')
     check(bool(posting.get('headline')) and bool(posting.get('datePublished')), f'Incomplete BlogPosting: {url}')
     check(page.meta('og:url') == [url], f'Open Graph URL mismatch: {url}')
-    check(bool(page.meta('og:image')) and bool(page.meta('twitter:card')), f'Social preview missing: {url}')
+    check(bool(page.meta('twitter:card')), f'Social preview missing: {url}')
+    if posting.get('image'):
+        check(page.meta('og:image') == [posting['image']], f'Article/OG image mismatch: {url}')
+    else:
+        check(page.meta('twitter:card') == ['summary'], f'Text-only article card mismatch: {url}')
+    check(any(a.get('aria-label') == 'Sommaire de l’article' for a in page.attrs('nav')), f'Missing article navigation: {url}')
     check(any(entry.get('@type') == 'BreadcrumbList' for entry in graph), f'Missing breadcrumb schema: {url}')
+
+home_graph = [entry for item in pages[ORIGIN + '/'].jsonld for entry in item.get('@graph', [])]
+check(any(item.get('@type') == 'WebSite' and item.get('url') == ORIGIN + '/' for item in home_graph), 'Missing website identity')
+check(any(item.get('@id') == ORIGIN + '/#organization' for item in home_graph), 'Missing organization identity')
 
 report = {'pages': len(pages), 'articles': len(blog_urls), 'errors': errors}
 print(json.dumps(report, ensure_ascii=False, indent=2))

@@ -19,25 +19,25 @@ export const dynamicParams = false;
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const article = findArticle((await params).slug);
   if (!article) return {};
-  const cover = findPhotoExample(article.coverExample)!;
+  const cover = article.coverExample ? findPhotoExample(article.coverExample) : undefined;
   const title = `${article.seoTitle || article.title} | Studio Annonce`;
-  const image = `/demo/exemples/${cover.file}-apres.webp`;
+  const image = cover ? `/demo/exemples/${cover.file}-apres.webp` : undefined;
   return {
     title, description: article.description,
     alternates: { canonical: `/blog/${article.slug}/` },
     openGraph: {
       title, description: article.description, url: `/blog/${article.slug}/`,
       type: "article", locale: "fr_FR", publishedTime: publishedAt(article.date),
-      authors: ["Studio Annonce"], images: [{ url: image, alt: cover.altAfter }],
+      authors: ["Studio Annonce"], ...(image && cover ? { images: [{ url: image, alt: cover.altAfter }] } : {}),
     },
-    twitter: { card: "summary_large_image", title, description: article.description, images: [image] },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description: article.description, ...(image ? { images: [image] } : {}) },
   };
 }
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const article = findArticle((await params).slug);
   if (!article) notFound();
-  const cover = findPhotoExample(article.coverExample)!;
+  const cover = article.coverExample ? findPhotoExample(article.coverExample) : undefined;
   const related = (article.related || []).flatMap(slug => {
     const item = findArticle(slug);
     return item && item.slug !== article.slug ? [item] : [];
@@ -47,9 +47,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     {
       "@type": "BlogPosting", headline: article.title, description: article.description,
       datePublished: publishedAt(article.date), dateModified: publishedAt(article.date),
-      inLanguage: "fr-FR", image: `${site}/demo/exemples/${cover.file}-apres.webp`,
-      author: { "@type": "Organization", name: "Studio Annonce", url: `${site}/` },
-      publisher: { "@type": "Organization", name: "Studio Annonce", url: `${site}/` },
+      inLanguage: "fr-FR", ...(cover ? { image: `${site}/demo/exemples/${cover.file}-apres.webp` } : {}),
+      author: { "@type": "Organization", "@id": `${site}/#organization`, name: "Studio Annonce", url: `${site}/` },
+      publisher: { "@type": "Organization", "@id": `${site}/#organization`, name: "Studio Annonce", url: `${site}/` },
       mainEntityOfPage: { "@type": "WebPage", "@id": url },
     },
     { "@type": "BreadcrumbList", itemListElement: [
@@ -70,10 +70,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <h1>{article.title}</h1><p>{article.intro}</p>
             <p className="editorial-date">Par Studio Annonce · <time dateTime={article.date}>{new Date(`${article.date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</time></p>
           </header>
-          <figure className="editorial-cover">
+          {cover && <figure className="editorial-cover">
             <ExampleComparison example={cover} priority />
             <figcaption>{article.coverCaption || cover.detail} <Link href={`/exemples/${cover.id}/`}>Comparer avec l’original →</Link></figcaption>
-          </figure>
+          </figure>}
           <div className="editorial-prose article-body">
             <nav className="article-toc" aria-label="Sommaire de l’article">
               <p>Dans ce guide</p>
@@ -104,7 +104,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <div className="editorial-card-copy"><span>{item.category}</span><h3>{item.title}</h3><p>{item.description}</p><span>Lire le guide →</span></div>
           </Link>)}</div>
         </section>}
-        <section className="public-next"><div><h2>Votre photo, votre idée.</h2><p>Découvrez la demande, la photo de départ et le résultat proposé.</p></div><Link className="button dark" href={`/exemples/${cover.id}/`}>Voir cet exemple →</Link></section>
+        <section className="public-next"><div><h2>Votre photo, votre idée.</h2><p>Découvrez la demande, la photo de départ et le résultat proposé.</p></div><Link className="button dark" href={cover ? `/exemples/${cover.id}/` : "/exemples/"}>{cover ? "Voir cet exemple →" : "Explorer les exemples →"}</Link></section>
       </main>
       <PublicFooter />
     </div>

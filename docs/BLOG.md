@@ -25,3 +25,12 @@ Les articles peuvent définir `seoTitle`, `coverCaption`, `related` et `sources`
 Après compilation, lancer depuis `web` : `python3 tests/seo-export.py`. Ce contrôle parcourt les URL du sitemap et vérifie les pages HTML, les titres et descriptions uniques, les canoniques, les H1, les images, les liens et ancres internes, l’accord entre le blog exporté et le sitemap, ainsi que les données structurées des articles. Les contrôles ne mesurent ni le classement dans Google ni les performances réseau de production.
 
 Détail et consignes d’intégration : `docs/seo-20261002/COMPTE-RENDU.md`.
+
+
+## Extension du catalogue : 24 articles en aperçu
+
+Les 18 guides supplémentaires sont répartis dans `guides-pieces.ts`, `guides-technique.ts` et `guides-projets.ts`. Le champ `topic` utilise les cinq thèmes de `BLOG_TOPICS` ; l’index les affiche avec leurs compteurs et leurs ancres, sans filtre qui cacherait les liens aux lecteurs sans JavaScript.
+
+`coverExample` est facultatif. Un sujet sans illustration pertinente n’affiche pas de couverture ; sa carte de partage reste textuelle. Ne pas inventer une illustration de cas client pour remplir ce champ. Les références d’exemples, les sujets et les liens de lecture sont vérifiés par `node --test tests/seo-content.test.mjs`, à lancer depuis `web` avant l’export.
+
+Le statut `published` concerne l’export de préparation. Les 23 nouveaux articles n’ont pas encore été déployés. Le rapport dans `docs/seo-20261002/COMPTE-RENDU.md` décrit les validations locales et ce qui reste à contrôler en production pour Google et les assistants IA.
