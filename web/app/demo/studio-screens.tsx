@@ -197,7 +197,7 @@ export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate:
       <div className="st-packs">{PACKS.map(([nom, qte, prix, unite]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte}{unite ? ` · ${unite}` : ""}</small></div>)}</div>
     </section>
     <section className="st-bill-block"><div className="st-block-head"><h2>Packs vidéo</h2><span>Solde séparé · 1 crédit vidéo = 1 essai de 5 secondes.</span></div>
-      <div className="st-packs">{[["10 secondes", "2 crédits vidéo", "12,99 €"], ["20 secondes", "4 crédits vidéo", "21,99 €"], ["30 secondes", "6 crédits vidéo", "29,99 €"]].map(([nom, qte, prix]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte} · ouverture après validation</small></div>)}</div>
+      <div className="st-packs">{[["5 secondes", "1 crédit vidéo", "6,99 €"], ["10 secondes", "2 crédits vidéo", "12,99 €"], ["20 secondes", "4 crédits vidéo", "21,99 €"], ["30 secondes", "6 crédits vidéo", "29,99 €"]].map(([nom, qte, prix]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte} · ouverture après validation</small></div>)}</div>
     </section>
     <section className="st-bill-block"><div className="st-block-head"><h2><History size={18}/> Historique</h2><span>{library.events.length} {library.events.length > 1 ? "opérations" : "opération"}</span></div>
       {library.events.length ? <ul className="st-ledger">{library.events.map(e => <li key={e.id}><span><strong>{e.label}</strong><small>{e.project} · {dateText(e.at, true)}</small></span><b className={e.amount < 0 ? "debit" : ""}>{e.amount === 0 ? "Offerte" : `${e.amount} crédit`}</b></li>)}</ul>

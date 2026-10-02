@@ -124,7 +124,7 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
                          [("photo10-999", 10, 999), ("photo30-2499", 30, 2499),
                           ("photo50-3499", 50, 3499), ("photo100-5999", 100, 5999)])
         self.assertEqual([(p["id"], p["credits"], p["secondes"], p["prix_centimes"]) for p in compte_json["packs_video"]],
-                         [("video2-1299", 2, 10, 1299), ("video4-2199", 4, 20, 2199), ("video6-2999", 6, 30, 2999)])
+                         [("video1-699", 1, 5, 699), ("video2-1299", 2, 10, 1299), ("video4-2199", 4, 20, 2199), ("video6-2999", 6, 30, 2999)])
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
                 "id": "cs_test_nouveau", "url": "https://checkout.stripe.com/c/pay/cs_test_nouveau"}, None)):
             response = await self.client.post("/paiements/checkout", json={"pack_id": packs[0]["id"], "cle_demande": str(uuid4())})

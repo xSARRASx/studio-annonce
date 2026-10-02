@@ -68,6 +68,13 @@
 .tariffs-offer div>span{font-size:12px;line-height:1.7;color:#727e62;display:block}
 .tariffs-offer-link,.help-essentials article a{display:inline-flex;align-items:center;gap:6px;color:#405734;text-decoration:underline;text-underline-offset:3px}
 .tariffs-offer-link{font-size:12px;font-weight:600;margin-top:13px}
+.tariffs-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:34px}
+.tariffs-shortcuts a{position:relative;display:flex;flex-direction:column;gap:8px;padding:22px 52px 22px 23px;border:1px solid #dce3d0;border-radius:13px;background:#f8f9f3;color:#3b4931;scroll-margin-top:20px}
+.tariffs-shortcuts a:hover,.tariffs-shortcuts a:focus-visible{background:#edf2e5;border-color:#b5c5a4}
+.tariffs-shortcuts a>span{font-size:10px;letter-spacing:1.5px;color:#7b8b6b;font-weight:650}
+.tariffs-shortcuts a>strong{font-size:21px;letter-spacing:-.5px;font-weight:550}
+.tariffs-shortcuts a>small{font-size:12px;color:#76816b;line-height:1.5}
+.tariffs-shortcuts a>svg{position:absolute;right:22px;top:calc(50% - 10px)}
 .help-essentials article a{font-weight:600;white-space:nowrap}
 .tariffs-packs{margin-top:40px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .tariffs-packs.tariffs-single-pack{grid-template-columns:minmax(0,1fr);max-width:580px;margin-left:auto;margin-right:auto}
@@ -83,7 +90,8 @@
 .tariffs-unit{font-size:12px;color:#838e76;margin:7px 0 23px!important}
 .tariffs-pack-line{padding-top:16px;border-top:1px solid #dfe5d5;display:flex;gap:7px;align-items:center;margin-top:auto;font-size:10px;color:#73815e;line-height:1.6}
 .tariffs-pack-line svg{flex-shrink:0}
-.tariffs-video{margin-top:72px;padding-top:62px;border-top:1px solid #e0e3d7}
+.tariffs-video{margin-top:72px;padding-top:62px;border-top:1px solid #e0e3d7;scroll-margin-top:20px}
+#packs-photo{scroll-margin-top:20px}
 .tariffs-video-heading{max-width:760px}.tariffs-video-heading h2{margin:14px 0 16px}.tariffs-video-heading p{color:#7c8574;line-height:1.8}
 .tariffs-availability{text-align:center;font-size:12px;color:#828a76;margin-top:16px!important}
 .tariffs-included{padding:34px 0 38px;margin-top:29px;border-top:1px solid var(--public-line);border-bottom:1px solid var(--public-line)}
@@ -119,6 +127,7 @@
   .public-next{padding:24px;flex-direction:column;align-items:stretch;gap:22px;margin-top:33px}.public-info .public-next h2{font-size:24px}.public-next p{font-size:13px}.public-next .button{width:100%}
   .public-info .public-footer{padding:24px 6%;gap:20px}.public-footer p{display:none}.public-footer nav{font-size:11px;gap:17px}.public-info .public-footer .public-brand{font-size:18px}
   .tariffs-heading{grid-template-columns:1fr;gap:25px}.tariffs-offer{max-width:none;align-items:center;gap:19px;padding:20px 22px;margin:0}.tariffs-offer strong{font-size:18px;margin:4px 0 7px}.tariffs-offer br{display:none}.tariffs-gift{display:grid;place-items:center;background:#e4ecd7;border-radius:50%;width:45px;height:45px}.tariffs-offer div>span{font-size:12px}
+  .tariffs-shortcuts{grid-template-columns:1fr;gap:10px;margin-top:24px}.tariffs-shortcuts a{padding:17px 43px 17px 18px}.tariffs-shortcuts a>strong{font-size:18px}.tariffs-shortcuts a>small{font-size:11px}.tariffs-shortcuts a>svg{right:17px}
   .tariffs-packs,.tariffs-packs.tariffs-three-packs{grid-template-columns:1fr;gap:11px;margin-top:27px}.tariffs-pack{padding:21px 18px 17px}.public-info .tariffs-pack h2{font-size:34px;margin:13px 0 7px}.tariffs-pack h2>span{font-size:16px}.tariffs-pack-description{font-size:11px;min-height:0}.tariffs-amount{font-size:34px;margin-top:20px}.tariffs-unit{font-size:11px}.tariffs-pack-line{font-size:9px;gap:5px}.tariffs-pack-line svg{width:12px}.tariffs-availability{font-size:11px}.tariffs-video{margin-top:48px;padding-top:42px}
   .tariffs-included{margin-top:26px;padding:27px 0}.tariffs-included>div{gap:23px 15px}.tariffs-included>div>span{grid-template-columns:22px 1fr;gap:5px 6px}.tariffs-included strong{font-size:11px}.tariffs-included small{font-size:10px}.tariffs-included svg{width:18px}
   .tariffs-timeline{grid-template-columns:1fr;gap:27px;margin-top:32px}.public-info .tariffs-timeline h2{font-size:28px;margin:10px 0 18px}.tariffs-timeline-heading a{font-size:12px}.tariffs-timeline li{gap:14px}.tariffs-timeline strong{font-size:14px}.tariffs-timeline li p{font-size:12px}.tariffs-conditions{grid-template-columns:1fr;gap:14px;margin-top:31px;font-size:11px;padding-top:22px}

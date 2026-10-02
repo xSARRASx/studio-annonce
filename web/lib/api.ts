@@ -1,5 +1,7 @@
 // Le seul endroit qui parle au cerveau. Jeton gardé dans le navigateur, jamais de clé ici.
-export const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Le site public sert l'API sur le même domaine. Une compilation de production
+// sans variable d'environnement ne doit jamais pointer vers l'ordinateur du visiteur.
+export const API = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "/api" : "http://localhost:8000");
 
 export function jeton(): string | null {
   if (typeof window === "undefined") return null;

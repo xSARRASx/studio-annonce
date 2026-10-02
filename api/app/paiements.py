@@ -19,14 +19,17 @@ PACKS_PHOTO = [
 # téléchargement. Un nouvel essai consommera à nouveau des crédits.
 # La vente reste fermée tant que cette règle n'est pas appliquée au parcours client.
 PACKS_VIDEO = [
+    {"id": "video1-699", "nature": "video", "credits": 1, "secondes": 5,
+     "prix_centimes": 699, "libelle": "5 secondes vidéo", "prix_unitaire_centimes": 699},
     {"id": "video2-1299", "nature": "video", "credits": 2, "secondes": 10,
-     "prix_centimes": 1299, "libelle": "10 secondes vidéo", "prix_unitaire_centimes": 650},
+     "prix_centimes": 1299, "libelle": "10 secondes vidéo", "prix_unitaire_centimes": 650,
+     "avantage": "Économisez 7 %"},
     {"id": "video4-2199", "nature": "video", "credits": 4, "secondes": 20,
      "prix_centimes": 2199, "libelle": "20 secondes vidéo", "prix_unitaire_centimes": 550,
-     "avantage": "Économisez 15 %"},
+     "avantage": "Économisez 21 %"},
     {"id": "video6-2999", "nature": "video", "credits": 6, "secondes": 30,
      "prix_centimes": 2999, "libelle": "30 secondes vidéo", "prix_unitaire_centimes": 500,
-     "avantage": "Meilleur tarif"},
+     "avantage": "Économisez 28 %"},
 ]
 PACKS = PACKS_PHOTO + PACKS_VIDEO
 
