@@ -37,7 +37,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!jeton()) { routeur.replace("/connexion/"); return; }
     let annule = false;
+    const actualiserSante = () => {
+      api<Sante>("/sante").then(v => { if (!annule) setSante(v); }).catch(() => {
+        if (!annule) setSante(null);
+      });
+    };
     const actualiser = () => {
+      actualiserSante();
       api<Compte>("/compte").then(valeur => {
         if (annule) return;
         setErreurCompte(""); setCompte(valeur);
@@ -49,7 +55,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       });
     };
     actualiser();
-    api<Sante>("/sante").then(v => { if (!annule) setSante(v); }).catch(() => {});
     window.addEventListener("studio:credits-updated", actualiser);
     window.addEventListener("focus", actualiser);
     return () => { annule = true; window.removeEventListener("studio:credits-updated", actualiser); window.removeEventListener("focus", actualiser); };
