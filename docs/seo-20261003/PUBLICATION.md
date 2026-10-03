@@ -19,7 +19,7 @@ L'export final a généré 62 routes statiques. L'audit HTML local `python3 test
 - Copie intégrale avant la correction du libellé commercial : `/Users/more/Documents/Codex/studio-annonce-backups/seo-20261003-before-pricing-ZV6P4H/public_html/`, également comparée au serveur avant transfert.
 - Le premier essai du second transfert a échoué sur le quota du compte. Les fichiers de la seconde sauvegarde ont été remis en place, leur correspondance vérifiée et les 42 URL précédentes ainsi que l'API recontrôlées avant toute nouvelle tentative.
 - Seul le cache de téléchargement `~/.cache/pip/http` (six fichiers, 2,9 Mo) a été vidé après une copie locale vérifiée dans `seo-20261003-before-company-RNDV1P/pip-cache/`. Aucun fichier client ni archive du compte n'a été supprimé. Le transfert final a été effectué sans suppression, avec remplacement sur place pour éviter une nouvelle pointe d'espace.
-- Après publication, le contenu des fichiers de l'export correspond au serveur ; seul un répertoire généré vide (`_next 4/`) manque. Le fichier `.htaccess` conserve son empreinte SHA-256 `957f4d9d46673ed7f4e0f0776cdf26a474446fc7dabc03698ecf3e5d47555702`. `/api`, `/mobile`, `/apercu`, l'API, la base et les sauvegardes restent hors du périmètre de la mise à jour.
+- Après le dernier transfert, la comparaison de l'export avec le serveur ne relève aucune différence. Le fichier `.htaccess` conserve son empreinte SHA-256 `957f4d9d46673ed7f4e0f0776cdf26a474446fc7dabc03698ecf3e5d47555702`. `/api`, `/mobile`, `/apercu`, l'API, la base et les sauvegardes restent hors du périmètre de la mise à jour.
 
 ## Points encore ouverts
 
