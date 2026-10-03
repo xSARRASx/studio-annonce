@@ -1,5 +1,7 @@
 # Studio Annonce — contrôle avant publication (3 octobre 2026)
 
+> État historique avant mise en ligne. La publication et ses vérifications sont consignées dans [PUBLICATION.md](PUBLICATION.md). Les réserves juridiques ci-dessous restent à traiter ; ce document ne décrit plus l'état du site en ligne.
+
 ## État constaté
 
 - Le site en ligne est servi depuis `public_html` sur le compte N0C propre à Studio Annonce. Au second contrôle du 3 octobre, `/application/` est encore absente ; les films V5 ont été publiés entre les deux contrôles par un autre travail sur le projet et sont maintenant présents. L'API publique répond ; elle indique que la connexion fonctionne, mais que retouche, vidéo et achats ne sont pas ouverts aux visiteurs anonymes.
