@@ -7,6 +7,7 @@ import { PublicHeader, PublicFooter } from "../demo/aide/PublicChrome";
 import "../demo/studio.css";
 import "../demo/aide/public-pages.css";
 import "../editorial.css";
+import "../public-contrast.css";
 
 export const metadata: Metadata = {
   title: "Blog : photos immobilières et décoration | Studio Annonce",

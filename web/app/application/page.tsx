@@ -5,6 +5,7 @@ import { PublicFooter, PublicHeader } from "../demo/aide/PublicChrome";
 import "../demo/studio.css";
 import "../demo/aide/public-pages.css";
 import "./application.css";
+import "../public-contrast.css";
 
 export const metadata: Metadata = {
   title: "Application de retouche photo immobilière | Studio Annonce",

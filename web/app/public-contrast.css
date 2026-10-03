@@ -1,0 +1,42 @@
+/* Darker text on the light public surfaces keeps small labels legible. */
+.studio-demo.seo-home .presentation-steps > li > span,
+.studio-demo.seo-home .presentation-note,
+.studio-demo.seo-home .pg-heading > p,
+.studio-demo.seo-home .pg-compare-hint,
+.studio-demo.seo-home .pg-card-copy > span,
+.studio-demo.seo-home .pg-card-copy > p,
+.studio-demo.seo-home .pg-foot > p,
+.studio-demo.seo-home .pg-guide-heading > p,
+.studio-demo.seo-home .pg-demo-label,
+.studio-demo.seo-home .pg-stepper > button,
+.studio-demo.seo-home .pg-room,
+.studio-demo.seo-home .pg-app-copy > p,
+.studio-demo.seo-home .lx-browser-bar em,
+.studio-demo.seo-home .lx-listing-text > span,
+.studio-demo.seo-home .pg-blog-teaser > div > p,
+.studio-demo.seo-home .section-kicker,
+.studio-demo.seo-home .pricing-preview h2 em,
+.studio-demo.seo-home .pricing-preview-copy > p,
+.studio-demo.seo-home .preview-amount > span,
+.studio-demo.seo-home .preview-fineprint,
+.studio-demo.seo-home footer nav a,
+.studio-demo.editorial .public-header nav a,
+.studio-demo.application-page .public-header nav a,
+.studio-demo.editorial .public-eyebrow,
+.studio-demo.application-page .public-eyebrow,
+.studio-demo.editorial .editorial-heading > p,
+.studio-demo.editorial .blog-topic-heading > span,
+.studio-demo.editorial .blog-guide-card .editorial-card-copy > span,
+.studio-demo.editorial .public-next > div > p,
+.studio-demo.application-page .application-section-heading > p,
+.studio-demo.application-page .application-step-number,
+.studio-demo.application-page .application-steps p,
+.studio-demo.application-page .application-function-grid p,
+.studio-demo.application-page .application-mobile p,
+.studio-demo.application-page .public-next > div > p {
+  color: #526445;
+}
+
+.studio-demo.seo-home .lx-soon {
+  color: #6f5520;
+}
