@@ -25,6 +25,8 @@ L'export final a généré 62 routes statiques. L'audit HTML local `python3 test
 
 La publication technique ne garantit pas un classement Google ni une citation par les assistants IA. Dans le compte Google consulté le 3 octobre, aucune propriété `studioannonce.fr` n'apparaît dans Search Console ; le sitemap n'y a pas été soumis et les requêtes, positions et pages réellement indexées ne sont donc pas mesurées par ce compte.
 
+Le contrôle public a confirmé la disponibilité de l'accueil, du blog et de la page Entreprise. Le service gratuit PageSpeed Insights a répondu `429` au contrôle mobile : aucun score Lighthouse ni Core Web Vitals n'est revendiqué sur cette base. Les temps observés par une simple requête réseau ne remplacent pas une mesure de navigateur ni les données de terrain.
+
 Les pages juridiques décrivent l'état actuel sans prétendre que le dossier est complet. Il reste à confirmer la durée de conservation effective et la procédure d'effacement des comptes, photos et versions ; les garanties et lieux de traitement des prestataires d'IA ; l'éventuel représentant du responsable de traitement dans l'Union ; le numéro d'immatriculation et le lien contractuel exact entre MA INDUSTRY COMPANY LIMITED et Studio Annonce. Le nom est repris de VériFoncier selon la demande de Martin ; ProprioRadar emploie la forme abrégée « MA INDUSTRY LTD ». Aucune équivalence juridique ni immatriculation actuelle n'a été déduite de cette différence.
 
 Les achats publics restent désactivés. Les conditions générales de vente devront être adaptées aux crédits, aux remboursements et au public effectivement visé avant toute ouverture. Aucun tarif, prestation ou droit de rétractation n'a été inventé pour remplir cette page.
