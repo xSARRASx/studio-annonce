@@ -129,6 +129,7 @@ function Atelier() {
     if (!photo || actionEnCours.current || occupe || repriseNecessaire || creationBloquee || !retoucheDisponible || texte.length > 4000) return;
     actionEnCours.current = true;
     setErreur(""); setOccupe("essai");
+    const versionsAvant = photo.versions.length;
     if (texte) setBulles((b) => [...b, { de: "moi", texte }]);
     try {
       await api(`/photos/${photo.id}/demande`, { method: "PATCH", body: JSON.stringify({ demande: texte }) });
@@ -139,7 +140,24 @@ function Atelier() {
       setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : gratuit ? "Vous pouvez ajouter gratuitement une correction." : "Une correction supplémentaire coûte 1 crédit."}` }]);
     } catch (e) {
       const err = e as ErreurApi;
-      if ([402, 403, 429].includes(err.statut)) {
+      if (err.statut === 0) {
+        // Passenger peut couper la réponse pendant que le fournisseur termine.
+        // Rechercher le résultat avant de proposer un nouvel essai facturable.
+        setBulles(b => [...b, { de: "ia", texte: "La retouche continue peut-être sur le serveur. Je vérifie son résultat avant tout nouvel essai." }]);
+        let retrouvee = false;
+        for (let tentative = 0; tentative < 36 && !retrouvee; tentative++) {
+          await new Promise(resolve => window.setTimeout(resolve, 5000));
+          try {
+            const p = await api<Photo>(`/photos/${photo.id}`);
+            if (p.versions.length > versionsAvant) {
+              poser(p, p.versions.at(-1) || null);
+              setBulles(b => [...b, { de: "ia", texte: "Votre retouche est prête. Vous pouvez la comparer avec l’original." }]);
+              retrouvee = true;
+            }
+          } catch { /* Un contrôle peut échouer sans relancer la génération. */ }
+        }
+        if (!retrouvee) setErreur("Le résultat n’a pas encore pu être confirmé. Revenez dans Mes créations avant de relancer une retouche.");
+      } else if ([402, 403, 429].includes(err.statut)) {
         setBulles((b) => [...b, { de: "ia", texte: err.message }]);
         try { await rafraichir(); } catch { /* L'erreur d'origine reste visible. */ }
       } else setErreur(err.message);
@@ -179,7 +197,19 @@ function Atelier() {
         : "Téléchargement HD relancé. Aucun crédit supplémentaire n'a été utilisé." }]);
       try { await rafraichir(); }
       catch { setErreur("Le téléchargement est prêt, mais l’état de la photo n’a pas pu être actualisé. Rechargez la page pour retrouver la période exacte."); }
-    } catch (e) { setErreur((e as ErreurApi).message); }
+    } catch (e) {
+      const err = e as ErreurApi;
+      if (err.statut === 0) {
+        try {
+          const p = await api<Photo>(`/photos/${photo.id}`);
+          poser(p, p.versions.find(v => v.id === courante.id) || null);
+          if (p.credite_le && p.versions.some(v => v.id === courante.id && v.hd)) {
+            setErreur("La HD a été préparée, mais le téléchargement a été interrompu. Cliquez de nouveau sur « Télécharger en HD » : aucun crédit supplémentaire ne sera utilisé.");
+            setPropositionVideo(true);
+          } else setErreur("Le téléchargement n’a pas pu être confirmé. Vérifiez cette photo avant de réessayer.");
+        } catch { setErreur("Connexion interrompue. Revenez sur cette photo pour vérifier si la HD est prête avant de réessayer."); }
+      } else setErreur(err.message);
+    }
     finally { setOccupe(null); actionEnCours.current = false; }
   }
 
