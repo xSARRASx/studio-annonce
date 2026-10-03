@@ -9,13 +9,13 @@ type Format = "ordinateur" | "mobile";
 
 const films: Record<Format, { src: string; poster: string; label: string }> = {
   ordinateur: {
-    src: "/presentation/studio-annonce-ordinateur.mp4",
-    poster: "/presentation/studio-annonce-ordinateur.jpg",
+    src: "/presentation/studio-annonce-v5-ordinateur.mp4",
+    poster: "/presentation/studio-annonce-v5-ordinateur.jpg",
     label: "Présentation de Studio Annonce sur ordinateur",
   },
   mobile: {
-    src: "/presentation/studio-annonce-mobile.mp4",
-    poster: "/presentation/studio-annonce-mobile.jpg",
+    src: "/presentation/studio-annonce-v5-mobile.mp4",
+    poster: "/presentation/studio-annonce-v5-mobile.jpg",
     label: "Présentation de Studio Annonce sur téléphone",
   },
 };
@@ -67,7 +67,7 @@ export function Presentation() {
 
       <div className="presentation-panel">
         <div className="presentation-bar">
-          <div className="presentation-bar-copy"><span className="presentation-live-dot" /> Le film · 38 s</div>
+          <div className="presentation-bar-copy"><span className="presentation-live-dot" /> Le film · 43 s</div>
           <div className="presentation-formats" role="group" aria-label="Format du film">
             <button type="button" aria-pressed={format === "ordinateur"} onClick={() => chooseFormat("ordinateur")}><Monitor size={17} /> Ordinateur</button>
             <button type="button" aria-pressed={format === "mobile"} onClick={() => chooseFormat("mobile")}><Smartphone size={17} /> Téléphone</button>
@@ -89,7 +89,7 @@ export function Presentation() {
             {!started && <button className="presentation-play" type="button" onClick={startFilm} aria-label={`Voir le film ${format} de Studio Annonce`}><Play size={24} fill="currentColor" /><span>Voir le film</span></button>}
           </div>
         </div>
-        <p className="presentation-note">Film de présentation du parcours. La création vidéo montrée à la fin est encore en préparation.</p>
+        <p className="presentation-note">Film de présentation du parcours. Le lien d’annonce est enregistré, puis les photos sont ajoutées depuis votre appareil. La création vidéo montrée à la fin est encore en préparation.</p>
       </div>
     </section>
   );
