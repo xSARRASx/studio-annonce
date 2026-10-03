@@ -42,6 +42,7 @@ export function PublicFooter() {
         <Link href="/tarifs/">Tarifs</Link>
         <Link href="/aide/">Aide</Link>
         <Link href="/blog/">Blog</Link>
+        <Link href="/mentions-legales/">Mentions légales</Link>
         <Link href="/confidentialite/">Confidentialité</Link>
         <Link href="/cookies/">Cookies</Link>
         <Link href="/conditions-utilisation/">Conditions d’utilisation</Link>
