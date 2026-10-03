@@ -10,16 +10,16 @@ const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cache = new Map();
 function load(file) {
   if (cache.has(file)) return cache.get(file).exports;
-  const module = { exports: {} };
-  cache.set(file, module);
+  const loadedModule = { exports: {} };
+  cache.set(file, loadedModule);
   const compiled = ts.transpileModule(readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const localRequire = name => name.startsWith('.')
     ? load(path.resolve(path.dirname(file), `${name}.ts`))
     : createRequire(file)(name);
-  new Function('require', 'module', 'exports', compiled)(localRequire, module, module.exports);
-  return module.exports;
+  new Function('require', 'module', 'exports', compiled)(localRequire, loadedModule, loadedModule.exports);
+  return loadedModule.exports;
 }
 const { BLOG_ARTICLES, BLOG_TOPICS, publishedArticles } = load(path.join(web, 'app/blog/articles.ts'));
 const { PHOTO_EXAMPLES } = load(path.join(web, '../shared/photo-examples.ts'));

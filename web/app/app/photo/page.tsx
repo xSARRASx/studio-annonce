@@ -99,13 +99,15 @@ function Atelier() {
     api<VideoCreee | null>(`/videos/photos/${id}/derniere`).then(v => { if (actif) setVideo(v); }).catch(() => {});
     return () => { actif = false; };
   }, [id, gratuit]);
+  const videoId = video?.id;
+  const videoStatus = video?.statut;
   useEffect(() => {
-    if (!video || !["preparation", "en_attente", "clips", "montage"].includes(video.statut)) return;
+    if (!videoId || !videoStatus || !["preparation", "en_attente", "clips", "montage"].includes(videoStatus)) return;
     const minuterie = window.setInterval(() => {
-      api<VideoCreee>(`/videos/${video.id}`).then(setVideo).catch(() => setVideoErreur("Le suivi vidéo est momentanément indisponible. Réessayez dans un instant."));
+      api<VideoCreee>(`/videos/${videoId}`).then(setVideo).catch(() => setVideoErreur("Le suivi vidéo est momentanément indisponible. Réessayez dans un instant."));
     }, 5000);
     return () => window.clearInterval(minuterie);
-  }, [video?.id, video?.statut]);
+  }, [videoId, videoStatus]);
 
   async function creerVideo() {
     if (!photo || videoOccupe || !demandeVideo.trim()) return;
