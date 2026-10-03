@@ -43,6 +43,8 @@ export function PublicFooter() {
         <Link href="/aide/">Aide</Link>
         <Link href="/blog/">Blog</Link>
         <Link href="/confidentialite/">Confidentialité</Link>
+        <Link href="/cookies/">Cookies</Link>
+        <Link href="/conditions-utilisation/">Conditions d’utilisation</Link>
       </nav>
     </footer>
   );

@@ -108,7 +108,7 @@ export default function Connexion() {
             {etape === "code" && confirmationEnvoi && <p role="status" className="text-xs leading-relaxed text-accent bg-accent/10 rounded-xl px-3 py-2">{confirmationEnvoi}</p>}
             <Bouton type="submit" className="w-full" chargement={chargement} disabled={etape === "code" ? code.length !== 6 : inscription && (!prenom.trim() || !nom.trim())}>{etape === "code" ? "Accéder à mon espace" : "Recevoir mon code"}</Bouton>
             {etape === "identite" ? <>
-              <p className="text-xs text-fg-muted leading-relaxed">Votre prénom, votre nom et votre email servent à gérer votre compte et votre essai. Cette inscription ne vous abonne pas à des emails publicitaires.</p>
+              <p className="text-xs text-fg-muted leading-relaxed">Votre prénom, votre nom et votre email servent à gérer votre compte et votre essai. Cette inscription ne vous abonne pas à des emails publicitaires. Consultez la <Link href="/confidentialite/" className="underline underline-offset-2">confidentialité des données</Link> et les <Link href="/conditions-utilisation/" className="underline underline-offset-2">conditions d’utilisation</Link>.</p>
               <button type="button" onClick={() => { setInscription(!inscription); setErreur(""); }} className="text-sm text-accent w-full py-2">{inscription ? "J’ai déjà un compte — me connecter" : "Créer un compte"}</button>
             </> : <>
               <p className="text-xs text-fg-muted leading-relaxed">L’expéditeur est <strong>no-reply@studioannonce.fr</strong>. Vérifiez aussi les courriers indésirables. Seul le dernier code reçu fonctionne.</p>
