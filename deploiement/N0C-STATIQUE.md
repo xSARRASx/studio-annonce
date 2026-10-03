@@ -1,5 +1,11 @@
 # Studio Annonce sur N0C — état vérifié le 30 septembre 2026
 
+## Publication du 3 octobre : films de présentation V5
+
+Les deux films fournis par Martin (`studio-annonce-v5-ordinateur.mp4` et `studio-annonce-v5-mobile.mp4`) remplacent les anciennes versions dans le petit panneau de présentation de l'accueil. Ils durent 43 secondes. Les fichiers ont été réencodés pour le web (2,48 Mo et 2,59 Mo), avec des affiches JPG ; les vidéos ne sont chargées qu'au lancement de la lecture. Le texte précise que le lien d'annonce est conservé, que les photos sont ajoutées depuis l'appareil, et que la création vidéo montrée à la fin est encore en préparation.
+
+Commit `0979521` sur `codex-travail`, publié sur le compte N0C `vzbbtadpbm`. Une sauvegarde ciblée des quatre pages remplacées se trouve dans `~/sauvegardes-studio/presentation-v5-20261003/avant.tgz`. L'archive de transfert a été vérifiée avant extraction (SHA-256 `6cb3f773e2d2c6abb73613f03dd187484ff6ef6e50fdcbe2aeeee4cf3246e101`). Les empreintes des deux MP4 et des pages `index.html` et `demo/index.html` publiées correspondent aux fichiers locaux. Les deux MP4 répondent HTTP 200 avec `video/mp4`. En navigateur, les commandes Ordinateur et Téléphone ouvrent chacune la bonne V5 ; les deux films se chargent et se lisent sans erreur. La disposition compacte a été contrôlée en largeur téléphone et ordinateur. Aucun fichier API, paiement, base de données ou configuration serveur n'a été modifié.
+
 ## Publication du 2 octobre : entrée par lien d’annonce
 
 Le web et l’aperçu mobile expliquent désormais dès la saisie d’un lien Airbnb ou Booking.com que ce lien est conservé avec le logement, mais que les images ne sont pas extraites automatiquement. Le client peut enregistrer le lien seul pour revenir plus tard. Sur le web, il peut aussi glisser-déposer ou coller des photos qu’il possède, puis choisir celles à retoucher ; le parcours mobile propose de les choisir sur le téléphone. L’ajout de photos ne débite pas de crédit.
