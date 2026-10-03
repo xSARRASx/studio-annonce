@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const packs = [
   { credits: 10, price: "9,99", unit: "1,00", label: "Pour commencer", description: "10 photos gardées en HD." },
   { credits: 30, price: "24,99", unit: "0,83", label: "Essentiel", description: "30 photos · 17 % moins cher par photo." },
-  { credits: 50, price: "34,99", unit: "0,70", label: "Le plus choisi", description: "50 photos · 30 % moins cher par photo." },
+  { credits: 50, price: "34,99", unit: "0,70", label: "Grand pack", description: "50 photos · 30 % moins cher par photo." },
   { credits: 100, price: "59,99", unit: "0,60", label: "Meilleur tarif", description: "100 photos · 40 % moins cher par photo." },
 ];
 const videoPacks = [
