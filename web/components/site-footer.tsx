@@ -52,6 +52,18 @@ export function SiteFooter() {
         </nav>
       </div>
 
+      <section className="site-footer-app" aria-labelledby="site-footer-app-title">
+        <div>
+          <span className="site-footer-kicker">APPLICATION MOBILE</span>
+          <h2 id="site-footer-app-title">Bientôt sur iPhone et Android.</h2>
+          <p>Les liens de téléchargement seront activés dès la publication de l’application sur les deux stores.</p>
+        </div>
+        <div className="site-footer-stores" aria-label="Application mobile bientôt disponible">
+          <span className="site-footer-store-badge"><small>Bientôt sur l’</small><strong>App Store</strong></span>
+          <span className="site-footer-store-badge"><small>Bientôt sur</small><strong>Google Play</strong></span>
+        </div>
+      </section>
+
       <div className="site-footer-bottom">
         <span>© 2026 Studio Annonce</span>
         <span>Un service édité par MA INDUSTRY COMPANY LIMITED</span>
