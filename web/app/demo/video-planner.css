@@ -74,3 +74,10 @@
 .st-video-order .st-video-ordered-photo{display:flex;align-items:center;gap:10px;min-width:0;white-space:normal}.st-video-ordered-photo img{width:64px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0}.st-video-ordered-photo small{display:block;color:#78856c;margin-top:3px}.st-video-order select{max-width:145px;border:1px solid #cdd9c3;border-radius:7px;background:#fffefa;color:#405139;font:inherit;padding:5px}
 .st-video-generation{padding:24px;border:1px solid #d4dfc8;border-radius:18px;background:#f0f4e9;margin:24px 0}.studio-demo .st-video-generation h2{font-size:23px;margin:0 0 14px}.st-video-generation>p{line-height:1.7;color:#5c6b51;font-size:14px}.st-video-final-prompt{margin:20px 0;border:1px solid #d7e1ca;border-radius:10px;background:#fffefa;padding:14px}.st-video-final-prompt summary{color:#485d3a;cursor:pointer;font-size:14px}.st-video-final-prompt p{white-space:pre-wrap;font-size:13px;line-height:1.65;color:#5d6c52;max-height:320px;overflow:auto}.st-video-created{display:grid;gap:18px;margin-top:24px}.st-video-created video{width:100%;max-width:640px;border-radius:14px;background:#20251d}.st-video-created .button{justify-self:start}.st-video-surviving-clips{display:flex;gap:14px;flex-wrap:wrap}
 @media(max-width:600px){.st-video-order li{flex-wrap:wrap;gap:8px;padding:12px 0}.st-video-order li>div{width:100%;justify-content:flex-end}.st-video-generation{padding:18px}.st-video-generation .connected-next-buttons{flex-direction:column;align-items:stretch}.st-video-generation .button{text-align:center;justify-content:center}}
+
+.st-video-order li { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(240px, 1.5fr); gap: 16px; align-items: start; }
+.st-video-order li > div { min-width: 0; flex-wrap: wrap; gap: 8px; }
+.st-video-motion-label { display: grid; flex: 1 1 100%; gap: 6px; min-width: 0; font-size: 13px; color: var(--ink, #303729); }
+.st-video-motion-label select { width: 100%; max-width: none; min-height: 42px; }
+.st-video-motion-label small { line-height: 1.5; color: #667456; max-width: 100%; }
+@media(max-width:700px) { .st-video-order li { grid-template-columns: minmax(0, 1fr); } }

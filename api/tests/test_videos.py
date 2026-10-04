@@ -138,6 +138,45 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         with self.sessions() as s:
             self.assertEqual(len(s.scalars(select(Video)).all()), 1)
 
+    async def test_direction_et_modele_figes_meme_apres_mise_a_jour(self):
+        data = self.request(photos=[{"photo_id": "photo2", "mouvement": "orbite"}, {"photo_id": "photo", "mouvement": "traversee"}], demande="Une visite vivante")
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_KLING):
+            result = (await self.client.post("/videos/visites", json=data)).json()
+        with self.sessions() as s:
+            plan = s.get(Video, result["id"]).plan
+            self.assertEqual([d["mouvement"] for d in plan["directions"]], ["orbite", "traversee"])
+        self.submit.side_effect = [RuntimeError("timeout"), {"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"}]
+        with patch.object(videos, "preparer_consigne", return_value="Un autre prompt"), patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE):
+            await videos._avancer(self.sessions, result["id"])
+            await videos._avancer(self.sessions, result["id"])
+        self.assertEqual(self.submit.await_args_list[0], self.submit.await_args_list[1])
+        self.assertEqual(self.submit.await_args.args[4], higgsfield_video.MODELE_KLING)
+        self.assertEqual(self.submit.await_args.args[1], plan["directions"][0]["prompt"])
+        changed = {**data, "photos": [{"photo_id": "photo2", "mouvement": "calme"}, {"photo_id": "photo", "mouvement": "traversee"}]}
+        self.assertEqual((await self.client.post("/videos/visites", json=changed)).status_code, 409)
+
+    async def test_solde_epuise_ne_relance_pas_apres_recharge(self):
+        self.submit.side_effect = httpx.HTTPStatusError("Payment required", request=httpx.Request("POST", "https://api.higgsfield.ai/test"), response=httpx.Response(402))
+        result = await self.create()
+        await videos._avancer(self.sessions, result["id"])
+        self.submit.side_effect = None
+        await videos._avancer(self.sessions, result["id"])
+        self.submit.assert_awaited_once()
+        response = (await self.client.get(f"/videos/{result['id']}")).json()
+        self.assertEqual(response["statut"], "echec")
+        self.assertIn("solde", response["erreur"])
+
+    async def test_ancien_prompt_et_modele_conserves_lors_d_une_reprise(self):
+        result = await self.create(demande="Ancienne demande")
+        with self.sessions() as s:
+            v = s.get(Video, result["id"])
+            v.plan = {key: value for key, value in v.plan.items() if key not in {"directions", "modele", "direction_version"}}
+            s.commit()
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_KLING):
+            await videos._avancer(self.sessions, result["id"])
+        self.assertEqual(self.submit.await_args.args[1], videos.CONSIGNE_FIDELITE + "Ancienne demande")
+        self.assertEqual(self.submit.await_args.args[4], higgsfield_video.MODELE)
+
     async def test_bail_et_suivi_ne_bloquent_pas_navigation_ou_ecriture(self):
         entered, release = asyncio.Event(), asyncio.Event()
         async def slow(*args):

@@ -9,6 +9,21 @@ from .config import reglages
 
 API = "https://api.higgsfield.ai"
 MODELE = "bytedance/seedance-2.5/image-to-video"
+MODELE_KLING = "kling-video/v3.0/pro/image-to-video"
+MODELES = (MODELE, MODELE_KLING)
+
+
+def parametres(image_url: str, demande: str, duree: int, modele: str = MODELE) -> dict:
+    """Schémas des deux API vérifiés dans la documentation Higgsfield le 04/10/2026."""
+    if modele not in MODELES or duree not in (5, 10, 20, 30) or (modele == MODELE_KLING and duree > 15):
+        raise ValueError("Modèle ou durée vidéo non proposé.")
+    if not demande.strip() or len(demande) > 10000:
+        raise ValueError("Consigne vidéo invalide.")
+    _url_https(image_url)
+    commun = {"image_url": image_url, "prompt": demande.strip(), "duration": duree}
+    if modele == MODELE_KLING:
+        return {**commun, "sound": "off", "multi_shots": False, "cfg_scale": 0.5}
+    return {**commun, "resolution": "720p", "output_format": "mp4", "generate_audio": False}
 
 
 def disponible() -> bool:
@@ -60,18 +75,11 @@ async def preparer_image(image_jpeg: bytes) -> str:
     return image_url
 
 
-async def soumettre(image_url: str, demande: str, duree: int, cle_idempotence: str) -> dict:
+async def soumettre(image_url: str, demande: str, duree: int, cle_idempotence: str, modele: str = MODELE) -> dict:
     """Répéter exactement cet appel avec la même clé ne crée pas un second clip."""
-    if duree not in (5, 10, 20, 30):
-        raise ValueError("Durée vidéo non proposée.")
-    if not demande.strip() or len(demande) > 4000:
-        raise ValueError("Décrivez votre vidéo en 4 000 caractères maximum.")
-    _url_https(image_url)
+    corps = parametres(image_url, demande, duree, modele)
     async with httpx.AsyncClient(timeout=35, follow_redirects=False) as client:
-        reponse = await client.post(f"{API}/{MODELE}", headers={**_entetes(), "Idempotency-Key": cle_idempotence}, json={
-            "image_url": image_url, "prompt": demande.strip(), "duration": duree,
-            "resolution": "720p", "output_format": "mp4", "generate_audio": False,
-        })
+        reponse = await client.post(f"{API}/{modele}", headers={**_entetes(), "Idempotency-Key": cle_idempotence}, json=corps)
         reponse.raise_for_status()
     resultat = reponse.json()
     if not resultat.get("request_id") or not resultat.get("status_url"):

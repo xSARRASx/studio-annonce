@@ -4,6 +4,7 @@ Studio photo immobilier web et mobile. [studioannonce.fr](https://studioannonce.
 
 - [Démonstration publique](https://studioannonce.fr/demo/) et [aperçu mobile interactif](https://studioannonce.fr/mobile-preview/).
 - [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages, API, vérifications et fonctions encore indisponibles.
+- [Mouvements vidéo et prochain essai](docs/VIDEO-CAMERA-2026-10-04.md) : trajectoires dynamiques par photo, demande conservée et comparaison Kling à valider après recharge.
 - [Archives, corbeille et ajout multiple](docs/CORBEILLE-ET-AJOUT-MULTIPLE-2026-10-04.md) : confirmations visibles, restauration des photos/vidéos et choix de plusieurs photos dès le premier écran.
 - [Corrections du 4 octobre](docs/CORRECTIONS-STUDIO-2026-10-04.md) : quota de stockage, imports repris sans doublon, retouches par lot, préparation vidéo de 5 à 30 secondes et archives.
 - [Contrôle retouche du 1er octobre](VERIFICATION-RETOUCHE-2026-10-01.md) : crédit API épuisé confirmé, consignes photo communes publiées et limites de l'abonnement ChatGPT.

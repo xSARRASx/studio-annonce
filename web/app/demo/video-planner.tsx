@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CheckCircle2, Film, Images, Info, Search, Sparkles, Upload, X } from "lucide-react";
 import { BriefAssistant } from "./brief-assistant";
+import { CAMERA_MOVES, cameraMove, cameraDescription, readCameraMoves, DYNAMIC_VIDEO_EXAMPLE, type CameraMove } from "../../../shared/video-direction";
 import { videoVisitContext } from "../../../shared/video-visit";
 import { storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 import { CreationBack } from "./creation-hub";
@@ -20,6 +21,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
   const [property, setProperty] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
+  const [movements, setMovements] = useState<Record<string, CameraMove>>({});
   const [idea, setIdea] = useState("");
   const [cleanup, setCleanup] = useState("");
   const [route, setRoute] = useState("");
@@ -55,6 +57,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
         const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
         if (saved && typeof saved === "object") {
           if (typeof saved.property === "string") setProperty(saved.property.slice(0, 500));
+          setMovements(readCameraMoves(saved.movements));
           if (typeof saved.idea === "string") setIdea(saved.idea.slice(0, 4000));
           if (typeof saved.cleanup === "string") setCleanup(saved.cleanup.slice(0, 2500));
           if (typeof saved.route === "string") setRoute(saved.route.slice(0, 2500));
@@ -71,9 +74,9 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
   }, [storageKey]);
   useEffect(() => {
     if (!restored) return;
-    try { localStorage.setItem(storageKey, JSON.stringify({ property: currentProperty, selectedIds, selectedVersions, idea, cleanup, route, brief, briefIdea, briefContext })); }
+    try { localStorage.setItem(storageKey, JSON.stringify({ property: currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext })); }
     catch { /* Aucun appel distant ni perte du texte affiché. */ }
-  }, [storageKey, restored, currentProperty, selectedIds, selectedVersions, idea, cleanup, route, brief, briefIdea, briefContext]);
+  }, [storageKey, restored, currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext]);
 
   function toggle(id: string) {
     setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
@@ -106,7 +109,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
   }
   const context = videoVisitContext(selected.map(project => {
     const version = project.versions.find(item => item.id === (selectedVersions[project.id] || project.selected)) || project.versions[0];
-    return `${project.title}${project.property !== UNASSIGNED_PROPERTY ? ` (${project.property})` : ""} — ${version.label}`;
+    return `${project.title} — ${cameraDescription(movements[project.id], selectedIds.indexOf(project.id))}${project.property !== UNASSIGNED_PROPERTY ? ` (${project.property})` : ""} — ${version.label}`;
   }), cleanup, route);
 
   return <main className="st-main st-video-plan">
@@ -138,7 +141,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
       </> : pickerOpen && <div className="st-video-empty"><Images size={23}/><p>Ajoutez des photos depuis votre appareil ou l’annonce, puis choisissez celles de la vidéo.</p></div>}
       {selected.length > 0 && <div className="st-video-order"><strong>Vos plans, dans cet ordre</strong><ol>{selected.map((project, index) => {
         const version = project.versions.find(item => item.id === (selectedVersions[project.id] || project.selected)) || project.versions[0];
-        return <li key={project.id}><span className="st-video-ordered-photo"><Image src={source(project, version)} alt="" width={64} height={48} unoptimized/><span>{index + 1}. {project.title}<small>{project.property}</small></span></span><div>{project.versions.length > 1 && <select aria-label={`Version pour le plan ${index + 1}`} value={version.id} onChange={event => setSelectedVersions(values => ({ ...values, [project.id]: event.target.value }))}>{project.versions.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>}<button type="button" aria-label={`Monter ${project.title}`} disabled={index === 0} onClick={() => move(project.id, -1)}><ArrowUp size={15}/></button><button type="button" aria-label={`Descendre ${project.title}`} disabled={index === selected.length - 1} onClick={() => move(project.id, 1)}><ArrowDown size={15}/></button><button type="button" aria-label={`Retirer le plan ${index + 1}`} onClick={() => toggle(project.id)}><X size={15}/></button></div></li>;
+        return <li key={project.id}><span className="st-video-ordered-photo"><Image src={source(project, version)} alt="" width={64} height={48} unoptimized/><span>{index + 1}. {project.title}<small>{project.property}</small></span></span><div>{connected && <label className="st-video-motion-label">Mouvement<select aria-label={`Mouvement pour le plan ${index + 1}`} value={movements[project.id] || "auto"} onChange={event => setMovements(values => ({ ...values, [project.id]: cameraMove(event.target.value) }))}>{CAMERA_MOVES.map(move => <option key={move.id} value={move.id}>{move.label}</option>)}</select><small>{cameraDescription(movements[project.id], index)}</small></label>}{project.versions.length > 1 && <select aria-label={`Version pour le plan ${index + 1}`} value={version.id} onChange={event => setSelectedVersions(values => ({ ...values, [project.id]: event.target.value }))}>{project.versions.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>}<button type="button" aria-label={`Monter ${project.title}`} disabled={index === 0} onClick={() => move(project.id, -1)}><ArrowUp size={15}/></button><button type="button" aria-label={`Descendre ${project.title}`} disabled={index === selected.length - 1} onClick={() => move(project.id, 1)}><ArrowDown size={15}/></button><button type="button" aria-label={`Retirer le plan ${index + 1}`} onClick={() => toggle(project.id)}><X size={15}/></button></div></li>;
       })}</ol></div>}
 
     </section>
@@ -158,13 +161,15 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
     <section className="st-step" aria-labelledby="video-idea-title">
       <h2 id="video-idea-title"><span className="st-step-number">3</span> Votre idée</h2>
       <label className="st-video-label" htmlFor="video-idea">Décrivez le trajet ou l’ambiance que vous imaginez</label>
-      <textarea id="video-idea" value={idea} maxLength={connected ? 3000 : 4000} rows={5} onChange={event => setIdea(event.target.value)} placeholder="Ex. : une avancée douce dans le salon, puis une coupe vers la chambre. Une lumière naturelle, aucun changement de mobilier."/>
+      <textarea id="video-idea" value={idea} maxLength={connected ? 3000 : 4000} rows={5} onChange={event => setIdea(event.target.value)} placeholder="Ex. : une visite façon drone : avance dans le salon, contourne la table, puis une coupe vers la chambre…"/>
+      <button type="button" className="button outlined" onClick={() => { setIdea(DYNAMIC_VIDEO_EXAMPLE); setBrief(""); setBriefIdea(null); setBriefContext(null); }}>Utiliser l’exemple « Visite dynamique »</button>
+      <p className="st-video-hint">La caméra se déplace dans la pièce ; les meubles restent en place. Votre texte peut préciser le trajet et le rythme de chaque plan.</p>
       <BriefAssistant kind="video" request={idea} context={context} onUse={value => { setBrief(value); setBriefIdea(idea); setBriefContext(context); requestAnimationFrame(() => briefPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }}/>
     </section>
 
     {brief && <section ref={briefPanel} className="st-step" aria-labelledby="video-brief-title"><h2 id="video-brief-title"><span className="st-step-number">4</span> Votre demande vidéo complète</h2><p className="st-video-label">Voici le texte préparé à partir de votre idée et de vos réponses. Rien à recopier : les autres champs servent seulement à ajouter des précisions si vous le souhaitez.</p>{(briefIdea !== idea || briefContext !== context) && <p className="st-video-changed" role="status">{briefIdea === null || briefContext === null ? "Ce brief est ancien. Vérifiez qu’il correspond encore à votre idée et aux photos choisies." : "L’idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’assistant pour actualiser le brief, ou ajustez le texte ci-dessous."}</p>}<div className="st-video-brief-details"><p className="st-video-label"><CheckCircle2 size={19}/> Votre texte reste modifiable ci-dessous.</p><textarea aria-label="Brief vidéo modifiable" value={brief} rows={10} onChange={event => setBrief(event.target.value)}/></div></section>}
 
-    {connected ? <VideoGeneration photos={selected} versions={selectedVersions} demande={brief || idea} storageKey={storageKey} enabled={connected.enabled}/> : <><section className="st-video-next" aria-label="Suite de la création vidéo"><div className="st-video-next-icon"><Film size={22}/></div><div><h2>Votre brief reste modifiable.</h2><p>La retouche des photos, la génération des plans et l’estimation du coût seront proposées ici lorsque les moteurs seront connectés. Une visite longue devra être testée en plusieurs plans puis assemblée ; la continuité de la caméra ne peut pas être garantie à partir de photos seules.</p></div><span><Sparkles size={15}/> Démonstration</span></section>
+    {connected ? <VideoGeneration photos={selected} versions={selectedVersions} movements={movements} demande={brief || idea} storageKey={storageKey} enabled={connected.enabled}/> : <><section className="st-video-next" aria-label="Suite de la création vidéo"><div className="st-video-next-icon"><Film size={22}/></div><div><h2>Votre brief reste modifiable.</h2><p>La retouche des photos, la génération des plans et l’estimation du coût seront proposées ici lorsque les moteurs seront connectés. Une visite longue devra être testée en plusieurs plans puis assemblée ; la continuité de la caméra ne peut pas être garantie à partir de photos seules.</p></div><span><Sparkles size={15}/> Démonstration</span></section>
     <p className="st-video-local"><Info size={15}/> Votre brouillon reste dans ce navigateur si son stockage est disponible. Aucune photo ni demande n’est envoyée à un moteur distant depuis cet aperçu.</p></>}
   </main>;
 }

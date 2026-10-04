@@ -72,8 +72,8 @@ function baseQuestions(kind: BriefKind): BriefQuestion[] {
     ]),
   ];
   if (kind === 'video') return [
-    question('video-camera', 'Vue caméra', 'Quelle vue et quel mouvement de caméra souhaitez-vous ?', 'Cette question est toujours posée, même si vous avez déjà évoqué un drone.', 'Ex. : une vue drone à 1,50 m du sol, puis un tour lent autour de la table.', [
-      option('Vue drone', 'Un mouvement aérien et flottant.', 'Plane'),
+    question('video-camera', 'Vue caméra', 'Quelle vue et quel mouvement de caméra souhaitez-vous ?', 'Cette question est toujours posée, même si vous avez déjà évoqué un drone.', 'Ex. : une caméra façon drone à hauteur des yeux, qui avance puis contourne franchement la table.', [
+      option('Vue drone', 'Une avancée dynamique à hauteur des yeux, avec des virages visibles.', 'Plane'),
       option('À hauteur des yeux', 'Une visite comme si l’on marchait dans les pièces.', 'Eye'),
       option('Plans fixes', 'Des compositions stables qui laissent regarder les détails.', 'Camera'),
       option('Mouvements doux', 'Des déplacements lents et de légers panoramiques.', 'Move'),

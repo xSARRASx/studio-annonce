@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Download } from "lucide-react";
 import { api, ErreurApi, type VideoCreee } from "@/lib/api";
 import type { DemoProject } from "@/app/demo/library";
+import { cameraDescription, cameraMove, type CameraMove } from "../../shared/video-direction";
 import { GenerationWait } from "./generation-wait";
 
 const pending = (video: VideoCreee | null) => !!video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut);
 
-export function VideoGeneration({ photos, demande, storageKey, enabled, versions }: {
-  photos: DemoProject[]; demande: string; storageKey: string; enabled: boolean; versions: Record<string, string>;
+export function VideoGeneration({ photos, demande, storageKey, enabled, versions, movements }: {
+  photos: DemoProject[]; demande: string; storageKey: string; enabled: boolean; versions: Record<string, string>; movements: Record<string, CameraMove>;
 }) {
   const [video, setVideo] = useState<VideoCreee | null>(null);
   const [starting, setStarting] = useState(false);
@@ -19,7 +20,7 @@ export function VideoGeneration({ photos, demande, storageKey, enabled, versions
   const request = useRef<{ signature: string; cle: string } | null>(null);
   const sources = photos.map(photo => {
     const version = photo.versions.find(item => item.id === (versions[photo.id] || photo.selected)) || photo.versions[0];
-    return { photo_id: photo.id, version_id: version.id === "original" ? "" : version.id };
+    return { mouvement: cameraMove(movements[photo.id]), photo_id: photo.id, version_id: version.id === "original" ? "" : version.id };
   });
   const signature = JSON.stringify({ photos: sources, demande: demande.trim() });
   const sameProperty = new Set(photos.map(photo => photo.property)).size <= 1;
@@ -98,7 +99,7 @@ export function VideoGeneration({ photos, demande, storageKey, enabled, versions
   return <section className="st-video-generation" aria-labelledby="video-confirm-title">
     <h2 id="video-confirm-title">Relire, puis lancer.</h2>
     <p>{photos.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""} · ${photos.length * 5} secondes prévues · 720p` : "Choisissez au moins une photo pour créer votre vidéo."} Chaque photo donne un plan de 5 secondes. Les plans sont assemblés dans votre ordre, avec une coupe entre les pièces.</p>
-    {!!demande.trim() && <details className="st-video-final-prompt"><summary>Relire la demande envoyée au moteur</summary><p>{demande}</p></details>}
+    {!!demande.trim() && <details className="st-video-final-prompt"><summary>Relire ma demande et les mouvements</summary><p>{demande}</p><ol>{photos.map((photo, index) => <li key={photo.id}><strong>{photo.title}</strong> : {cameraDescription(movements[photo.id], index)}</li>)}</ol></details>}
     {!sameProperty && <p role="alert">Choisissez les photos d’un seul logement pour cette vidéo.</p>}
     {photos.length > 6 && <p role="alert">Gardez jusqu’à 6 photos pour une vidéo de 30 secondes au maximum.</p>}
     {demande.trim().length > 3000 && <p role="alert">Raccourcissez votre demande à 3 000 caractères maximum avant de lancer.</p>}

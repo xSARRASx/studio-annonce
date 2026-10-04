@@ -13,13 +13,15 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from .. import acces_ia, higgsfield_video, images, stockage, video_montage
+from ..config import reglages
+from ..consignes_video import Mouvement, VERSION, mouvement_du_plan, preparer_consigne
 from ..db import session
 from ..models import Compte, Logement, Photo, Video, identifiant, maintenant
 from .auth import compte_complet
 
 routeur = APIRouter(prefix="/videos", tags=["videos"])
 EN_COURS = ("preparation", "en_attente", "clips", "montage")
-CONSIGNE_FIDELITE = (
+CONSIGNE_FIDELITE = (  # Legacy uniquement : conserver les requêtes déjà acceptées, même après une mise à jour.
     "Vidéo immobilière photoréaliste. Respecte exactement la pièce de la photo : "
     "positions des portes, fenêtres, murs, radiateurs et volumes. "
     "Mouvement de caméra doux dans cette seule pièce, sans franchir un mur ni inventer une autre pièce. "
@@ -46,6 +48,12 @@ class DemandeVideo(BaseModel):
 class SourceVideo(BaseModel):
     photo_id: str = Field(min_length=1, max_length=24)
     version_id: str | None = Field(default=None, max_length=24)
+    mouvement: Mouvement = "auto"
+
+
+def _selection(sources: list[SourceVideo]) -> list[dict]:
+    # Même signature que les anciennes confirmations sans mouvement explicite.
+    return [p.model_dump(exclude={"mouvement"} if p.mouvement == "auto" else set()) for p in sources]
 
 
 class DemandeVisite(DemandeVideo):
@@ -92,7 +100,7 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
         deja = s.scalar(select(Video).where(Video.cle_demande == cle))
         if deja:
             _video(s, compte, deja.id)
-            if (deja.plan or {}).get("demande") != demande or (deja.plan or {}).get("selection") != [p.model_dump() for p in sources]:
+            if (deja.plan or {}).get("demande") != demande or (deja.plan or {}).get("selection") != _selection(sources):
                 raise HTTPException(409, "Cette confirmation correspond à une autre demande vidéo.")
             s.commit()
             return deja
@@ -117,6 +125,8 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
     if nb >= 5:
         raise HTTPException(429, "Limite de cinq projets vidéo par logement et par jour atteinte.")
     plans = []
+    if reglages.VIDEO_MODELE not in higgsfield_video.MODELES:
+        raise HTTPException(503, "Le moteur vidéo doit être vérifié avant un nouvel essai.")
     for source, photo in zip(sources, photos):
         version = None
         if source.version_id:
@@ -129,7 +139,11 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
                       "cle_source": version.cle_pleine if version else photo.cle_originale})
     v = Video(logement_id=logement_id, cle_demande=cle, statut="preparation",
               plan={"schema": 2, "photo_id": photos[0].id, "duree": 5 * len(plans), "demande": demande,
-                    "selection": [p.model_dump() for p in sources], "sources": plans}, requetes={"clips": []})
+                    "selection": _selection(sources), "sources": plans,
+                    "modele": reglages.VIDEO_MODELE, "direction_version": VERSION,
+                    "directions": [{"mouvement": mouvement_du_plan(p.mouvement, i),
+                                    "prompt": preparer_consigne(demande, p.mouvement, i, len(sources))}
+                                   for i, p in enumerate(sources)]}, requetes={"clips": []})
     s.add(v)
     s.commit()
     return v
@@ -225,7 +239,12 @@ async def _avancer(fabrique, video_id: str) -> None:
                 s.expire(compte)
                 if compte.statut != "actif":
                     raise RuntimeError("Compte inactif.")
-                plan.update(await higgsfield_video.soumettre(plan["image_url"], CONSIGNE_FIDELITE + v.plan.get("demande", ""), 5, plan["idempotence"]))
+                # L'intention et le modèle sont figés à la confirmation, y compris
+                # lors d'une réponse perdue ou d'un changement ultérieur de réglage.
+                directions = v.plan.get("directions")
+                prompt = directions[index]["prompt"] if directions else CONSIGNE_FIDELITE + v.plan.get("demande", "")
+                modele = v.plan.get("modele", higgsfield_video.MODELE)
+                plan.update(await higgsfield_video.soumettre(plan["image_url"], prompt, 5, plan["idempotence"], modele))
                 v.statut, v.erreur = "en_attente", ""
                 sauver()
                 return
@@ -260,7 +279,9 @@ async def _avancer(fabrique, video_id: str) -> None:
             s.rollback()
             v = s.get(Video, video_id)
             if v.traitement_jeton == jeton:
-                if isinstance(erreur, httpx.HTTPStatusError) and erreur.response.status_code in {400, 401, 403, 404, 422}:
+                if isinstance(erreur, httpx.HTTPStatusError) and erreur.response.status_code == 402:
+                    v.statut, v.erreur = "echec", "Le solde du service vidéo est insuffisant. Les clips déjà prêts sont conservés. Aucun nouvel essai ne sera lancé automatiquement après la recharge."
+                elif isinstance(erreur, httpx.HTTPStatusError) and erreur.response.status_code in {400, 401, 403, 404, 422}:
                     v.statut, v.erreur = "echec", "Le fournisseur n'a pas accepté un plan. Les clips déjà prêts restent disponibles. Vérifiez la connexion et le solde du service avant un nouvel essai."
                 else:
                     v.erreur = "Le suivi est momentanément interrompu. Revenez sur cette vidéo : le même projet sera vérifié sans recréer les plans terminés."

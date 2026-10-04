@@ -1,5 +1,11 @@
 # Studio Annonce sur N0C — état vérifié le 4 octobre 2026
 
+## Direction de caméra du 4 octobre
+
+Livraison `camera-20261004T141720Z` publiée : mouvements au choix par photo (traversée, orbite partielle, révélation latérale, calme), exemple dynamique, récapitulatif web/mobile et prompts figés par plan. Seedance 2.5 reste le modèle actif ; le connecteur Kling 3.0 Pro est prêt pour une recette privée après recharge. Aucun appel payant effectué pour cette livraison, qualité visuelle non encore validée. Un HTTP 402 arrête le projet sans relance automatique à la recharge.
+
+Sauvegarde N0C et copie locale vérifiées sous le même identifiant. 163 fichiers contrôlés sur disque, 85 relus par HTTPS. Base SQLite intacte et nombres conservés : 1 compte, 3 logements, 13 photos, 2 versions, 3 vidéos ; aucun achat ou mouvement de crédit. Configuration privée et accueil public inchangés ; aucune migration nécessaire. Les trois vidéos existantes étaient terminées avant publication. Voir [les consignes, tests et essai réel restant](../docs/VIDEO-CAMERA-2026-10-04.md).
+
 ## Mise à jour suivante : archives, corbeille et ajout multiple
 
 Livraison `creations-20261004T134311Z` publiée : popup d’archivage, suppression réversible des photos/vidéos, restauration et ajout de plusieurs photos dès le premier écran. Migration additive `supprime_le` sur photos/vidéos, sans purge ni modification des crédits. Sauvegarde N0C et copie locale contrôlées sous le même identifiant. 166 fichiers vérifiés sur disque, 85 relus par HTTPS ; API privée refusée aux anonymes. Données avant/après conservées : 1 compte, 3 logements, 13 photos, 2 versions, 3 vidéos. 123 tests API, 51 web, 23 mobile ; contrôles navigateur avec compte fictif. Voir [la recette détaillée](../docs/CORBEILLE-ET-AJOUT-MULTIPLE-2026-10-04.md). L’accueil public et les fichiers de configuration privés sont inchangés.
