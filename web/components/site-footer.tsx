@@ -19,7 +19,7 @@ export function SiteFooter() {
       <div className="site-footer-columns">
         <div className="site-footer-about">
           <Link className="site-footer-brand" href="/" aria-label="Studio Annonce, accueil">
-            <Image src={`${base}/demo/porte-lumineuse.svg`} alt="" width={38} height={45} />
+            <Image src={`${base}/icone.svg`} alt="" width={48} height={48} />
             <span>studio<span>annonce</span></span>
           </Link>
           <p>Retouche photo immobilière et décoration virtuelle pour préparer les images de votre annonce.</p>
@@ -59,8 +59,14 @@ export function SiteFooter() {
           <p>Les liens de téléchargement seront activés dès la publication de l’application sur les deux stores.</p>
         </div>
         <div className="site-footer-stores" aria-label="Application mobile bientôt disponible">
-          <span className="site-footer-store-badge"><small>Bientôt sur l’</small><strong>App Store</strong></span>
-          <span className="site-footer-store-badge"><small>Bientôt sur</small><strong>Google Play</strong></span>
+          <span className="site-footer-store-badge">
+            <Image src={`${base}/icone.svg`} alt="" width={42} height={42} />
+            <span><small>Bientôt sur l’</small><strong>App Store</strong></span>
+          </span>
+          <span className="site-footer-store-badge">
+            <Image src={`${base}/icone.svg`} alt="" width={42} height={42} />
+            <span><small>Bientôt sur</small><strong>Google Play</strong></span>
+          </span>
         </div>
       </section>
 
