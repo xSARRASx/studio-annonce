@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Info } from "lucide-react";
-import { api, type Logement, type Photo } from "@/lib/api";
-import { loadProjects, photoProject, projectSource } from "@/lib/studio-library";
+import { api, type Logement } from "@/lib/api";
+import { loadProjects, photoProject, projectSource, summaryProjects } from "@/lib/studio-library";
+import { envoyerPhoto } from "@/lib/photo-upload";
 import { useStudioAccount } from "@/components/studio-account";
 import { CreationLimits } from "@/components/creation-limits";
 import { CreateView, PhotoList } from "../demo/studio-screens";
@@ -27,6 +29,7 @@ export default function MonStudio() {
   const [exampleVersion, setExampleVersion] = useState("decor");
   const [visited, setVisited] = useState<string[]>([]);
   const homes = useRef<Logement[]>([]);
+  const [homeList, setHomeList] = useState<Logement[]>([]);
   const uploaded = useRef(new WeakMap<File, DemoProject>());
   const importing = useRef(false);
   const [reload, setReload] = useState(0);
@@ -40,9 +43,12 @@ export default function MonStudio() {
 
   useEffect(() => {
     let active = true;
-    api<Logement[]>("/logements").then(async logements => {
-      const creations = await loadProjects(logements);
-      if (active) { homes.current = logements; setProjects(creations); setLoading(false); setError(""); }
+    api<Logement[]>("/logements").then(logements => {
+      if (!active) return;
+      homes.current = logements; setHomeList(logements); setProjects(summaryProjects(logements)); setLoading(false); setError("");
+      if (logements.some(home => home.photos.some(photo => !photo.versions))) void loadProjects(logements).then(creations => {
+        if (active) setProjects(previous => [...creations, ...previous.filter(project => !creations.some(detail => detail.id === project.id))]);
+      }).catch(() => { /* La liste légère reste utilisable si un détail tarde. */ });
     }).catch(e => { if (active) { setError(e.message); setLoading(false); } });
     return () => { active = false; };
   }, [reload]);
@@ -56,30 +62,36 @@ export default function MonStudio() {
   const library: DemoLibrary = { schema: 1, credits: compte.solde, freeUsed: !compte.photo_offerte_disponible, events: [], projects };
   const go = (hash: string) => { window.location.hash = hash === "studio" ? "" : hash; window.scrollTo({ top: 0 }); };
 
-  async function addPhotos(files: File[], logement: string, draft = "") {
+  async function addPhotos(files: File[], logement: string, draft = "", onProgress?: (project: DemoProject) => void) {
     if (importing.current) throw new Error("Un envoi est déjà en cours.");
     importing.current = true; setBusy(true); setError("");
     const added: DemoProject[] = [];
+    const failures: string[] = [];
     try {
       let home = homes.current.find(h => h.nom === logement);
       if (!home) {
         home = await api<Logement>("/logements", { method: "POST", body: JSON.stringify({ nom: logement }) });
         homes.current.push(home);
+        setHomeList([...homes.current]);
       }
       for (const file of files) {
+        try {
         const existing = uploaded.current.get(file);
-        if (existing) { added.push(existing); continue; }
+        if (existing) { added.push(existing); onProgress?.(existing); continue; }
         if (file.size > 30 * 1024 * 1024) throw new Error("Choisissez une photo de moins de 30 Mo.");
-        const form = new FormData(); form.append("fichier", file); if (draft) form.append("demande", draft);
-        const photo = await api<Photo>(`/photos/${home.id}`, { method: "POST", body: form });
+        const photo = await envoyerPhoto(file, home.id, draft);
         const project = photoProject(photo, home);
+        home.photos.push({ ...photo, gardee: !!photo.version_gardee, creditee: !!photo.credite_le });
         uploaded.current.set(file, project); added.push(project);
         if (draft) {
           try { sessionStorage.setItem(`studio:${compte.id}:photo:${photo.id}:draft`, draft); }
           catch { /* La photo reste disponible même si le navigateur refuse le brouillon. */ }
         }
         setProjects(previous => [project, ...previous]);
+        onProgress?.(project);
+        } catch (cause) { failures.push(`${file.name} : ${(cause as Error).message}`); }
       }
+      if (failures.length) throw new Error(failures.join(" · "));
       return added;
     } catch (e) {
       const message = (e as Error).message;
@@ -100,7 +112,8 @@ export default function MonStudio() {
     {error && <div className="connected-service" role="alert"><Info size={17}/><p>{error}</p></div>}
     {["studio", "nouvelle", "creer-image"].includes(screen) && <div className="connected-limits"><CreationLimits limites={compte.limites}/></div>}
     {screen === "visite" && <div className="connected-limits"><CreationLimits limites={compte.limites} kind="video"/></div>}
-    {screen === "studio" && <PhotoList library={library} source={projectSource} now={now} busy={busy} onCreate={() => go("creer")} onAddPhoto={name => { setProperty(name); go("nouvelle"); }} onExample={setExample} onOpen={project => router.push(`/app/photo/?id=${project.id}`)}/>}
+    {screen === "studio" && <PhotoList library={library} source={projectSource} now={now} busy={busy} onCreate={() => go("creer")} onAddPhoto={name => { setProperty(name); go("nouvelle"); }} onManageProperty={photoId => { const home = homes.current.find(item => item.photos.some(photo => photo.id === photoId)); if (home) router.push(`/app/logement/?id=${home.id}`); }} onExample={setExample} onOpen={project => router.push(`/app/photo/?id=${project.id}`)}/>}
+    {screen === "studio" && homeList.length > 0 && <details className="st-library-archives"><summary>Gérer mes logements et mes archives</summary><div>{homeList.map(home => <Link key={home.id} href={`/app/logement/?id=${home.id}&archives=true`}>{home.nom} · gérer les photos et archives →</Link>)}</div></details>}
     {screen === "creer" && <CreationHub onChoose={go} onImportPhotos={() => router.push("/app/importer/")}/>}
     {screen === "nouvelle" && sante && !sante.retouche_disponible && <div className="connected-service" role="status"><Info size={17}/><p>Vous pouvez préparer votre photo. La retouche IA est momentanément indisponible ; aucun crédit n’est consommé.</p></div>}
     {visited.includes("nouvelle") && <div hidden={screen !== "nouvelle"}><CreateView maxRequest={4000} key={property} library={library} busy={busy} initial={property} onCancel={() => go("creer")} onImagine={() => go("creer-image")} onBatch={() => router.push("/app/importer/")} onExample={() => setExample("photo")} onCreate={async (files, home, draft) => {
@@ -108,7 +121,7 @@ export default function MonStudio() {
       router.push(`/app/photo/?id=${added[0].id}`);
     }}/></div>}
     {visited.includes("creer-image") && <div hidden={screen !== "creer-image"}><ImagePlanner storageKey={`studio:${compte.id}:image-plan`} onBack={() => go("creer")} onPhoto={() => go("nouvelle")}/></div>}
-    {visited.includes("visite") && <div hidden={screen !== "visite"}><VideoPlanner storageKey={`studio:${compte.id}:video-plan`} library={library} source={projectSource} onBack={() => go("creer")} onAddPhotos={addPhotos}/></div>}
+    {visited.includes("visite") && <div hidden={screen !== "visite"}><VideoPlanner connected={compte.gratuit_illimite ? { enabled: !!sante?.video_disponible } : { enabled: false }} storageKey={`studio:${compte.id}:video-plan`} library={library} source={projectSource} onBack={() => go("creer")} onAddPhotos={(files, home, progress) => addPhotos(files, home, "", progress)}/></div>}
     {visited.includes("video-photos") && <div hidden={screen !== "video-photos"}><VideoFrames library={library} busy={busy} active={screen === "video-photos"} onCancel={() => go("creer")} onCreate={async (files, home, _name, request) => {
       await addPhotos(files, home, request); setVisited(previous => previous.filter(tool => tool !== "video-photos")); go("studio");
     }}/></div>}

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Images, Link2 } from "lucide-react";
-import { api, type Logement, type Photo } from "@/lib/api";
+import { api, type Logement } from "@/lib/api";
+import { envoyerPhoto } from "@/lib/photo-upload";
 import { useStudioAccount } from "@/components/studio-account";
 import "./importer.css";
 
@@ -63,7 +64,7 @@ export default function ImporterAnnonce() {
     setOccupe(true); setErreur("");
     try {
       const home = await api<Logement>("/logements", { method: "POST", body: JSON.stringify({ nom: nom.trim() || "Mon logement", source_url: lien.trim() }) });
-      router.push(`/app/logement/?id=${home.id}`);
+      router.push(`/app/logement/?id=${home.id}${new URLSearchParams(window.location.search).get("suite") === "video" ? "&suite=video" : ""}`);
     } catch (cause) { setErreur((cause as Error).message); setOccupe(false); }
   }
 
@@ -77,15 +78,21 @@ export default function ImporterAnnonce() {
         setLogementCree(home);
       }
       for (let i = 0; i < retenues.length; i++) {
-        const form = new FormData(); form.append("fichier", retenues[i].file);
-        const photo = await api<Photo>(`/photos/${home.id}`, { method: "POST", body: form });
+        const photo = await envoyerPhoto(retenues[i].file, home.id);
         imported.current.push(photo.id);
         setEnvoi({ fait: i + 1, total: retenues.length });
         setPhotos(previous => previous.filter(choice => choice !== retenues[i]));
       }
       window.dispatchEvent(new Event("studio:credits-updated"));
       const ids = imported.current;
-      router.push(`/app/photo/?id=${ids[0]}&lot=${encodeURIComponent(ids.join(","))}`);
+      if (new URLSearchParams(window.location.search).get("suite") === "video") {
+        const key = `studio:${compte.id}:video-plan`;
+        try {
+          const current = JSON.parse(localStorage.getItem(key) || "{}");
+          localStorage.setItem(key, JSON.stringify({ ...current, selectedIds: [...new Set([...(Array.isArray(current.selectedIds) ? current.selectedIds : []), ...ids])] }));
+        } catch { /* Les photos restent dans le compte si le stockage local est refusé. */ }
+        router.push("/app/#visite");
+      } else router.push(`/app/photo/?id=${ids[0]}&lot=${encodeURIComponent(ids.join(","))}`);
     } catch (cause) {
       setErreur(`${(cause as Error).message} ${home ? "Les photos déjà ajoutées restent dans le logement. Vous pouvez réessayer pour les autres." : ""}`);
       setOccupe(false);

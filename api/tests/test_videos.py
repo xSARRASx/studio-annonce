@@ -1,6 +1,9 @@
-"""Le compte propriétaire emprunte le parcours vidéo commun sans débit."""
+"""Le suivi vidéo est rapide et les appels facturés gardent la même intention."""
+import asyncio
+from contextlib import ExitStack
 import tempfile
 import unittest
+import uuid
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import higgsfield_video
 from app.db import Base, session
-from app.models import Compte, Jeton, Logement, Photo, Video, maintenant
+from app.models import Compte, Jeton, Logement, MouvementCreditVideo, Photo, Version, Video, maintenant
 from app.routes import videos
 
 
@@ -27,8 +30,14 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
                              profil_complete_le=maintenant(), email_verifie_le=maintenant()))
             s.flush()
             s.add_all([Jeton(valeur=ident, compte_id=ident) for ident in ("owner", "client")])
-            s.add(Logement(id="house", compte_id="owner"))
-            s.add(Photo(id="photo", logement_id="house", cle_originale="source"))
+            s.add_all([Logement(id="house", compte_id="owner"), Logement(id="house2", compte_id="owner"), Logement(id="other", compte_id="client")])
+            s.flush()
+            s.add_all([Photo(id="photo", logement_id="house", cle_originale="source", version_gardee_id="v"),
+                       Photo(id="photo2", logement_id="house", cle_originale="source2"),
+                       Photo(id="photo3", logement_id="house2", cle_originale="source3"),
+                       Photo(id="foreign", logement_id="other", cle_originale="foreign")])
+            s.flush()
+            s.add(Version(id="v", photo_id="photo", numero=1, consigne="Lumière", cle_apercu="preview", cle_pleine="retouched"))
             s.commit()
         def sessions():
             with self.sessions() as s:
@@ -36,92 +45,183 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         app = FastAPI()
         app.include_router(videos.routeur)
         app.dependency_overrides[session] = sessions
-        self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test",
-                                        headers={"Authorization": "Bearer owner"})
+        self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer owner"})
+        self.stack = ExitStack()
+        self.schedule = self.stack.enter_context(patch.object(videos, "_planifier"))
+        self.stack.enter_context(patch.object(videos.higgsfield_video, "disponible", return_value=True))
+        self.prepare = self.stack.enter_context(patch.object(videos.higgsfield_video, "preparer_image", new=AsyncMock(return_value="https://files.higgsfield.ai/photo.jpg")))
+        self.submit = self.stack.enter_context(patch.object(videos.higgsfield_video, "soumettre", new=AsyncMock(return_value={"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"})))
+        self.poll = self.stack.enter_context(patch.object(videos.higgsfield_video, "etat", new=AsyncMock(return_value={"status": "queued"})))
+        self.stack.enter_context(patch.object(videos.higgsfield_video, "fichier_resultat", new=AsyncMock(return_value=b"0000ftypdata")))
+        self.stack.enter_context(patch.object(videos.images, "preparer_envoi_ia", return_value=b"jpeg"))
+        self.stack.enter_context(patch.object(videos.stockage, "lire", side_effect=lambda cle: cle.encode()))
+        self.stack.enter_context(patch.object(videos.stockage, "ecrire", side_effect=lambda cle, contenu, mime: cle))
+        self.stack.enter_context(patch.object(videos.stockage, "url_privee", side_effect=lambda cle: f"https://studio.test/{cle}"))
 
     async def asyncTearDown(self):
         await self.client.aclose()
+        self.stack.close()
         self.engine.dispose()
         self.temp.cleanup()
 
-    async def test_owner_creation_gratuite_et_double_clic(self):
-        receipt = {"request_id": "provider-1", "status_url": "https://platform.higgsfield.ai/requests/provider-1/status"}
-        with patch.object(videos.higgsfield_video, "disponible", return_value=True), \
-             patch.object(videos.higgsfield_video, "preparer_image", new=AsyncMock(return_value="https://files.higgsfield.ai/photo.jpg")), \
-             patch.object(videos.higgsfield_video, "soumettre", new=AsyncMock(return_value=receipt)) as provider, \
-             patch.object(videos.images, "preparer_envoi_ia", return_value=b"jpeg"), \
-             patch.object(videos.stockage, "lire", return_value=b"source"):
-            first = await self.client.post("/videos/photos/photo", json={"demande": "Caméra douce dans la pièce"})
-            self.assertEqual(first.status_code, 200, first.text)
-            self.assertEqual(first.json()["statut"], "en_attente")
-            second = await self.client.post("/videos/photos/photo", json={"demande": "Caméra douce dans la pièce"})
-            self.assertEqual(second.status_code, 409)
-            provider.assert_awaited_once()
-        with self.sessions() as s:
-            item = s.scalar(select(Video))
-            self.assertEqual(item.requetes, {"image_url": "https://files.higgsfield.ai/photo.jpg", **receipt})
-            self.assertEqual(item.plan["duree"], 5)
+    def request(self, photos=None, key=None, demande="Caméra douce dans la pièce"):
+        return {"photos": photos or [{"photo_id": "photo"}], "cle_demande": key or str(uuid.uuid4()), "demande": demande}
 
-    async def test_client_refuse_et_suivi_preserve_sans_nouvel_appel(self):
-        forbidden = await self.client.post("/videos/photos/photo", headers={"Authorization": "Bearer client"},
-                                           json={"demande": "Caméra douce"})
-        self.assertIn(forbidden.status_code, (404, 503))
+    async def create(self, **options):
+        response = await self.client.post("/videos/visites", json=self.request(**options))
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    async def test_owner_confirmation_rapide_double_clic_et_zero_debit(self):
+        data = self.request()
+        first = await self.client.post("/videos/visites", json=data)
+        second = await self.client.post("/videos/visites", json=data)
+        self.assertEqual(first.json()["id"], second.json()["id"])
+        self.assertEqual(first.json()["statut"], "preparation")
+        self.submit.assert_not_awaited()
+        await videos._avancer(self.sessions, first.json()["id"])
+        third = await self.client.post("/videos/visites", json=self.request())
+        self.assertEqual(third.status_code, 409)
+        self.submit.assert_awaited_once()
         with self.sessions() as s:
-            s.add(Video(id="clip", logement_id="house", statut="en_attente",
-                        plan={"photo_id": "photo", "duree": 5},
-                        requetes={"request_id": "p", "status_url": "https://platform.higgsfield.ai/requests/p/status"}))
+            self.assertEqual(len(s.scalars(select(Video)).all()), 1)
+            self.assertEqual(s.scalars(select(MouvementCreditVideo)).all(), [])
+            self.assertEqual(s.scalar(select(Video)).requetes["clips"][0]["request_id"], "p")
+
+    async def test_ordre_versions_et_original_explicite(self):
+        data = self.request(photos=[{"photo_id": "photo2", "version_id": ""}, {"photo_id": "photo", "version_id": "v"}])
+        result = (await self.client.post("/videos/visites", json=data)).json()
+        self.assertEqual(result["duree"], 10)
+        with self.sessions() as s:
+            self.assertEqual(s.get(Video, result["id"]).plan["sources"], [
+                {"photo_id": "photo2", "version_id": None, "cle_source": "source2"},
+                {"photo_id": "photo", "version_id": "v", "cle_source": "retouched"}])
+        self.assertEqual((await self.client.post("/videos/visites", json={**data, "photos": list(reversed(data["photos"]))})).status_code, 409)
+        with self.sessions() as s:
+            s.get(Video, result["id"]).statut = "prete"
             s.commit()
-        with patch.object(videos.higgsfield_video, "etat", new=AsyncMock(return_value={"status": "completed", "video": {"url": "https://media.higgsfield.ai/clip.mp4"}})), \
-             patch.object(videos.higgsfield_video, "fichier_resultat", new=AsyncMock(return_value=b"0000ftypdata")), \
-             patch.object(videos.stockage, "ecrire", return_value="prive/videos/clip.mp4"), \
-             patch.object(videos.stockage, "url_privee", return_value="https://studioannonce.fr/clip.mp4"):
-            result = await self.client.get("/videos/clip")
-            self.assertEqual(result.status_code, 200, result.text)
-            self.assertEqual(result.json()["statut"], "prete")
-            self.assertEqual(result.json()["url"], "https://studioannonce.fr/clip.mp4")
+        original = await self.create(photos=[{"photo_id": "photo", "version_id": ""}])
+        with self.sessions() as s:
+            self.assertEqual(s.get(Video, original["id"]).plan["sources"][0]["cle_source"], "source")
 
-    async def test_timeout_apres_soumission_reprend_meme_intention(self):
-        receipt = {"request_id": "provider-2", "status_url": "https://platform.higgsfield.ai/requests/provider-2/status"}
-        with patch.object(videos.higgsfield_video, "disponible", return_value=True), \
-             patch.object(videos.higgsfield_video, "preparer_image", new=AsyncMock(return_value="https://files.higgsfield.ai/photo.jpg")), \
-             patch.object(videos.higgsfield_video, "soumettre", new=AsyncMock(side_effect=[RuntimeError("timeout"), receipt])) as provider, \
-             patch.object(videos.higgsfield_video, "etat", new=AsyncMock(return_value={"status": "queued"})), \
-             patch.object(videos.images, "preparer_envoi_ia", return_value=b"jpeg"), \
-             patch.object(videos.stockage, "lire", return_value=b"source"):
-            first = await self.client.post("/videos/photos/photo", json={"demande": "Caméra douce dans la pièce"})
-            self.assertEqual(first.status_code, 502)
-            latest = (await self.client.get("/videos/photos/photo/derniere")).json()
-            resumed = await self.client.get(f"/videos/{latest['id']}")
-            self.assertEqual(resumed.status_code, 200, resumed.text)
-            self.assertEqual(resumed.json()["statut"], "en_attente")
-            self.assertEqual(provider.await_count, 2)
-            self.assertEqual(provider.await_args_list[0].args, provider.await_args_list[1].args)
+    async def test_sources_invalides_refusees_avant_fournisseur(self):
+        for sources, status in [([{"photo_id": "foreign"}], 404), ([{"photo_id": "photo"}, {"photo_id": "photo"}], 400),
+                                ([{"photo_id": "photo"}, {"photo_id": "photo3"}], 400), ([{"photo_id": "photo", "version_id": "absent"}], 400),
+                                ([{"photo_id": "photo"}] * 7, 422)]:
+            with self.subTest(sources=sources):
+                r = await self.client.post("/videos/visites", json=self.request(photos=sources))
+                self.assertEqual(r.status_code, status, r.text)
+        with self.sessions() as s:
+            s.get(Photo, "photo").archive_le = maintenant()
+            s.commit()
+        self.assertEqual((await self.client.post("/videos/visites", json=self.request())).status_code, 400)
+        self.assertEqual((await self.client.post("/videos/visites", json=self.request(demande="   "))).status_code, 422)
+        self.submit.assert_not_awaited()
+
+    async def test_client_et_autre_compte_refuses(self):
+        refused = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json=self.request(photos=[{"photo_id": "foreign"}]))
+        self.assertEqual(refused.status_code, 503)
+        video = await self.create()
+        self.assertEqual((await self.client.get(f"/videos/{video['id']}", headers={"Authorization": "Bearer client"})).status_code, 404)
+        self.submit.assert_not_awaited()
+
+    async def test_reponse_perdue_reprend_meme_intention_fournisseur(self):
+        self.submit.side_effect = [RuntimeError("timeout"), {"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"}]
+        result = await self.create()
+        await videos._avancer(self.sessions, result["id"])
+        await videos._avancer(self.sessions, result["id"])
+        self.assertEqual(self.submit.await_count, 2)
+        self.assertEqual(self.submit.await_args_list[0].args, self.submit.await_args_list[1].args)
+        self.prepare.assert_awaited_once()
+        followed = (await self.client.get(f"/videos/{result['id']}")).json()
+        self.assertEqual(followed["statut"], "en_attente")
         with self.sessions() as s:
             self.assertEqual(len(s.scalars(select(Video)).all()), 1)
 
-    def test_suivi_higgsfield_accepte_les_deux_domaines_officiels(self):
+    async def test_bail_et_suivi_ne_bloquent_pas_navigation_ou_ecriture(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def slow(*args):
+            entered.set()
+            await release.wait()
+            return {"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"}
+        self.submit.side_effect = slow
+        result = await self.create()
+        worker = asyncio.create_task(videos._avancer(self.sessions, result["id"]))
+        await asyncio.wait_for(entered.wait(), 1)
+        try:
+            suivi = await asyncio.wait_for(self.client.get(f"/videos/{result['id']}"), 1)
+            self.assertEqual(suivi.status_code, 200)
+            await asyncio.wait_for(videos._avancer(self.sessions, result["id"]), 1)
+            with self.sessions() as s:
+                s.get(Compte, "client").prenom = "Disponible"
+                s.commit()
+            self.submit.assert_awaited_once()
+        finally:
+            release.set()
+            await worker
+
+    async def test_suspension_pendant_envoi_bloque_la_soumission(self):
+        async def suspend(*args):
+            with self.sessions() as s:
+                s.get(Compte, "owner").statut = "suspendu"
+                s.commit()
+            return "https://files.higgsfield.ai/photo.jpg"
+        self.prepare.side_effect = suspend
+        result = await self.create()
+        await videos._avancer(self.sessions, result["id"])
+        await videos._avancer(self.sessions, result["id"])
+        self.submit.assert_not_awaited()
+        with self.sessions() as s:
+            self.assertEqual(s.get(Video, result["id"]).statut, "echec")
+
+    async def test_montage_ordonne_et_reprise_ne_regenere_pas(self):
+        result = await self.create(photos=[{"photo_id": "photo2"}, {"photo_id": "photo"}])
+        await videos._avancer(self.sessions, result["id"])
+        await videos._avancer(self.sessions, result["id"])
+        self.poll.return_value = {"status": "completed", "video": {"url": "https://media.test/clip.mp4"}}
+        with patch.object(videos.video_montage, "assembler", side_effect=[RuntimeError("montage"), b"assembled"]) as montage:
+            await videos._avancer(self.sessions, result["id"])
+            first = (await self.client.get(f"/videos/{result['id']}")).json()
+            self.assertEqual(first["plans_prets"], 2)
+            self.assertEqual(first["statut"], "montage")
+            await videos._avancer(self.sessions, result["id"])
+            self.assertEqual(montage.call_args_list[0], montage.call_args_list[1])
+            self.assertEqual(montage.call_args.args[0], [f"prive/videos/{result['id']}/plan-0.mp4".encode(), f"prive/videos/{result['id']}/plan-1.mp4".encode()])
+        self.assertEqual(self.submit.await_count, 2)
+        self.assertEqual((await self.client.get(f"/videos/{result['id']}" )).json()["statut"], "prete")
+        self.assertEqual((await self.client.get("/videos/photos/photo2/derniere")).json()["id"], result["id"])
+
+    async def test_plafond_cinq_projets_sur_24h(self):
+        with self.sessions() as s:
+            s.add_all([Video(logement_id="house", statut="prete", plan={}, requetes={}) for _ in range(5)])
+            s.commit()
+        self.assertEqual((await self.client.post("/videos/visites", json=self.request())).status_code, 429)
+        self.submit.assert_not_awaited()
+
+    async def test_ancien_clip_repris_sans_nouvelle_soumission(self):
+        with self.sessions() as s:
+            s.add(Video(id="clip", logement_id="house", statut="en_attente", plan={"photo_id": "photo", "duree": 5},
+                        requetes={"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"}))
+            s.commit()
+        self.poll.return_value = {"status": "completed", "video": {"url": "https://media.test/clip.mp4"}}
+        await videos._avancer(self.sessions, "clip")
+        result = (await self.client.get("/videos/clip")).json()
+        self.assertEqual(result["statut"], "prete")
+        self.assertTrue(result["url"])
+        self.submit.assert_not_awaited()
+
+    async def test_ancienne_preparation_interrompue_libere_essai(self):
+        with self.sessions() as s:
+            s.add(Video(id="orphelin", logement_id="house", statut="preparation", plan={"photo_id": "photo", "duree": 5}, requetes={}, cree_le=maintenant() - timedelta(minutes=6)))
+            s.commit()
+        await videos._avancer(self.sessions, "orphelin")
+        self.assertEqual((await self.client.get("/videos/orphelin")).json()["statut"], "echec")
+        await self.create()
+        self.submit.assert_not_awaited()
+
+    def test_suivi_higgsfield_accepte_seulement_domaines_officiels(self):
         for host in ("api.higgsfield.ai", "platform.higgsfield.ai"):
             url = f"https://{host}/requests/123/status"
             self.assertEqual(higgsfield_video._url_statut(url), url)
-        for url in ("http://platform.higgsfield.ai/requests/123/status",
-                    "https://evil.example/requests/123/status",
-                    "https://platform.higgsfield.ai.evil.example/requests/123/status"):
-            with self.assertRaises(RuntimeError):
-                higgsfield_video._url_statut(url)
-
-    async def test_preparation_interrompue_libere_un_nouvel_essai(self):
-        with self.sessions() as s:
-            s.add(Video(id="orphelin", logement_id="house", statut="preparation",
-                        plan={"photo_id": "photo", "duree": 5}, requetes={},
-                        cree_le=maintenant() - timedelta(minutes=6)))
-            s.commit()
-        suivi = await self.client.get("/videos/orphelin")
-        self.assertEqual(suivi.status_code, 200)
-        self.assertEqual(suivi.json()["statut"], "echec")
-        with patch.object(videos.higgsfield_video, "disponible", return_value=True), \
-             patch.object(videos.higgsfield_video, "preparer_image", new=AsyncMock(return_value="https://files.higgsfield.ai/photo.jpg")), \
-             patch.object(videos.higgsfield_video, "soumettre", new=AsyncMock(return_value={"request_id": "new", "status_url": "https://platform.higgsfield.ai/requests/new/status"})), \
-             patch.object(videos.images, "preparer_envoi_ia", return_value=b"jpeg"), \
-             patch.object(videos.stockage, "lire", return_value=b"source"):
-            reprise = await self.client.post("/videos/photos/photo", json={"demande": "Caméra douce"})
-        self.assertEqual(reprise.status_code, 200, reprise.text)
+        for url in ("http://platform.higgsfield.ai/requests/123/status", "https://evil.example/requests/123/status", "https://platform.higgsfield.ai.evil.example/requests/123/status"):
+            with self.assertRaises(RuntimeError): higgsfield_video._url_statut(url)

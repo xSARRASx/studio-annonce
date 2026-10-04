@@ -27,8 +27,9 @@ async function reponseApi(chemin: string, options: RequestInit = {}): Promise<Re
   try { rep = await fetch(`${API}${chemin}`, { ...options, headers: entetes }); }
   catch { throw new ErreurApi(0, "Le service ne répond pas pour le moment. Vérifiez votre connexion et réessayez."); }
   if (!rep.ok) {
-    let message = "Une erreur est survenue.";
-    try { const d = await rep.json(); message = typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail); } catch {}
+    let message = rep.status === 403 ? "L’hébergement a refusé cet envoi. Les photos déjà reçues sont conservées. Réessayez ; si le refus persiste, contactez le support." : rep.status >= 500 ? "Le serveur n’a pas pu terminer cette action. Vos données déjà enregistrées sont conservées. Réessayez dans un instant." : "Cette action n’a pas abouti. Réessayez.";
+    try { const d = await rep.json(); if (typeof d.detail === "string") message = d.detail; } catch {}
+    if (message === "There was an error parsing the body") message = "Cette photo n’a pas pu être envoyée. Réessayez avec un fichier JPG, PNG ou WebP ; les photos déjà ajoutées sont conservées.";
     throw new ErreurApi(rep.status, message);
   }
   return rep;
@@ -37,7 +38,9 @@ async function reponseApi(chemin: string, options: RequestInit = {}): Promise<Re
 export async function api<T = unknown>(chemin: string, options: RequestInit = {}): Promise<T> {
   const rep = await reponseApi(chemin, options);
   const type = rep.headers.get("content-type") || "";
-  return (type.includes("application/json") ? rep.json() : rep.blob()) as Promise<T>;
+  if (!type.includes("application/json")) throw new ErreurApi(502, "Le serveur n’a pas renvoyé de réponse complète. Vous pouvez reprendre cette action.");
+  try { return await rep.json() as T; }
+  catch { throw new ErreurApi(502, "La réponse du serveur a été interrompue. Vous pouvez reprendre cette action."); }
 }
 
 export async function telechargerPhoto(chemin: string): Promise<{
@@ -66,7 +69,10 @@ export type Photo = {
   filigrane: boolean; limites: LimitesCreation;
 };
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
-  source_url: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean }[] };
+  source_url: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean; archivee?: boolean;
+    titre?: string; ordre?: number; cree_le?: string; original?: string; version_gardee?: string | null; versions?: Version[] }[] };
+export type VideoCreee = { id: string; statut: string; duree: number; erreur: string; url: string;
+  plans_prets?: number; plans_total?: number; clips?: { photo_id: string; url: string }[] };
 export type Pack = { id: string; nature: "photo" | "video"; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
 export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; video_disponible?: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
 export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean; solde: number; solde_video: number; photo_offerte_disponible: boolean;

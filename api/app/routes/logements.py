@@ -3,10 +3,11 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 from urllib.parse import urlsplit, urlunsplit
 
-from .. import stockage
+from .. import acces_ia, stockage
 from ..db import session
 from ..models import Compte, Logement
 from .auth import compte_courant
+from .photos import _utc, _vue_version
 
 routeur = APIRouter(prefix="/logements", tags=["logements"])
 
@@ -34,16 +35,21 @@ class NouveauLogement(BaseModel):
             raise ValueError("Collez un lien d’annonce HTTPS valide.") from None
 
 
-def _vue(l: Logement) -> dict:
-    return {"id": l.id, "nom": l.nom, "ville": l.ville, "type_annonce": l.type_annonce, "source_url": l.source_url or "", "cree_le": l.cree_le.isoformat(),
+def _vue(l: Logement, archives: bool = False) -> dict:
+    return {"id": l.id, "nom": l.nom, "ville": l.ville, "type_annonce": l.type_annonce, "source_url": l.source_url or "", "cree_le": _utc(l.cree_le),
             "photos": [{"id": p.id, "vignette": stockage.url_publique(p.cle_vignette), "essais": p.essais,
                         "gardee": bool(p.version_gardee_id), "offerte": bool(p.offerte),
-                        "creditee": bool(p.credite_le)} for p in l.photos]}
+                        "creditee": bool(p.credite_le), "archivee": bool(p.archive_le),
+                        "titre": (p.analyse or {}).get("piece") or f"Photo {p.ordre + 1}", "ordre": p.ordre,
+                        "cree_le": _utc(p.cree_le), "original": stockage.url_publique(p.cle_originale),
+                        "version_gardee": p.version_gardee_id,
+                        "versions": [_vue_version(v, bool(acces_ia.gratuit_proprietaire(l.compte) or p.offerte or p.credite_le)) for v in p.versions]
+                       } for p in l.photos if archives or not p.archive_le]}
 
 
 @routeur.get("")
-def lister(compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
-    return [_vue(l) for l in compte.logements]
+def lister(archives: bool = False, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    return [_vue(l, archives=archives) for l in compte.logements]
 
 
 @routeur.post("")
@@ -71,8 +77,8 @@ def modifier(logement_id: str, n: NouveauLogement, compte: Compte = Depends(comp
 
 
 @routeur.get("/{logement_id}")
-def voir(logement_id: str, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+def voir(logement_id: str, archives: bool = False, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
     l = s.get(Logement, logement_id)
     if not l or l.compte_id != compte.id:
         raise HTTPException(404, "Logement introuvable.")
-    return _vue(l)
+    return _vue(l, archives=archives)

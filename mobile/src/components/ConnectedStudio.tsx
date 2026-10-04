@@ -7,14 +7,15 @@ import * as Crypto from 'expo-crypto';
 import { Logo, Button, colors } from './Studio';
 import { useAccount } from './AccountConnection';
 import { AdminAlerts } from './AdminAlerts';
+import { ConnectedLibraryContent } from './ConnectedLibraryContent';
+import { ConnectedVideoPreparation } from './ConnectedVideoPreparation';
 import { MobileBriefAssistant } from './MobileBriefAssistant';
-import { canRequestGeneration, downloadLabel, generationLabel, needsDownloadCredit, previewIsProtected, type AccountPhoto, type Limits, type Pack, type Property } from '../lib/account-api';
-import { canSavePhoto, photoForm, savePhoto } from '../lib/account-files';
+import { ApiError, canRequestGeneration, downloadLabel, generationLabel, needsDownloadCredit, previewIsProtected, type AccountPhoto, type CreatedVideo, type Limits, type Pack, type Property } from '../lib/account-api';
+import { canSavePhoto, photoPayload, savePhoto } from '../lib/account-files';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Cette action n’a pas abouti. Réessayez.';
 const euro = (cents: number) => (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 type Cart = Record<string, number>;
-type CreatedVideo = { id: string; statut: string; duree: number; erreur: string; url: string };
 const cartArticles = (packs: Pack[], cart: Cart) => packs.flatMap(pack => cart[pack.id] ? [{ pack_id: pack.id, quantite: cart[pack.id] }] : []);
 const cartTotal = (packs: Pack[], cart: Cart) => packs.reduce((sum, pack) => sum + pack.prix_centimes * (cart[pack.id] || 0), 0);
 const cartCredits = (packs: Pack[], cart: Cart) => packs.reduce((sum, pack) => sum + pack.credits * (cart[pack.id] || 0), 0);
@@ -98,24 +99,16 @@ function LimitsCard({ limits, detailed = false }: { limits?: Limits; detailed?: 
     <Text style={s.body}>{blocked ? 'Contactez le support pour débloquer les nouvelles créations. Vos photos déjà achetées restent accessibles.' : 'Un achat remet à zéro le compteur concerné sur le site et dans l’application.'}</Text>
     {blocked && <View style={s.group}><LinkButton title="Contacter le support" onPress={() => { if (limits.support_url) void Linking.openURL(limits.support_url); }}/><Text style={s.small}>{limits.support_telephone}</Text>{!!limits.support_email && <LinkButton title={limits.support_email} onPress={() => { void Linking.openURL(`mailto:${limits.support_email}`); }}/>}</View>}</View>;
 }
-export function ConnectedLibrary() { return <AccountScreenFrame title="Mes créations" subtitle="Vos photos et leurs versions, sur tous vos appareils."><Gate><LibraryContent/></Gate></AccountScreenFrame>; }
-function LibraryContent() {
-  const { api, account, refresh } = useAccount(); const [properties, setProperties] = useState<Property[]>([]); const [busy, setBusy] = useState(true); const [notice, setNotice] = useState('');
-  const [chosen, setChosen] = useState<string[]>([]);
-  const load = useCallback(async () => { setBusy(true); try { setProperties(await api.json<Property[]>('/logements')); setNotice(''); } catch (error) { setNotice(message(error)); } finally { setBusy(false); } }, [api]);
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
-  const selected = properties.flatMap(property => property.photos).filter(photo => chosen.includes(photo.id));
-  const due = account?.gratuit_illimite ? 0 : selected.filter(photo => !photo.offerte && !photo.creditee).length;
-  return <><LimitsCard limits={account?.limites}/><Button title={account?.gratuit_illimite ? 'Créer une photo gratuitement' : account?.photo_offerte_disponible ? 'Préparer ma photo offerte' : '+ Retoucher une photo'} onPress={() => router.navigate('/nouvelle')} disabled={account?.limites?.photo.bloque}/>{!!notice && <Notice text={notice}/>}
-    {busy ? <ActivityIndicator color={colors.ink}/> : properties.some(p => p.photos.length) ? <>{properties.map(property => <View key={property.id} style={s.group}><Text style={s.section}>{property.nom}</Text>{!!property.source_url && <Text style={s.small}>Annonce liée à ce logement</Text>}<View style={s.photoGrid}>{property.photos.map((photo, index) => <View key={photo.id} style={[s.photoCard, chosen.includes(photo.id) && s.photoCardChosen]}><Pressable accessibilityRole="button" accessibilityState={{ selected: chosen.includes(photo.id) }} accessibilityLabel={`${property.nom}, photo ${index + 1}, ${chosen.includes(photo.id) ? 'sélectionnée' : 'non sélectionnée'}`} onPress={() => setChosen(current => current.includes(photo.id) ? current.filter(id => id !== photo.id) : [...current, photo.id])}><Image source={{ uri: photo.vignette }} style={s.thumbnail}/><Text style={s.photoTitle}>{chosen.includes(photo.id) ? '✓ ' : ''}Photo {index + 1}</Text><Text style={s.small}>{photo.gardee ? 'HD disponible' : photo.essais ? 'Aperçu à retrouver' : 'Prête à retoucher'}</Text></Pressable><LinkButton title="Ouvrir" onPress={() => router.push({ pathname: '/retouche', params: { id: photo.id, mode: 'compte' } })}/></View>)}</View></View>)}{!!selected.length && <View style={s.selectionBar}><Text style={s.cardTitle}>{selected.length} photo{selected.length > 1 ? 's' : ''} choisie{selected.length > 1 ? 's' : ''}</Text><Text style={s.small}>Si vous gardez toutes les retouches en HD : {due} crédit{due > 1 ? 's' : ''}. Vous décidez pour chacune.</Text><Button title="Retoucher ma sélection" onPress={() => router.push({ pathname: '/retouche', params: { id: selected[0].id, mode: 'compte', lot: selected.map(photo => photo.id).join(',') } })}/></View>}</> : <View style={s.card}><Text style={s.cardTitle}>Votre première photo vous attend.</Text><Text style={s.body}>Importez une photo, créez son aperçu puis ajustez-la une fois. Votre photo offerte se télécharge sans filigrane.</Text></View>}
-    <View style={s.secondaryRow}><LinkButton title="Actualiser" onPress={() => { void load(); void refresh(); }}/><LinkButton title="Brouillons locaux" onPress={() => router.push('/local')}/></View></>;
-}
+export function ConnectedLibrary() { return <AccountScreenFrame title="Mes créations" subtitle="Vos photos et leurs versions, sur tous vos appareils."><Gate><ConnectedLibraryContent/></Gate></AccountScreenFrame>; }
+export function ConnectedVideoPlanScreen() { return <AccountScreenFrame title="Préparer ma vidéo" subtitle="Choisissez les photos, leur ordre et votre demande avant de confirmer."><Gate><ConnectedVideoPreparation/></Gate></AccountScreenFrame>; }
 export function ConnectedUpload() { return <AccountScreenFrame title="Retoucher une photo" subtitle="Une première génération et une correction incluse."><Gate><UploadContent/></Gate></AccountScreenFrame>; }
 function UploadContent() {
-  const { api, account, refresh } = useAccount(); const params = useLocalSearchParams<{ logement?: string }>();
+  const { api, account, refresh } = useAccount(); const params = useLocalSearchParams<{ logement?: string; retour?: string }>();
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]); const [selectedUris, setSelectedUris] = useState<string[]>([]); const [properties, setProperties] = useState<Property[]>([]);
   const [propertyId, setPropertyId] = useState(''); const [newName, setNewName] = useState(params.logement || 'Mon logement'); const [showProperties, setShowProperties] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
+  const uploads = useRef(new Map<string, { home: string; key: string; body: Promise<string> }>());
+  const importedIds = useRef<string[]>([]); const sending = useRef(false);
   const [busy, setBusy] = useState(false); const [notice, setNotice] = useState('');
   const sourceHost = (() => { try { return new URL(sourceUrl.trim()).hostname.toLowerCase(); } catch { return ''; } })();
   const sourceName = sourceHost === 'booking.com' || sourceHost.endsWith('.booking.com') ? 'Booking.com' : sourceHost === 'airbnb.com' || sourceHost.endsWith('.airbnb.com') || /^(?:www\.)?airbnb\.(?:fr|de|es|it|be|nl|pt|ie|ca|co\.uk|com\.au)$/.test(sourceHost) ? 'Airbnb' : '';
@@ -123,21 +116,42 @@ function UploadContent() {
   async function pick(camera = false) {
     if (busy) return; setBusy(true); setNotice('');
     try { if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) throw new Error('Autorisez l’appareil photo pour prendre une photo.');
-      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: .95, allowsEditing: false, allowsMultipleSelection: !camera, selectionLimit: camera ? 1 : 30 };
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: .95, allowsEditing: false, allowsMultipleSelection: !camera, selectionLimit: camera ? 1 : params.retour === 'visite' ? 6 : 30 };
       const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
       if (!result.canceled && result.assets.length) { if (result.assets.some(asset => (asset.fileSize || 0) > 30 * 1024 * 1024)) throw new Error('Choisissez des photos de moins de 30 Mo chacune.'); setAssets(result.assets); setSelectedUris(result.assets.map(asset => asset.uri)); }
     } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
   }
   async function upload() {
     const chosen = assets.filter(asset => selectedUris.includes(asset.uri));
-    if (!chosen.length || busy || account?.limites?.photo.bloque) return; setBusy(true); setNotice('');
-    try { let id = propertyId;
-      if (sourceUrl.trim()) { try { if (new URL(sourceUrl.trim()).protocol !== 'https:') throw new Error(); } catch { throw new Error('Collez un lien d’annonce HTTPS valide.'); } }
+    if (!chosen.length || sending.current || account?.limites?.photo.bloque) return;
+    sending.current = true; setBusy(true); setNotice('');
+    try {
+      let id = propertyId;
+      if (sourceUrl.trim()) { try { const url = new URL(sourceUrl.trim()); if (url.protocol !== 'https:' || url.username || url.password) throw new Error(); } catch { throw new Error('Collez un lien d’annonce HTTPS valide.'); } }
       if (!id) { const created = await api.json<Property>('/logements', { method: 'POST', body: JSON.stringify({ nom: newName.trim() || 'Mon logement', ville: '', type_annonce: 'location', source_url: sourceUrl.trim() }) }); id = created.id; setPropertyId(id); setProperties(items => [...items, created]); }
-      const ids: string[] = [];
-      for (const asset of chosen) { const photo = await api.json<AccountPhoto>(`/photos/${id}`, { method: 'POST', body: await photoForm(asset) }); ids.push(photo.id); setAssets(current => current.filter(item => item.uri !== asset.uri)); setNotice(`${ids.length} photo${ids.length > 1 ? 's' : ''} ajoutée${ids.length > 1 ? 's' : ''}…`); }
-      await refresh(); setAssets([]); setSelectedUris([]); router.push({ pathname: '/retouche', params: { id: ids[0], mode: 'compte', lot: ids.join(',') } });
-    } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
+      const failures: string[] = [];
+      for (const asset of chosen) {
+        try {
+          let intent = uploads.current.get(asset.uri);
+          if (!intent || intent.home !== id) { const key = Crypto.randomUUID(); intent = { home: id, key, body: photoPayload(asset, key) }; uploads.current.set(asset.uri, intent); void intent.body.catch(() => uploads.current.delete(asset.uri)); }
+          const body = await intent.body;
+          let photo: AccountPhoto;
+          try { photo = await api.json<AccountPhoto>(`/photos/${id}/import`, { method: 'POST', body }); }
+          catch (error) { if (!(error instanceof ApiError) || ![0, 502, 504].includes(error.status)) throw error; photo = await api.json<AccountPhoto>(`/photos/${id}/import`, { method: 'POST', body }); }
+          if (!importedIds.current.includes(photo.id)) importedIds.current.push(photo.id);
+          setAssets(current => current.filter(item => item.uri !== asset.uri));
+          setSelectedUris(current => current.filter(uri => uri !== asset.uri));
+          setNotice(`${importedIds.current.length} photo(s) conservée(s)…`);
+        } catch (error) { failures.push(`${asset.fileName || 'Photo'} : ${message(error)}`); }
+      }
+      await refresh();
+      if (failures.length) { setNotice(`${importedIds.current.length} photo(s) déjà conservée(s). ${failures.join(' · ')} Reprenez l’envoi des fichiers restants avec le bouton ci-dessus.`); return; }
+      const ids = importedIds.current;
+      if (!ids.length) return;
+      if (params.retour === 'visite') router.push({ pathname: '/visite', params: { photos: ids.slice(0, 6).join(',') } });
+      else router.push({ pathname: '/retouche', params: { id: ids[0], mode: 'compte', lot: ids.join(',') } });
+    } catch (error) { setNotice(message(error)); }
+    finally { sending.current = false; setBusy(false); }
   }
   async function saveSource() {
     if (busy || !sourceUrl.trim()) return;
@@ -163,7 +177,8 @@ function EditorContent() {
   const [photo, setPhoto] = useState<AccountPhoto | null>(null); const [selected, setSelected] = useState('');
   const [original, setOriginal] = useState(false); const [request, setRequest] = useState(''); const [adjust, setAdjust] = useState(false);
   const [busy, setBusy] = useState(false); const [generating, setGenerating] = useState(false); const [notice, setNotice] = useState(''); const [confirm, setConfirm] = useState<'correction' | 'download' | null>(null); const [videoOffer, setVideoOffer] = useState(false);
-  const [video, setVideo] = useState<CreatedVideo | null>(null); const [videoPrompt, setVideoPrompt] = useState('Mouvement de caméra doux dans cette pièce, sans changer les ouvertures ni le mobilier.'); const [videoBusy, setVideoBusy] = useState(false);
+  const [video, setVideo] = useState<CreatedVideo | null>(null);
+  const videoId = video?.id; const videoPending = !!video && ['preparation', 'en_attente', 'clips', 'montage'].includes(video.statut);
   const loading = useRef(false);
   const loadedDraftFor = useRef('');
   const load = useCallback(async () => {
@@ -179,12 +194,12 @@ function EditorContent() {
     return () => { active = false; };
   }, [api, id, account?.gratuit_illimite, health?.video_disponible]);
   useEffect(() => {
-    if (!video || !['preparation', 'en_attente', 'clips', 'montage'].includes(video.statut)) return;
+    if (!videoId || !videoPending) return;
     const timer = setInterval(() => {
-      api.json<CreatedVideo>(`/videos/${encodeURIComponent(video.id)}`).then(setVideo).catch(() => setNotice('Le suivi vidéo est momentanément indisponible. Réessayez dans un instant.'));
+      api.json<CreatedVideo>(`/videos/${encodeURIComponent(videoId)}`).then(setVideo).catch(() => setNotice('Le suivi vidéo est momentanément indisponible. Réessayez dans un instant.'));
     }, 5000);
     return () => clearInterval(timer);
-  }, [api, video]);
+  }, [api, videoId, videoPending]);
   const version = photo?.versions.find(v => v.id === selected);
   const limits = photo?.limites || account?.limites;
   const blocked = !!limits?.photo.bloque;
@@ -207,7 +222,20 @@ function EditorContent() {
       }
       const result = await api.json<AccountPhoto>(`/photos/${photo.id}/essai`, { method: 'POST', body: JSON.stringify({ demande: request.trim(), depuis_version_id: original ? null : version?.id || null }) });
       setPhoto(result); setSelected(result.versions.at(-1)?.id || ''); setOriginal(false); setAdjust(false); await refresh();
-    } catch (error) { setNotice(message(error)); await load(); await refresh(); } finally { setBusy(false); setGenerating(false); }
+    } catch (error) {
+      setNotice(message(error));
+      if (error instanceof ApiError && [0, 409, 502, 504].includes(error.status)) {
+        let recovered = false;
+        setNotice('La réponse est interrompue. Je vérifie cette photo avant de proposer un nouvel essai.');
+        for (let turn = 0; turn < 36; turn++) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const state = await api.json<AccountPhoto>(`/photos/${photo.id}`).catch(() => null);
+          if (state && state.versions.length > photo.versions.length) { setPhoto(state); setSelected(state.versions.at(-1)?.id || ''); setOriginal(false); setAdjust(false); setNotice('Votre retouche a été retrouvée.'); recovered = true; break; }
+        }
+        if (!recovered) setNotice('Le résultat n’a pas encore été retrouvé. Actualisez cette photo avant de relancer une retouche.');
+      }
+      await load(); await refresh();
+    } finally { setBusy(false); setGenerating(false); }
   }
   async function download() {
     if (!photo || !version || busy) return;
@@ -219,13 +247,6 @@ function EditorContent() {
       setNotice('Votre photo sans filigrane est prête. Vous pouvez la retrouver ici.');
       setVideoOffer(true);
     } catch (error) { setNotice(message(error)); } finally { await load(); await refresh(); setBusy(false); }
-  }
-  async function createVideo() {
-    if (!photo || videoBusy || !videoPrompt.trim()) return;
-    setVideoBusy(true); setNotice('');
-    try { setVideo(await api.json<CreatedVideo>(`/videos/photos/${encodeURIComponent(photo.id)}`, { method: 'POST', body: JSON.stringify({ demande: videoPrompt.trim() }) })); }
-    catch (error) { setNotice(message(error)); }
-    finally { setVideoBusy(false); }
   }
   if (!photo) return <>{notice ? <Notice text={notice}/> : <ActivityIndicator color={colors.ink}/>}<LinkButton title="Retour à mes photos" onPress={() => router.navigate('/')}/></>;
   const protect = previewIsProtected(photo, !original && !!version);
@@ -239,7 +260,7 @@ function EditorContent() {
     {(!version || adjust) && <><Field label={version ? 'Votre correction' : 'Que souhaitez-vous améliorer ?'} value={request} onChangeText={setRequest} placeholder="Par exemple : ranger la pièce, faire le lit et éclaircir la lumière naturelle." multiline/><MobileBriefAssistant kind="photo" request={request} onUse={brief => { if (brief.length <= 4000) setRequest(brief); else setNotice('Ce brief dépasse 4 000 caractères. Raccourcissez-le avant de l’utiliser.'); }} storageKey={`studio-annonce.mobile.assistant.photo.${account?.id || 'session'}.${photo.id}`}/><Text style={s.small}>{photo.reprise_necessaire ? account?.gratuit_illimite ? 'Cette correction supplémentaire est gratuite sur votre compte.' : 'Cette correction supplémentaire coûte 1 crédit. Vous confirmez avant tout débit.' : `${photo.essais_restants} génération${photo.essais_restants > 1 ? 's' : ''} disponible${photo.essais_restants > 1 ? 's' : ''} pour cette photo.`}</Text>{health?.retouche_disponible === true && <Button title={busy ? 'Traitement en cours…' : photo.reprise_necessaire && account?.gratuit_illimite ? 'Corriger gratuitement' : generationLabel(photo)} disabled={busy || !request.trim() || !canRequestGeneration(photo, blocked, account?.gratuit_illimite ? 1 : account?.solde || 0)} onPress={() => photo.reprise_necessaire ? setConfirm('correction') : void generate()}/>}<LinkButton title={health?.retouche_disponible === true ? 'Enregistrer pour plus tard' : 'Enregistrer ma demande'} onPress={() => void saveDraft()}/></>}
     {!!version && !original && <Button title={busy ? 'Traitement en cours…' : account?.gratuit_illimite ? 'Télécharger en HD' : downloadLabel(photo)} secondary={adjust} disabled={busy || !availableHd} onPress={() => needsDownloadCredit(photo) && !account?.gratuit_illimite ? setConfirm('download') : void download()}/>}
     {health?.retouche_disponible !== true && <Text style={s.small}>Les nouvelles retouches sont momentanément indisponibles. Les fichiers HD déjà prêts restent récupérables.</Text>}
-    {!!notice && <Notice text={notice}/>} {(videoOffer || !!photo.credite_le) && <View style={s.videoOffer}><Text style={s.cardTitle}>Et si votre photo devenait une vidéo ?</Text>{account?.gratuit_illimite && health?.video_disponible ? <><Text style={s.body}>Testez un clip de 5 secondes offert sur votre compte, avec cette photo.</Text><Field label="Votre idée pour le mouvement" value={videoPrompt} onChangeText={setVideoPrompt} multiline/>{video && ['preparation', 'en_attente', 'clips', 'montage'].includes(video.statut) && <View style={s.generationWait}><ActivityIndicator color="#4f6b41"/><Text style={s.body}>Votre vidéo prend forme. Vous pouvez revenir ici pour la retrouver.</Text></View>}{video?.statut === 'prete' && !!video.url && <Button title="Voir ma vidéo" onPress={() => void Linking.openURL(video.url)}/>}{video?.statut === 'echec' && <Notice text={video.erreur || 'La vidéo n’a pas abouti.'}/>}<Button title={videoBusy ? 'Démarrage…' : 'Créer mon clip de 5 secondes'} onPress={() => void createVideo()} disabled={videoBusy || !videoPrompt.trim() || !!video && ['preparation', 'en_attente', 'clips', 'montage'].includes(video.statut)}/></> : !account?.gratuit_illimite ? <><Text style={s.body}>Préparez une visite immobilière avec vos photos. Vous verrez le prix et la durée avant tout achat.</Text><Button title="Préparer ma vidéo" onPress={() => router.navigate('/visite')}/></> : <Text style={s.body}>La création vidéo ouvrira ici après vérification du premier clip.</Text>}</View>}{!!nextId && <View style={s.selectionBar}><Text style={s.small}>Photo {lotIds.indexOf(id) + 1} sur {lotIds.length} · votre sélection</Text><Button title="Passer à la photo suivante" onPress={() => router.push({ pathname: '/retouche', params: { id: nextId, mode: 'compte', lot } })}/></View>}<LinkButton title="Retour à mes photos" onPress={() => router.navigate('/')}/>
+    {!!notice && <Notice text={notice}/>} {(videoOffer || !!photo.essais || !!photo.credite_le) && <View style={s.videoOffer}><Text style={s.cardTitle}>La suite, à votre rythme.</Text><Text style={s.body}>Retouchez d’autres photos, ou préparez votre vidéo en choisissant ses photos et son mouvement. La navigation ne lance aucune génération.</Text><Button title="Retoucher d’autres photos" onPress={() => router.navigate('/nouvelle')}/><Button secondary title="Préparer ma vidéo" onPress={() => router.push({ pathname: '/visite', params: { photos: photo.id, version: original ? '' : selected || '' } })}/>{videoPending && <View style={s.generationWait}><ActivityIndicator color="#4f6b41"/><Text style={s.body}>La vidéo déjà confirmée est en cours. Retrouvez son suivi dans la préparation vidéo.</Text></View>}{video?.statut === 'prete' && !!video.url && <Button secondary title="Voir ma vidéo précédente" onPress={() => void Linking.openURL(video.url)}/>}{video?.statut === 'echec' && <Notice text={video.erreur || 'La vidéo n’a pas abouti.'}/>}</View>}{!!nextId && <View style={s.selectionBar}><Text style={s.small}>Photo {lotIds.indexOf(id) + 1} sur {lotIds.length} · votre sélection</Text><Button title="Passer à la photo suivante" onPress={() => router.push({ pathname: '/retouche', params: { id: nextId, mode: 'compte', lot } })}/></View>}<LinkButton title="Retour à mes photos" onPress={() => router.navigate('/')}/>
   </View><Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => setConfirm(null)}><View style={s.scrim}><View style={s.dialog}><Text style={s.cardTitle}>{confirm === 'correction' ? 'Une correction supplémentaire' : 'Garder cette photo en HD'}</Text><Text style={s.body}>{account?.gratuit_illimite ? 'Cette création est offerte sur votre compte propriétaire.' : confirm === 'correction' ? '1 crédit permet de générer une correction supplémentaire sur cette photo.' : '1 crédit permet de télécharger votre photo sans filigrane.'}</Text>{!account?.gratuit_illimite && <Text style={s.small}>Votre solde : {account?.solde || 0} crédit(s).</Text>}<Button title={account?.gratuit_illimite ? 'Confirmer gratuitement' : 'Confirmer · 1 crédit'} onPress={() => confirm === 'correction' ? void generate() : void download()} disabled={busy || (!account?.gratuit_illimite && (account?.solde || 0) < 1)}/><LinkButton title="Annuler" onPress={() => setConfirm(null)}/>{!account?.gratuit_illimite && (account?.solde || 0) < 1 && <LinkButton title="Voir les packs" onPress={() => { setConfirm(null); router.navigate('/compte'); }}/>}</View></View></Modal></>;
 }
 export function ConnectedAccount() { return <AccountScreenFrame title="Mon compte" subtitle="Vos crédits et vos photos sont communs au site et à l’application."><Gate><AccountContent/></Gate></AccountScreenFrame>; }

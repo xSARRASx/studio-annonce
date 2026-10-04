@@ -20,6 +20,19 @@ export function photoProject(photo: Photo, logement: Logement): DemoProject {
 export const projectSource = (project: DemoProject, version?: DemoVersion) =>
   (version || project.versions.find(v => v.id === project.selected) || project.versions[0]).src || "";
 
+/** La liste s'affiche dès la réponse des logements ; les détails arrivent ensuite. */
+export function summaryProjects(logements: Logement[]): DemoProject[] {
+  return logements.flatMap(logement => logement.photos.map((photo, index) => {
+    const created = Date.parse(photo.cree_le || logement.cree_le);
+    const versions: DemoVersion[] = [{ id: "original", label: "Photo originale", src: photo.original || photo.vignette, note: "Original" },
+      ...(photo.versions || []).map(version => ({ id: version.id, label: `Version ${version.numero}`, src: version.apercu, note: version.consigne }))];
+    const last = photo.versions?.at(-1);
+    return { id: photo.id, title: photo.titre || `Photo ${index + 1}`, property: logement.nom, kind: "photo" as const, sample: false,
+      createdAt: created, updatedAt: last ? Date.parse(last.cree_le) : created, versions,
+      selected: photo.version_gardee || last?.id || "original", draft: "" };
+  }));
+}
+
 export async function loadProjects(logements: Logement[]): Promise<DemoProject[]> {
   const entries = logements.flatMap(logement => logement.photos.map(photo => ({ logement, id: photo.id })));
   const projects: DemoProject[] = [];

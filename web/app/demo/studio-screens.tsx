@@ -42,16 +42,20 @@ function statut(p: DemoProject, now: number) {
 }
 
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
-export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, onExample, onOpen }: {
+export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, onExample, onOpen, onManageProperty }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: () => void; onAddPhoto: (logement: string) => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void;
+  onCreate: () => void; onAddPhoto: (logement: string) => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void; onManageProperty?: (photoId: string) => void;
 }) {
+  const [recherche, setRecherche] = useState("");
+  const [ordre, setOrdre] = useState<"recent" | "ancien">("recent");
   const logements = logementsDe(library, false);
   const miennes = library.projects.filter(p => !p.sample);
   const exemples = library.projects.filter(p => p.sample).sort((a, b) => b.updatedAt - a.updatedAt);
+  const termes = recherche.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
   const groupes = logements.map(l => ({
     nom: l,
-    photos: miennes.filter(p => p.property === l).sort((a, b) => b.updatedAt - a.updatedAt),
+    photos: miennes.filter(p => p.property === l && (!termes || `${p.title} ${l}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").includes(termes)))
+      .sort((a, b) => ordre === "recent" ? b.updatedAt - a.updatedAt : a.updatedAt - b.updatedAt),
   })).filter(g => g.photos.length);
   const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
     <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.webp")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
@@ -98,8 +102,10 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
       <div><p className="eyebrow">VOTRE BIBLIOTHÈQUE</p><h1>Mes créations</h1><p>Vos photos et vidéos, rangées par logement. Ouvrez une création pour la retrouver.</p></div>
       <div className="st-actions"><button className="button dark" onClick={onCreate}><Plus size={18}/> Créer</button></div>
     </div>
+    <div className="st-library-tools"><label>Rechercher une création<input type="search" value={recherche} onChange={event => setRecherche(event.target.value)} placeholder="Salon, chambre, logement…"/></label><label>Trier<select value={ordre} onChange={event => setOrdre(event.target.value as "recent" | "ancien")}><option value="recent">Plus récentes</option><option value="ancien">Plus anciennes</option></select></label></div>
+    {termes && !groupes.length && <p className="st-empty-line">Aucune création ne correspond à cette recherche.</p>}
     {groupes.map(g => <section key={g.nom} className="st-group" aria-label={g.nom}>
-      <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "créations" : "création"}</span><button className="text-action" onClick={() => onAddPhoto(g.nom)}><Plus size={15}/> Ajouter une photo</button></div>
+      <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "créations" : "création"}</span><button className="text-action" onClick={() => onAddPhoto(g.nom)}><Plus size={15}/> Ajouter une photo</button>{onManageProperty && <button className="text-action" onClick={() => onManageProperty(g.photos[0].id)}>Gérer les photos</button>}</div>
       <ul className="st-list">{g.photos.map(ligne)}</ul>
     </section>)}
     {partieExemples}
@@ -170,7 +176,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       <OptionalProperty options={logements} choice={choix} name={nouveau} onChoice={setChoix} onName={setNouveau} disabled={envoi}/>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement || demande.length > maxRequest}>{envoi ? "Création…" : "Créer la retouche"} <ArrowRight size={18}/></button>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement || demande.length > maxRequest}>{envoi ? "Ajout de la photo…" : "Continuer avec cette photo"} <ArrowRight size={18}/></button>
         <span>{!fichier ? "Ajoutez votre photo." : "Vous paierez seulement la photo que vous garderez."}</span>
       </div>
     </form>

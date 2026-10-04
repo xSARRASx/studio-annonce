@@ -1,8 +1,10 @@
 """Contrats photo/credits hors ligne. Exécuter depuis un dossier sans .env (voir rapport)."""
 import asyncio
+import base64
 import io
 import tempfile
 import unittest
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -19,6 +21,44 @@ from app.routes import photos
 
 
 class ContratPhoto(unittest.IsolatedAsyncioTestCase):
+    async def test_import_json_repris_sans_doublon_ni_debit(self):
+        donnees = {"image": base64.b64encode(self.hd).decode(), "cle_import": str(uuid.uuid4()), "demande": "Plus de lumière"}
+        premier = await self.client.post("/photos/la/import", json=donnees)
+        self.assertEqual(premier.status_code, 200, premier.text)
+        ident = premier.json()["id"]
+        await self.client.patch(f"/photos/{ident}/demande", json={"demande": "Une demande affinée"})
+        second = await self.client.post("/photos/la/import", json=donnees)
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json()["id"], ident)
+        self.assertEqual(second.json()["demande_brouillon"], "Une demande affinée")
+        autre = await self.client.post("/photos/lb/import", headers={"Authorization": "Bearer token-b"}, json=donnees)
+        self.assertEqual(autre.status_code, 404)
+        incoherent = await self.client.post("/photos/la/import", json={**donnees, "demande": "Autre demande"})
+        self.assertEqual(incoherent.status_code, 409)
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(func.count(Photo.id))), 4)
+            self.assertEqual(s.get(Compte, "a").photos_offertes_utilisees, 1)
+            self.assertEqual(credits.solde(s, "a"), 5)
+
+    async def test_import_stockage_indisponible_preserve_offre_et_lot(self):
+        donnees = {"image": base64.b64encode(self.hd).decode(), "cle_import": str(uuid.uuid4())}
+        with patch.object(photos.stockage, "ecrire", side_effect=OSError("quota")):
+            rate = await self.client.post("/photos/la/import", json=donnees)
+        self.assertEqual(rate.status_code, 503)
+        self.assertIn("déjà ajoutées", rate.json()["detail"])
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(func.count(Photo.id))), 3)
+            self.assertEqual(s.get(Compte, "a").photos_offertes_utilisees, 0)
+        reprise = await self.client.post("/photos/la/import", json=donnees)
+        self.assertEqual(reprise.status_code, 200, reprise.text)
+
+    async def test_import_incomplet_ou_non_image_refuse_sans_nouvelle_photo(self):
+        for contenu in ("$$$$", base64.b64encode(b"pas une image").decode()):
+            response = await self.client.post("/photos/la/import", json={"image": contenu, "cle_import": str(uuid.uuid4())})
+            self.assertEqual(response.status_code, 400, response.text)
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(func.count(Photo.id))), 3)
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.engine = create_engine(f"sqlite:///{self.temp.name}/test.db", connect_args={"check_same_thread": False})
@@ -92,6 +132,19 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
 
     async def download(self, p="p", v="v"):
         return await self.client.post(f"/photos/{p}/versions/{v}/telecharger")
+
+    async def test_archiver_restaure_sans_perdre_les_versions_ni_ouvrir_autrui(self):
+        avant = self.balance()
+        self.assertEqual((await self.client.post("/photos/autre/archiver")).status_code, 404)
+        archive = await self.client.post("/photos/p/archiver")
+        self.assertEqual(archive.status_code, 200, archive.text)
+        with self.sessions() as s:
+            self.assertIsNotNone(s.get(Photo, "p").archive_le)
+            self.assertEqual(len(s.get(Photo, "p").versions), 1)
+        self.assertEqual((await self.client.post("/photos/p/restaurer")).status_code, 200)
+        with self.sessions() as s:
+            self.assertIsNone(s.get(Photo, "p").archive_le)
+        self.assertEqual(self.balance(), avant)
 
     async def test_proprietaire_utilise_le_meme_parcours_sans_debit(self):
         with self.sessions() as s:

@@ -1,6 +1,14 @@
 # Visites vidéo immobilières — état et suite
 
-## État vérifié du prototype
+## Pilote connecté du 4 octobre 2026
+
+Le compte propriétaire utilise maintenant une préparation web et mobile distincte du bouton de lancement. Il choisit une à six photos d'un seul logement, leur ordre et leur version, puis écrit sa demande ou utilise le brief guidé. La confirmation crée un plan Higgsfield de cinq secondes par photo et assemble les plans dans cet ordre : 5 à 30 secondes, 720p, sans son et avec des coupes entre les pièces. Les retouches photo se font avant, depuis la bibliothèque ou l'éditeur.
+
+La demande, les sources figées et les reçus fournisseur restent en base. Le suivi répond immédiatement ; un traitement court en arrière-plan avance le projet avec un bail SQL. Une même confirmation conserve son identifiant fournisseur en cas de réponse perdue. Les clips terminés sont conservés si le montage échoue. Le suivi avance lors des lectures de l'écran : si le navigateur est fermé, le traitement déjà commencé se termine, mais les étapes restantes nécessitent une nouvelle lecture. Il ne s'agit pas d'un worker durable autonome.
+
+Le montage a été testé avec deux clips artificiels sur le serveur N0C (10 secondes, 1280×720, décodage complet). Le parcours web a aussi produit une vidéo de recette de 15 secondes avec un fournisseur simulé. La qualité et les raccords d'une vraie génération Higgsfield multiphoto restent à examiner sur des photos du propriétaire. Les clients et les achats restent fermés. Voir [le détail des preuves et limites](docs/CORRECTIONS-STUDIO-2026-10-04.md).
+
+## État historique de la démonstration
 
 Le parcours **Photos → vidéo** existe dans la démo web et l’aperçu Expo. Il permet de choisir les photos et leur ordre, de décrire le rangement souhaité, de préciser les vraies portes et l’ordre des pièces, puis de composer un brief guidé. Les choix sont gardés dans le brouillon local. Ce parcours **ne retouche pas encore les photos et ne génère pas de vidéo**. La maquette vidéo de la démo reste un montage de photos fictives.
 

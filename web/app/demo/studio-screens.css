@@ -100,7 +100,16 @@
 .st-pack strong{font-size:22px;font-weight:550;color:#30372a;letter-spacing:-.5px}
 .st-pack small{font-size:12px;color:#8a927e}
 .connected-video-balance{display:block;margin-top:12px;padding-top:12px;border-top:1px solid #d6ddca;font-size:12px!important;color:#657157!important}.connected-video-balance b{color:#30372a}
-.connected-video-offer{margin-top:24px;padding:24px;border:1px solid #d4ddc7;border-radius:16px;background:#eef3e7;display:flex;align-items:center;justify-content:space-between;gap:24px}.connected-video-offer h2{margin:6px 0 8px;font-size:23px;color:#30372a}.connected-video-offer p:not(.eyebrow){max-width:650px;font-size:13px;line-height:1.7;color:#69735f}.connected-video-offer .button{flex-shrink:0}
+.connected-next-actions,.connected-video-offer{margin-top:24px;padding:24px;border:1px solid #d4ddc7;border-radius:16px;background:#eef3e7;min-width:0}
+.connected-next-actions h2,.connected-video-offer h2{margin:6px 0 8px;font-size:23px;color:#30372a}
+.connected-next-actions p:not(.eyebrow),.connected-video-offer p:not(.eyebrow){max-width:750px;font-size:14px;line-height:1.7;color:#69735f}
+.connected-next-buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px;align-items:center}
+.connected-next-buttons .button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
+.connected-video-offer{display:flex;flex-direction:column;align-items:flex-start;gap:0}
+.connected-video-offer label{display:block;width:100%;margin:15px 0 8px;font-size:14px;font-weight:600;color:#30372a}
+.connected-video-offer textarea{display:block;box-sizing:border-box;width:min(100%,760px);min-height:100px;padding:14px 16px;border:1px solid #cbd5bf;border-radius:12px;background:#fffefa;color:#30372a;font:inherit;line-height:1.5;resize:vertical}
+.connected-video-offer textarea:focus-visible{outline:3px solid #94a97c;outline-offset:2px}
+.connected-video-offer video{display:block;max-width:min(100%,640px);margin-top:20px;border-radius:12px}
 .st-ledger{list-style:none;margin:0;padding:0}
 .st-ledger li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #eceee6}
 .st-ledger li:first-child{border-top:0}
@@ -110,6 +119,7 @@
 .st-ledger b{font-size:14px;font-weight:550;color:#4d6538;white-space:nowrap}
 .st-ledger b.debit{color:#8b5a2b}
 .st-empty-line{font-size:14px;color:#848b7a}
+.st-library-tools{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 22px}.st-library-tools label{display:grid;gap:6px;color:#627059;font-size:12px}.st-library-tools input,.st-library-tools select{min-height:42px;min-width:190px;padding:8px 12px;border:1px solid #d8dfcf;border-radius:9px;background:#fffefa;color:#30372a;font:inherit;font-size:13px}.st-library-tools input{min-width:min(320px,80vw)}
 .st-invoices-empty{display:flex;align-items:center;gap:14px;padding:18px;border-radius:12px;background:#f6f7f1;color:#7a8270;font-size:14px}
 .st-bill-rules{display:grid;gap:10px;margin-top:24px}
 .st-bill-rules p{display:flex;align-items:center;gap:10px;font-size:13px;color:#6b7262}
@@ -129,7 +139,7 @@
   .st-step{padding:18px}
   .st-bill-top{grid-template-columns:1fr}
   .st-packs{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .connected-video-offer{align-items:flex-start;flex-direction:column}.connected-video-offer .button{width:100%}
+  .connected-next-buttons{flex-direction:column;align-items:stretch}.connected-next-buttons .button{width:100%}
 }
 
 /* Appareil photo : proposé sur téléphone et tablette, là où il ouvre vraiment la caméra. */
@@ -157,3 +167,4 @@
 .st-ex-body small{font-size:13.5px;line-height:1.5;color:#6b7262}
 .st-ex-go{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:14px;font-weight:600;color:#30372a}
 @media (max-width:700px){.st-examples-grid{grid-template-columns:1fr}}
+.st-library-archives{margin:0 36px 28px;border:1px solid #dce3d4;border-radius:12px;padding:15px;background:#f8faf3;color:#536746;font-size:13px}.st-library-archives summary{cursor:pointer}.st-library-archives>div{display:grid;gap:12px;padding-top:16px}@media(max-width:600px){.st-library-archives{margin:0 18px 24px}}

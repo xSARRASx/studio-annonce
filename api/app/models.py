@@ -105,6 +105,9 @@ class Photo(Base):
     credite_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 1er téléchargement HD
     version_gardee_id: Mapped[str | None] = mapped_column(String(24), nullable=True)
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+    archive_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cle_import: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
+    empreinte_import: Mapped[str | None] = mapped_column(String(64), nullable=True)
     logement: Mapped[Logement] = relationship(back_populates="photos")
     versions: Mapped[list[Version]] = relationship(back_populates="photo", order_by="Version.numero")
 
@@ -213,6 +216,9 @@ class Video(Base):
     cle_video: Mapped[str] = mapped_column(String(300), default="")
     erreur: Mapped[str] = mapped_column(Text, default="")
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+    cle_demande: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True)
+    traitement_jeton: Mapped[str] = mapped_column(String(24), default="", server_default="")
+    traitement_jusqu_au: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class QuotaCreation(Base):

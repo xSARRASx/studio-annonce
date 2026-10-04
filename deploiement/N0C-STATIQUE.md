@@ -1,4 +1,27 @@
-# Studio Annonce sur N0C — état vérifié le 30 septembre 2026
+# Studio Annonce sur N0C — état vérifié le 4 octobre 2026
+
+## Publication du 4 octobre : import fiable et studio connecté
+
+L'échec d'ajout après la première photo a été relié à un quota de compte plein : le serveur refusait même la création d'un dossier de sauvegarde avec `Disk quota exceeded`. Trois anciennes archives `public_html.tar.gz` ont été copiées sur l'ordinateur, contrôlées par SHA-256 et lecture complète du catalogue tar, puis seules les copies distantes exactes ont été retirées. Les 211 244 510 octets libérés ont permis une nouvelle sauvegarde et les envois photo. Les originaux clients, versions, base, `.env` et autres sauvegardes sont conservés.
+
+Le nouvel import JSON limite la taille du corps, valide les images et retrouve la même photo avec la même confirmation. Les interfaces réduisent les grandes images avant l'envoi ; les fichiers présents sur l'appareil ne sont pas modifiés. Un lot continue après un échec et peut reprendre les fichiers restants. La bibliothèque reçoit ses résumés en une requête. Les photos peuvent être archivées et restaurées, retouchées deux par deux, puis sélectionnées pour une vidéo avec ordre, version et demande explicites. Le bouton après une photo ouvre la préparation vidéo et ne lance plus une génération.
+
+Publication ciblée sur le compte `vzbbtadpbm`, domaine `studioannonce.fr`, branche `codex-travail` : six fichiers API, `/app/`, ressources Next et export `/mobile/`. Migration additive avant redémarrage Passenger ; intégrité SQLite `ok` et nombres de comptes/logements/photos/versions/vidéos inchangés (1/3/7/2/2). Les 36 fichiers HTML/JS ciblés ont été vérifiés sur le disque distant puis par HTTP, sans écart. L'accueil et les pages SEO d'une autre intervention n'ont pas été recopiés.
+
+Sauvegarde avant publication : `~/sauvegardes-studio/import-video-20261004T102137Z/`, également copiée et contrôlée dans `/Users/more/Documents/Codex/studio-annonce-backups/import-video-20261004T102137Z/`. Archives déplacées : `/Users/more/Documents/Codex/studio-annonce-backups/archives-hebergement-20261004/`, avec manifeste `verification.json`. Ces sauvegardes restent privées, hors Git.
+
+Recette : 117 tests API, 42 tests de logique web et 23 tests mobile ; compilation, TypeScript et lint réussis (quatre avertissements web `<img>` existants). Trois envois JPEG réels via l'API publique ont répondu 200 en 3,43 s, 1,38 s et 1,34 s ; chaque répétition avec la même confirmation a retrouvé le même identifiant. L'archivage/restauration a été rejoué avec le compte de recette temporaire, puis seules ses données synthétiques ont été retirées. Une fois la recette terminée, les nombres historiques sont restés 1/3/7/2/2. Montage réel de deux clips artificiels contrôlé sur N0C, sans appel payant. La connexion publique a été ouverte dans le navigateur. Les interactions authentifiées web/mobile ont été vérifiées localement avec des fournisseurs simulés, distinctes des contrôles HTTP en production.
+
+Le service confirme la photo et la vidéo disponibles pour le propriétaire ; les paiements sont fermés. L'extraction automatique des photos Airbnb/Booking et l'ouverture commerciale ne sont pas incluses. Voir [la liste des corrections, preuves et suites](../docs/CORRECTIONS-STUDIO-2026-10-04.md).
+
+Pour reconstruire l'export mobile de production, vider le cache Metro lorsque l'adresse de l'API change ; un export de recette local ne doit pas être transféré :
+
+```bash
+cd mobile
+EXPO_BASE_URL=/mobile EXPO_PUBLIC_API_URL=https://studioannonce.fr/api CI=1 npx expo export --clear --platform web --output-dir /tmp/studio-mobile-production
+```
+
+Vérifier que le nouveau JS utilise bien l'API de production avant publication. Déposer les ressources portant un nom d'empreinte avant les pages, puis conserver les anciennes ressources nécessaires aux sessions déjà ouvertes.
 
 ## Publication du 3 octobre : films de présentation V5
 

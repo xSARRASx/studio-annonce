@@ -45,6 +45,12 @@ test('download response stays binary and network failure never triggers an autom
   assert.deepEqual(new Uint8Array(await (await binary.response('/photos/one/versions/two/telecharger')).arrayBuffer()), new Uint8Array([1, 2, 3]));
 });
 const base = { offerte: false, credite_le: null, essais: 0, reprise_necessaire: false, cycle_id: 'initial' };
+test('an incomplete or HTML response is retryable and never mistaken for saved data', async () => {
+  for (const response of [new Response('<html>interrompu</html>', { headers: { 'Content-Type': 'text/html' } }), new Response('{', { headers: { 'Content-Type': 'application/json' } })]) {
+    const api = createAccountApi('https://studio.test/api', () => 'session', () => assert.fail('session should be preserved'), async () => response);
+    await assert.rejects(api.json('/photos/property/import'), error => error instanceof ApiError && error.status === 502);
+  }
+});
 test('offered and purchased photos download without a new credit even when generations are blocked', () => {
   const offered = { ...base, offerte: true, limites: { photo: { bloque: true } } };
   assert.equal(needsDownloadCredit(offered), false);

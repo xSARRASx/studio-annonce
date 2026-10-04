@@ -2,8 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import base64
+import binascii
+import hashlib
+import json
+import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
@@ -123,13 +128,40 @@ def _abandonner(s: Session, compte_id: str, photo_id: str, jeton: str) -> None:
 
 
 @routeur.post("/{logement_id}")
-async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: str = Form(default="", max_length=4000), compte: Compte = Depends(compte_complet),
+async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: str = Form(default="", max_length=4000), cle_import: str | None = Form(default=None, pattern=r"^[a-fA-F0-9-]{36}$"), compte: Compte = Depends(compte_complet),
                   s: Session = Depends(session)):
+    donnees = await fichier.read(30 * 1024 * 1024 + 1)
+    return _deposer(logement_id, donnees, demande, cle_import, compte, s)
+
+
+class ImportPhoto(BaseModel):
+    image: str = Field(min_length=4, max_length=40 * 1024 * 1024)
+    demande: str = Field(default="", max_length=4000)
+    cle_import: str = Field(pattern=r"^[a-fA-F0-9-]{36}$")
+
+
+@routeur.post("/{logement_id}/import")
+async def importer(logement_id: str, request: Request, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
+    # Le JSON borné évite le fichier temporaire du parseur multipart sur le
+    # mutualisé. L'authentification est vérifiée avant de lire la photo.
+    contenu = bytearray()
+    async for bloc in request.stream():
+        contenu.extend(bloc)
+        if len(contenu) > 41 * 1024 * 1024:
+            raise HTTPException(413, "Photo trop lourde (30 Mo maximum).")
+    try:
+        d = ImportPhoto.model_validate(json.loads(contenu))
+        donnees = base64.b64decode(d.image, validate=True)
+    except (ValueError, binascii.Error):
+        raise HTTPException(400, "L'envoi de cette photo est incomplet. Réessayez avec le fichier d'origine.")
+    return _deposer(logement_id, donnees, d.demande, d.cle_import, compte, s)
+
+
+def _deposer(logement_id: str, donnees: bytes, demande: str, cle_import: str | None, compte: Compte, s: Session):
     compte_id = compte.id
     logement = s.get(Logement, logement_id)
     if not logement or logement.compte_id != compte_id:
         raise HTTPException(404, "Logement introuvable.")
-    donnees = await fichier.read(30 * 1024 * 1024 + 1)
     if len(donnees) > 30 * 1024 * 1024:
         raise HTTPException(413, "Photo trop lourde (30 Mo maximum).")
     try:
@@ -140,10 +172,27 @@ async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: st
     logement = s.get(Logement, logement_id)
     if not logement or logement.compte_id != compte_id:
         raise HTTPException(404, "Logement introuvable.")
-    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="", demande_brouillon=demande)
+    empreinte = hashlib.sha256(donnees + demande.encode()).hexdigest()
+    if cle_import:
+        deja = s.scalar(select(Photo).where(Photo.cle_import == cle_import))
+        if deja:
+            if deja.logement.compte_id != compte_id:
+                raise HTTPException(404, "Photo introuvable.")
+            if deja.logement_id != logement_id or deja.empreinte_import != empreinte:
+                raise HTTPException(409, "Cette confirmation correspond à un autre envoi photo.")
+            s.commit()
+            return _vue_photo(s, deja)
+    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="", demande_brouillon=demande,
+                  cle_import=cle_import, empreinte_import=empreinte)
     s.add(photo); s.flush()
-    photo.cle_originale = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/original.jpg", original, "image/jpeg")
-    photo.cle_vignette = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/vignette.webp", images.vignette(original), "image/webp")
+    try:
+        photo.cle_originale = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/original.jpg", original, "image/jpeg")
+        photo.cle_vignette = stockage.ecrire(f"{compte.id}/{logement.id}/{photo.id}/vignette.webp", images.vignette(original), "image/webp")
+    except Exception as erreur:
+        # Ne pas exposer une URL signée, une clé ou le contenu du fournisseur.
+        logging.getLogger(__name__).error("Import photo : stockage indisponible (%s)", type(erreur).__name__)
+        s.rollback()
+        raise HTTPException(503, "Le stockage n'a pas pu recevoir cette photo. Les photos déjà ajoutées sont conservées ; réessayez dans un instant.")
     if compte.photos_offertes_utilisees < reglages.PHOTO_OFFERTE_PAR_COMPTE:
         photo.offerte = 1
         compte.photos_offertes_utilisees += 1
@@ -266,6 +315,25 @@ def reprendre(photo_id: str, d: DemandeReprise, compte: Compte = Depends(compte_
 @routeur.get("/{photo_id}")
 def voir(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     return _vue_photo(s, _photo_du_compte(s, compte, photo_id))
+
+
+@routeur.post("/{photo_id}/archiver")
+def archiver(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
+    p = _photo_du_compte(s, compte, photo_id)
+    _operation_libre(s, photo_id)
+    if p.archive_le is None:
+        p.archive_le = maintenant()
+        s.commit()
+    return {"archivee": True}
+
+
+@routeur.post("/{photo_id}/restaurer")
+def restaurer(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
+    p = _photo_du_compte(s, compte, photo_id)
+    if p.archive_le is not None:
+        p.archive_le = None
+        s.commit()
+    return {"archivee": False}
 
 
 class DemandeBrouillon(BaseModel):

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Download, History, Info, Plus, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { api, telechargerPhoto, ErreurApi, type Photo, type Version } from "@/lib/api";
+import { api, telechargerPhoto, ErreurApi, type Photo, type Version, type VideoCreee } from "@/lib/api";
 import { Bouton, Message, Pastille } from "@/components/ui";
 
 import { useStudioAccount } from "@/components/studio-account";
@@ -14,7 +14,6 @@ import { BriefAssistant } from "../../demo/brief-assistant";
 import { GenerationWait } from "@/components/generation-wait";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
-type VideoCreee = { id: string; statut: string; duree: number; erreur: string; url: string };
 
 function dateLisible(date: string | null): string | null {
   if (!date || Number.isNaN(Date.parse(date))) return null;
@@ -40,10 +39,7 @@ function Atelier() {
   const [erreur, setErreur] = useState("");
   const [infoTelechargement, setInfoTelechargement] = useState<{ offerte: boolean; dateLimite: string | null; reprise?: boolean } | null>(null);
   const [confirmationReprise, setConfirmationReprise] = useState(false);
-  const [propositionVideo, setPropositionVideo] = useState(false);
   const [video, setVideo] = useState<VideoCreee | null>(null);
-  const [demandeVideo, setDemandeVideo] = useState("Mouvement de caméra doux et réaliste dans cette pièce, sans changer les ouvertures ni le mobilier.");
-  const [videoOccupe, setVideoOccupe] = useState(false);
   const [videoErreur, setVideoErreur] = useState("");
   const [horloge, setHorloge] = useState(() => Date.now());
   const dialogue = useRef<HTMLDialogElement>(null);
@@ -109,14 +105,13 @@ function Atelier() {
     return () => window.clearInterval(minuterie);
   }, [videoId, videoStatus]);
 
-  async function creerVideo() {
-    if (!photo || videoOccupe || !demandeVideo.trim()) return;
-    setVideoOccupe(true); setVideoErreur("");
+  function preparerVideo() {
+    if (!photo) return;
+    const key = `studio:${compte.id}:video-plan`;
     try {
-      const resultat = await api<VideoCreee>(`/videos/photos/${photo.id}`, { method: "POST", body: JSON.stringify({ demande: demandeVideo.trim() }) });
-      setVideo(resultat);
-    } catch (e) { setVideoErreur((e as ErreurApi).message); }
-    finally { setVideoOccupe(false); }
+      const previous = JSON.parse(localStorage.getItem(key) || "{}");
+      localStorage.setItem(key, JSON.stringify({ ...previous, selectedIds: [photo.id], selectedVersions: { [photo.id]: courante?.id || "original" } }));
+    } catch { /* La sélection pourra être refaite sur l'écran vidéo. */ }
   }
   const dialogueOuvert = !!infoTelechargement || confirmationReprise;
   useEffect(() => {
@@ -186,7 +181,6 @@ function Atelier() {
       document.body.appendChild(lien); lien.click(); lien.remove();
       // Laisser le navigateur prendre en charge le fichier avant de libérer l'URL.
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setPropositionVideo(true);
       if (resultat.creditConsomme || resultat.premierePhotoOfferte || (gratuit && !photo.credite_le)) {
         setInfoTelechargement({ offerte: resultat.premierePhotoOfferte, dateLimite: dateLisible(resultat.repriseJusquAu) });
         window.dispatchEvent(new Event("studio:credits-updated"));
@@ -207,7 +201,6 @@ function Atelier() {
           poser(p, p.versions.find(v => v.id === courante.id) || null);
           if (p.credite_le && p.versions.some(v => v.id === courante.id && v.hd)) {
             setErreur("La HD a été préparée, mais le téléchargement a été interrompu. Cliquez de nouveau sur « Télécharger en HD » : aucun crédit supplémentaire ne sera utilisé.");
-            setPropositionVideo(true);
           } else setErreur("Le téléchargement n’a pas pu être confirmé. Vérifiez cette photo avant de réessayer.");
         } catch { setErreur("Connexion interrompue. Revenez sur cette photo pour vérifier si la HD est prête avant de réessayer."); }
       } else setErreur(err.message);
@@ -307,13 +300,22 @@ function Atelier() {
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
         <Link className="text-action" href="/aide/#credits">Comprendre les crédits et les 7 jours <ArrowRight size={15}/></Link>
       </aside></div>
-      {((!gratuit && propositionVideo) || (gratuit && sante?.video_disponible && (propositionVideo || photo?.credite_le))) && <section className="connected-video-offer" aria-labelledby="video-offer-title"><div><p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="video-offer-title">Et si votre photo devenait une vidéo&nbsp;?</h2><p>{gratuit ? "Testez un clip immobilier de 5 secondes, offert sur votre compte. La caméra reste dans la pièce photographiée." : "Préparez une visite de 10, 20 ou 30 secondes. Vous choisissez la durée et voyez le prix avant tout achat."}</p>
-        {gratuit && <><p className="demo-help">Phase pilote : cinq clips au maximum par logement et par jour, sans débit sur votre compte.</p><label htmlFor="video-request">Votre idée pour le mouvement</label><textarea id="video-request" rows={3} maxLength={3000} value={demandeVideo} onChange={event => setDemandeVideo(event.target.value)}/></>}
-        {gratuit && video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut) && <GenerationWait type="video"/>}
-        {gratuit && video?.statut === "prete" && video.url && <video controls playsInline src={video.url} aria-label="Votre vidéo créée"/>}
-        {gratuit && video?.statut === "echec" && <p role="alert">{video.erreur || "La vidéo n'a pas abouti."}</p>}
-        {gratuit && videoErreur && <p role="alert">{videoErreur}</p>}
-      </div>{gratuit ? <button type="button" className="button dark" disabled={videoOccupe || !demandeVideo.trim() || !!video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut)} onClick={() => void creerVideo()}>{videoOccupe ? "Démarrage…" : video?.statut === "prete" ? "Créer un autre clip" : "Créer mon clip de 5 secondes"} <ArrowRight size={17}/></button> : <Link className="button dark" href="/app/#visite">Préparer ma vidéo <ArrowRight size={17}/></Link>}</section>}
+      {photo && <section className="connected-next-actions" aria-labelledby="next-actions-title">
+        <p className="eyebrow">LA SUITE DE VOTRE ANNONCE</p><h2 id="next-actions-title">Continuez à votre rythme.</h2>
+        <p>Ajoutez d’autres photos de ce logement et retouchez celles que vous choisissez. La vidéo vient ensuite, si vous en avez envie.</p>
+        <div className="connected-next-buttons">
+          <Link className="button dark" href={`/app/logement/?id=${encodeURIComponent(photo.logement_id)}`}>Retoucher d’autres photos <ArrowRight size={17}/></Link>
+          <Link className="button outlined" href="/app/#visite" onClick={preparerVideo}>Préparer une vidéo <ArrowRight size={17}/></Link>
+        </div>
+      </section>}
+      {video && <section className="connected-video-offer" aria-labelledby="video-offer-title">
+        <p className="eyebrow">VOTRE VIDÉO</p><h2 id="video-offer-title">Le suivi de votre vidéo.</h2>
+        <p>{video.duree} secondes · retrouvez le projet à partir de cette photo ou dans Photos → vidéo.</p>
+        {video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut) && <GenerationWait type="video"/>}
+        {video?.statut === "prete" && video.url && <video controls playsInline src={video.url} aria-label="Votre vidéo créée"/>}
+        {video?.statut === "echec" && <p role="alert">{video.erreur || "La vidéo n'a pas abouti."}</p>}
+        {videoErreur && <p role="alert">{videoErreur}</p>}
+      </section>}
       {suivante && <div className="batch-next"><span>Photo {lot.indexOf(id) + 1} sur {lot.length} · votre sélection</span><Link className="button dark" href={`/app/photo/?id=${suivante}&lot=${encodeURIComponent(lot.join(","))}`}>Passer à la photo suivante <ArrowRight size={17}/></Link></div>}
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"

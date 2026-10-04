@@ -1,6 +1,7 @@
 """Un lien d'annonce est conservé sans aspirer le site tiers ni mélanger les comptes."""
 import tempfile
 import unittest
+from datetime import datetime
 
 import httpx
 from fastapi import FastAPI
@@ -9,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, session
 from app.migrations import migrer
-from app.models import Compte, Jeton
+from app.models import Compte, Jeton, Photo
 from app.routes import logements
 
 
@@ -58,6 +59,22 @@ class ImportAnnonce(unittest.IsolatedAsyncioTestCase):
         for lien in ("http://www.airbnb.fr/rooms/123", "https://user:secret@www.airbnb.fr/rooms/123"):
             with self.subTest(lien=lien):
                 self.assertEqual((await self.client.post("/logements", json={"source_url": lien})).status_code, 422)
+
+    async def test_photos_archivees_cachees_mais_restaurables(self):
+        logement = (await self.client.post("/logements", json={"nom": "Maison"})).json()
+        with self.sessions() as s:
+            s.add(Photo(id="photo-a", logement_id=logement["id"], cle_originale="original.jpg"))
+            s.commit()
+        with self.sessions() as s:
+            s.get(Photo, "photo-a").archive_le = datetime(2026, 10, 4)
+            s.commit()
+        self.assertEqual((await self.client.get(f"/logements/{logement['id']}")).json()["photos"], [])
+        archives = (await self.client.get(f"/logements/{logement['id']}?archives=true")).json()["photos"]
+        self.assertEqual(len(archives), 1)
+        self.assertTrue(archives[0]["archivee"])
+        self.assertEqual((await self.client.get('/logements')).json()[0]['photos'], [])
+        self.assertEqual((await self.client.get('/logements?archives=true')).json()[0]['photos'][0]['id'], 'photo-a')
+        self.assertEqual((await self.client.get('/logements?archives=true', headers={'Authorization': 'Bearer jeton-b'})).json(), [])
 
 
 class MigrationAnnonce(unittest.TestCase):

@@ -28,9 +28,20 @@ def migrer(engine=moteur):
         colonnes_photos = {c["name"] for c in inspect(connexion).get_columns("photos")}
         if "demande_brouillon" not in colonnes_photos:
             connexion.execute(text("ALTER TABLE photos ADD COLUMN demande_brouillon TEXT NOT NULL DEFAULT ''"))
+        if "archive_le" not in colonnes_photos:
+            connexion.execute(text("ALTER TABLE photos ADD COLUMN archive_le TIMESTAMP NULL"))
+        for nom, definition in {"cle_import": "VARCHAR(36) NULL", "empreinte_import": "VARCHAR(64) NULL"}.items():
+            if nom not in colonnes_photos:
+                connexion.execute(text(f"ALTER TABLE photos ADD COLUMN {nom} {definition}"))
+        connexion.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS photos_cle_import ON photos (cle_import)"))
         colonnes_logements = {c["name"] for c in inspect(connexion).get_columns("logements")}
         if "source_url" not in colonnes_logements:
             connexion.execute(text("ALTER TABLE logements ADD COLUMN source_url VARCHAR(1000) NOT NULL DEFAULT ''"))
+        colonnes_videos = {c["name"] for c in inspect(connexion).get_columns("videos")}
+        for nom, definition in {"cle_demande": "VARCHAR(36) NULL", "traitement_jeton": "VARCHAR(24) NOT NULL DEFAULT ''", "traitement_jusqu_au": "TIMESTAMP NULL"}.items():
+            if nom not in colonnes_videos:
+                connexion.execute(text(f"ALTER TABLE videos ADD COLUMN {nom} {definition}"))
+        connexion.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS videos_cle_demande ON videos (cle_demande)"))
         # Une session existante atteste d'une validation du code email. Ne pas
         # inventer d'événements de connexion historiques dans le nouveau journal.
         connexion.execute(text("""UPDATE comptes SET email_verifie_le =

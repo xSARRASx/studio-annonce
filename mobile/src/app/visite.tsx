@@ -1,1 +1,1 @@
-export { VideoPlanScreen as default } from '../components/CreationPlanner';
+export { ConnectedVideoPlanScreen as default } from '../components/ConnectedStudio';
