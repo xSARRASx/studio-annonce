@@ -10,4 +10,6 @@ Les ressources web ont été transférées avant les pages, sans suppression des
 
 La propriété Search Console a lu les 43 URL du sitemap et indique que l'accueil est indexé. Ses rapports globaux de performances et d'indexation étaient encore en traitement lors du contrôle du 4 octobre. Ces éléments ne donnent ni classement, ni trafic, ni preuve que les autres pages sont indexées ou citées par un assistant IA. Le suivi de sécurité Search Console reste dans le rapport privé local, hors dépôt public.
 
+Une mesure Lighthouse mobile du site publié donne **100/100 en accessibilité, bonnes pratiques et SEO** pour l'accueil, le blog et la présentation de l'application. La performance de laboratoire varie : accueil 91 puis 95 sur deux passages, blog 94, application 95. Les rapports JSON sont conservés dans le dossier de sauvegarde. Ces scores ponctuels ne sont pas des Core Web Vitals de visiteurs réels ; aucune baisse de performance n'est attribuée au pied de page sur la seule comparaison avec les mesures du 3 octobre.
+
 Ce lot ne modifie ni `main`, ni l'API, ni la base de données, ni l'application mobile, ni l'ouverture des achats. Les informations juridiques encore manquantes et les CGV avant ventes restent des travaux distincts ; le pied de page ne les remplit pas artificiellement.
