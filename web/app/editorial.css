@@ -25,11 +25,38 @@
 .blog-topic-heading{display:flex;align-items:baseline;justify-content:space-between;gap:18px;border-bottom:1px solid #dce2d1;margin-bottom:24px;padding-bottom:15px}
 .blog-topic-heading h2{font-size:30px;letter-spacing:-.7px;line-height:1.2}
 .blog-topic-heading>span{font-size:12px;color:#758068;white-space:nowrap}
-.blog-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+.blog-guide-grid{column-count:2;column-gap:24px}
+.blog-guide-card{display:inline-block;width:100%;margin:0 0 24px;vertical-align:top;break-inside:avoid}
 .blog-guide-card .editorial-card-copy{padding:24px}
 .blog-guide-card h3{font-size:23px;line-height:1.3;margin:14px 0}
 .blog-guide-card h3 a:hover{text-decoration:underline;text-underline-offset:4px}
 .blog-guide-card p{font-size:14px;line-height:1.8;color:#69745d;margin:0 0 24px}
 .blog-guide-link{font-size:13px;color:#455d31;text-decoration:underline;text-underline-offset:4px;line-height:1.6}
-@media(max-width:900px){.blog-guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:550px){.blog-guide-grid{grid-template-columns:1fr}.blog-topic-nav{gap:8px;margin-bottom:35px}.blog-topic-nav a{padding:10px 12px;font-size:12px}.blog-topic-heading h2{font-size:27px}.blog-guide-card h3{font-size:24px}}
+@media(max-width:650px){.blog-guide-grid{column-count:1}.blog-topic-nav{gap:8px;margin-bottom:35px}.blog-topic-nav a{padding:10px 12px;font-size:12px}.blog-topic-heading h2{font-size:27px}.blog-guide-card h3{font-size:24px}}
+
+/* Article pages: keep navigation separate from the reading column and let photos fill their cards. */
+.article-page .editorial-heading{max-width:860px;margin:0 auto 32px}
+.article-page .editorial-heading>p:not(.editorial-date){color:#4c5745;line-height:1.7}
+.article-page .editorial-date{font-size:13px;color:#5d6856}
+.article-page .editorial-cover{max-width:860px;margin:0 auto 44px}
+.article-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px;align-items:start;max-width:1100px;margin:0 auto}
+.article-layout .article-toc{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow-y:auto;margin:0;padding:20px;background:#eef2e6}
+.article-layout .article-toc ol{padding-left:19px;gap:12px}
+.article-layout .article-toc a{font-size:13px;line-height:1.5;color:#3e4e37}
+.article-layout .article-toc a:hover{text-decoration:underline;text-underline-offset:3px}
+.article-page .article-body{max-width:none;min-width:0;margin:0}
+.article-page .article-section{border-top:1px solid #dce2d1;padding-top:28px}
+.article-page .article-body section+section{margin-top:42px}
+.article-page .article-section h2{display:flex;gap:14px;align-items:baseline;font-size:28px;line-height:1.25;margin:0 0 18px}
+.article-section-number{flex-shrink:0;font-size:13px;font-weight:600;letter-spacing:1px;color:#6c805a}
+.article-page .article-section>p{font-size:16px;line-height:1.75;color:#465241;margin:16px 0}
+.article-page .article-examples{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:26px 0 32px}
+.article-page .article-examples:has(> :only-child){max-width:620px}
+.article-page .article-example{display:block;min-width:0;overflow:hidden}
+.article-page .article-example>.pg-example-comparison{width:100%;aspect-ratio:1.5}
+.article-page .article-example>a{display:block;padding:16px 18px;color:#374c30;font-size:14px;font-weight:600;line-height:1.45;text-decoration:none}
+.article-page .article-example>a:hover{text-decoration:underline;text-underline-offset:3px}
+.article-page .article-examples small{color:#566b49;font-size:12px;font-weight:400}
+.article-page .article-checklist{color:#46583e}
+@media(max-width:850px){.article-layout{grid-template-columns:1fr;gap:26px}.article-layout .article-toc{position:static;max-height:none}.article-page .article-section h2{font-size:26px}}
+@media(max-width:550px){.article-page .editorial-heading>p:not(.editorial-date){font-size:15px}.article-page .article-section>p{font-size:15px;line-height:1.7}.article-page .article-section h2{font-size:24px;gap:10px}.article-page .article-examples{grid-template-columns:1fr}}

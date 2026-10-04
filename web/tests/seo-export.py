@@ -126,7 +126,12 @@ for url in blog_urls:
     graph = [entry for item in page.jsonld for entry in item.get('@graph', [])]
     posting = next((entry for entry in graph if entry.get('@type') == 'BlogPosting'), {})
     check(posting.get('mainEntityOfPage', {}).get('@id') == url, f'BlogPosting URL mismatch: {url}')
-    check(bool(posting.get('headline')) and bool(posting.get('datePublished')), f'Incomplete BlogPosting: {url}')
+    check(bool(posting.get('headline')), f'Incomplete BlogPosting: {url}')
+    visible_dates = [item.get('datetime') for item in page.attrs('time') if item.get('datetime')]
+    published_date = posting.get('datePublished', '')
+    check(bool(published_date) == bool(visible_dates), f'Visible and structured publication dates disagree: {url}')
+    if published_date:
+        check(visible_dates == [published_date[:10]], f'Publication date mismatch: {url}')
     check(page.meta('og:url') == [url], f'Open Graph URL mismatch: {url}')
     check(bool(page.meta('twitter:card')), f'Social preview missing: {url}')
     if posting.get('image'):

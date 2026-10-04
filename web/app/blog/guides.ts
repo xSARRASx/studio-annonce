@@ -3,7 +3,7 @@ import type { BlogArticle } from "./articles";
 /** Editorial content prepared locally on 2 October 2026; deployment is a separate step. */
 export const SEO_GUIDES: readonly BlogArticle[] = [
   {
-    slug: "photos-immobilieres-smartphone", status: "published", date: "2026-10-02",
+    slug: "photos-immobilieres-smartphone", status: "published", date: "2026-10-03", showDate: false,
     topic: "Prise de vue", category: "Prise de vue", seoTitle: "Photos immobilières au smartphone : le guide pratique",
     title: "Photographier un logement au smartphone : préparer, cadrer, vérifier.",
     description: "Lumière, cadrage, verticales et choix des fichiers : une méthode simple pour préparer les photos de votre logement avec un téléphone.",
@@ -39,7 +39,7 @@ export const SEO_GUIDES: readonly BlogArticle[] = [
     sources: [{ label: "Airbnb — Prendre de belles photos de votre logement", href: "https://www.airbnb.fr/help/article/746" }]
   },
   {
-    slug: "eclaircir-photo-interieur-sombre", status: "published", date: "2026-10-02",
+    slug: "eclaircir-photo-interieur-sombre", status: "published", date: "2026-10-03", showDate: false,
     category: "Lumière & retouche", seoTitle: "Éclaircir une photo d’intérieur sans dénaturer la pièce",
     title: "Une photo d’intérieur trop sombre : que corriger, et quand la refaire ?",
     description: "Exposition, couleurs, fenêtres et détails : apprenez à éclaircir une photo immobilière sombre et à reconnaître les limites d’une retouche.",
@@ -70,7 +70,7 @@ export const SEO_GUIDES: readonly BlogArticle[] = [
     ]
   },
   {
-    slug: "home-staging-virtuel-photo-annonce", status: "published", date: "2026-10-02",
+    slug: "home-staging-virtuel-photo-annonce", status: "published", date: "2026-10-03", showDate: false,
     category: "Décoration virtuelle", seoTitle: "Home staging virtuel : usages, exemples et vérifications",
     title: "Home staging virtuel : aider à se projeter, tout en montrant l’état réel.",
     description: "À quoi sert le home staging virtuel ? Découvrez comment préparer un projet de décoration et comparer meubles, volumes et matériaux à l’original.",
@@ -101,7 +101,7 @@ export const SEO_GUIDES: readonly BlogArticle[] = [
     ]
   },
   {
-    slug: "choisir-photos-annonce-location", status: "published", date: "2026-10-02",
+    slug: "choisir-photos-annonce-location", status: "published", date: "2026-10-03", showDate: false,
     topic: "Organisation", category: "Annonces & sélection", seoTitle: "Photos d’annonce de location : couverture, ordre et légendes",
     title: "Choisir les photos d’une annonce de location : une visite qui se comprend.",
     description: "Choisissez une couverture représentative, ordonnez vos photos par pièce et écrivez des légendes utiles pour présenter clairement votre location.",
@@ -132,7 +132,7 @@ export const SEO_GUIDES: readonly BlogArticle[] = [
     ], sources: [{ label: "Airbnb — Créer une visite photo de votre logement", href: "https://www.airbnb.fr/help/article/477" }, { label: "Airbnb — Prendre de belles photos de votre logement", href: "https://www.airbnb.fr/help/article/746" }]
   },
   {
-    slug: "demande-retouche-photo-immobiliere", status: "published", date: "2026-10-02",
+    slug: "demande-retouche-photo-immobiliere", status: "published", date: "2026-10-03", showDate: false,
     category: "Préparer sa retouche", seoTitle: "Demande de retouche photo immobilière : méthode et exemples",
     title: "Comment formuler une demande de retouche photo immobilière précise ?",
     description: "Ce qui reste, ce qui change, puis les vérifications : préparez une demande de retouche photo ou de décoration virtuelle avec des exemples concrets.",

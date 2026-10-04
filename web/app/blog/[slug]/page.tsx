@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     alternates: { canonical: `/blog/${article.slug}/` },
     openGraph: {
       title, description: article.description, url: `/blog/${article.slug}/`,
-      type: "article", locale: "fr_FR", publishedTime: publishedAt(article.date),
+      type: "article", locale: "fr_FR", ...(article.showDate !== false ? { publishedTime: publishedAt(article.date) } : {}),
       authors: ["Studio Annonce"], ...(image && cover ? { images: [{ url: image, alt: cover.altAfter }] } : {}),
     },
     twitter: { card: image ? "summary_large_image" : "summary", title, description: article.description, ...(image ? { images: [image] } : {}) },
@@ -46,7 +46,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const structured = { "@context": "https://schema.org", "@graph": [
     {
       "@type": "BlogPosting", headline: article.title, description: article.description,
-      datePublished: publishedAt(article.date), dateModified: publishedAt(article.date),
+      ...(article.showDate !== false ? { datePublished: publishedAt(article.date), dateModified: publishedAt(article.date) } : {}),
       inLanguage: "fr-FR", ...(cover ? { image: `${site}/demo/exemples/${cover.file}-apres.webp` } : {}),
       author: { "@type": "Organization", "@id": `${site}/#organization`, name: "Studio Annonce", url: `${site}/` },
       publisher: { "@type": "Organization", "@id": `${site}/#organization`, name: "Studio Annonce", url: `${site}/` },
@@ -59,7 +59,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     ] },
   ] };
   return (
-    <div className="studio-demo public-info editorial">
+    <div className="studio-demo public-info editorial article-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
       <PublicHeader current="blog" />
       <main className="editorial-main">
@@ -68,34 +68,37 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <header className="editorial-heading">
             <span className="public-eyebrow">{article.category}</span>
             <h1>{article.title}</h1><p>{article.intro}</p>
-            <p className="editorial-date">Par Studio Annonce · <time dateTime={article.date}>{new Date(`${article.date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</time></p>
+            <p className="editorial-date">Par Studio Annonce{article.showDate !== false && <> · <time dateTime={article.date}>{new Date(`${article.date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</time></>}</p>
           </header>
           {cover && <figure className="editorial-cover">
             <ExampleComparison example={cover} priority />
             <figcaption>{article.coverCaption || cover.detail} <Link href={`/exemples/${cover.id}/`}>Comparer avec l’original →</Link></figcaption>
           </figure>}
-          <div className="editorial-prose article-body">
+          <div className="article-layout">
             <nav className="article-toc" aria-label="Sommaire de l’article">
               <p>Dans ce guide</p>
               <ol>{article.sections.map((section, index) => <li key={section.title}><a href={`#section-${index + 1}`}>{section.title}</a></li>)}</ol>
             </nav>
-            {article.sections.map((section, index) => (
-              <section key={section.title} id={`section-${index + 1}`} className="article-section">
-                <h2>{section.title}</h2>
-                {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-                {section.checklist && <ul className="article-checklist">{section.checklist.map(item => <li key={item}>{item}</li>)}</ul>}
-                {section.examples && <div className="article-examples">{section.examples.map(slug => {
-                  const item = findPhotoExample(slug)!;
-                  return <div className="article-example" key={slug}><ExampleComparison example={item} thumbnail /><Link href={`/exemples/${slug}/`}>{item.title}<small>Voir l’exemple en détail →</small></Link></div>;
-                })}</div>}
-                {section.links && <ul className="article-links">{section.links.map(link => <li key={link.href}><Link href={link.href}>{link.label} →</Link></li>)}</ul>}
-              </section>
-            ))}
-            {article.sources && <aside className="article-sources" aria-label="Sources et ressources">
-              <h2>Pour aller à la source</h2>
-              <ul>{article.sources.map(source => <li key={source.href}><a href={source.href}>{source.label}</a></li>)}</ul>
-              <p>Ressources consultées le 2 octobre 2026. Les interfaces et recommandations des plateformes peuvent évoluer.</p>
-            </aside>}
+            <div className="editorial-prose article-body">
+              {article.sections.map((section, index) => {
+                const examples = (section.examples || []).filter(slug => slug !== article.coverExample);
+                return <section key={section.title} id={`section-${index + 1}`} className="article-section">
+                  <h2><span className="article-section-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{section.title}</h2>
+                  {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+                  {section.checklist && <ul className="article-checklist">{section.checklist.map(item => <li key={item}>{item}</li>)}</ul>}
+                  {examples.length > 0 && <div className="article-examples">{examples.map(slug => {
+                    const item = findPhotoExample(slug)!;
+                    return <div className="article-example" key={slug}><ExampleComparison example={item} thumbnail /><Link href={`/exemples/${slug}/`}>{item.title}<small>Voir l’exemple en détail →</small></Link></div>;
+                  })}</div>}
+                  {section.links && <ul className="article-links">{section.links.map(link => <li key={link.href}><Link href={link.href}>{link.label} →</Link></li>)}</ul>}
+                </section>;
+              })}
+              {article.sources && <aside className="article-sources" aria-label="Sources et ressources">
+                <h2>Pour aller à la source</h2>
+                <ul>{article.sources.map(source => <li key={source.href}><a href={source.href}>{source.label}</a></li>)}</ul>
+                <p>Ressources consultées le 2 octobre 2026. Les interfaces et recommandations des plateformes peuvent évoluer.</p>
+              </aside>}
+            </div>
           </div>
         </article>
         {related.length > 0 && <section className="editorial-related" aria-labelledby="related-title">

@@ -160,4 +160,4 @@ const guides: Omit<BlogArticle, "date" | "status">[] = [
     ]
   }
 ];
-export const PROJECT_GUIDES: readonly BlogArticle[] = guides.map(guide => ({ ...guide, date: "2026-10-02", status: "published" }));
+export const PROJECT_GUIDES: readonly BlogArticle[] = guides.map(guide => ({ ...guide, date: "2026-10-03", showDate: false, status: "published" }));

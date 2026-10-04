@@ -44,3 +44,5 @@ Avant le transfert, le `public_html` entier a été copié et comparé au serveu
 Search Console n'est pas encore rattaché à `studioannonce.fr` dans le compte Google ouvert ; l'ajout est préparé et attend la confirmation demandée au moment de donner l'accès à cette propriété. Aucun trafic, classement, nombre de pages indexées ni citation IA n'est revendiqué.
 
 Une recherche Google publique `site:studioannonce.fr` le 3 octobre affiche « Aucun document ne correspond ». Cette commande de recherche n'est pas un décompte fiable de l'index Google, mais elle renforce la priorité du rattachement à Search Console, de l'envoi du sitemap et de l'inspection de quelques URL avant d'interpréter la visibilité du site.
+
+Mise à jour du 4 octobre : la propriété Search Console est maintenant validée et le sitemap a été accepté avec 43 pages découvertes. L'accueil est confirmé indexé. Le rapport global des pages est encore en traitement ; aucun classement ou trafic n'est déduit de ces premiers contrôles.

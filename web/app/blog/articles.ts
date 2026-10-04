@@ -7,7 +7,7 @@ export type BlogTopic = typeof BLOG_TOPICS[number];
 /** Blog content. Drafts stay out of the index, static routes and sitemap. See docs/BLOG.md. */
 export type BlogArticle = {
   slug: string; status: "draft" | "published"; title: string; description: string;
-  date: string; category: string; coverExample?: string; intro: string;
+  date: string; showDate?: boolean; category: string; coverExample?: string; intro: string;
   topic?: BlogTopic;
   seoTitle?: string; coverCaption?: string; related?: string[];
   sources?: { label: string; href: string }[];
