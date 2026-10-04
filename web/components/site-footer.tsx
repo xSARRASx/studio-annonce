@@ -60,11 +60,11 @@ export function SiteFooter() {
         </div>
         <div className="site-footer-stores" aria-label="Application mobile bientôt disponible">
           <span className="site-footer-store-badge">
-            <Image src={`${base}/icone.svg`} alt="" width={42} height={42} />
+            <Image src={`${base}/platforms/apple.svg`} alt="" width={42} height={42} />
             <span><small>Bientôt sur l’</small><strong>App Store</strong></span>
           </span>
           <span className="site-footer-store-badge">
-            <Image src={`${base}/icone.svg`} alt="" width={42} height={42} />
+            <Image src={`${base}/platforms/android.svg`} alt="" width={42} height={42} />
             <span><small>Bientôt sur</small><strong>Google Play</strong></span>
           </span>
         </div>
