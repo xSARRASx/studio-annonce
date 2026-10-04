@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "L’entreprise derrière Studio Annonce | Studio Annonce",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default function EntreprisePage() {
-  return <main className="privacy-page">
+  return <><main className="privacy-page">
     <header><Logo taille="size-10"/><Link href="/"><ArrowLeft size={16}/> Retour au site</Link></header>
     <article>
       <p className="privacy-eyebrow"><Building2 size={15}/> À PROPOS</p>
@@ -29,5 +30,5 @@ export default function EntreprisePage() {
       <section><h2>Nous contacter</h2><p>Pour une question sur le service, une photo ou votre compte, écrivez à <a href="mailto:contact@studioannonce.fr">contact@studioannonce.fr</a>. Pour vos données personnelles, consultez aussi la <Link href="/confidentialite/">politique de confidentialité</Link>.</p></section>
       <p className="privacy-note">Dernière mise à jour : 3 octobre 2026.</p>
     </article>
-  </main>;
+  </main><SiteFooter /></>;
 }

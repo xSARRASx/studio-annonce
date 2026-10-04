@@ -58,3 +58,7 @@ Les pages publiques montrent l'original et la proposition quand une image a ét�
 3. Si un compte Google Ads approprié est ensuite disponible, consulter le Planificateur pour des ordres de grandeur par pays et langue, sans campagne payante. Ses chiffres ne remplacent pas les données organiques du site. [Aide Google Ads](https://support.google.com/google-ads/answer/7337243?hl=fr).
 4. Regrouper les requêtes réellement observées par intention. Améliorer d'abord les pages déjà vues mais peu cliquées, puis combler un manque de réponse documenté. Éviter de multiplier des articles presque identiques.
 5. Vérifier séparément l'accès de robots, l'indexation, les résultats enrichis éventuels et les citations dans les assistants. Aucune place ou citation n'est garantie par une balise.
+
+## Mise à jour du 4 octobre 2026
+
+Le tableau ci-dessus décrit l'état de préparation du 2 octobre. Les 43 URL publiques, dont les 24 guides, sont désormais en ligne. La propriété `https://studioannonce.fr/` a été validée dans Search Console ; Google a lu le sitemap et y a découvert 43 URL. L'inspection de l'accueil indique qu'il est indexé. Les rapports globaux d'indexation et de performances sont encore en traitement : il n'existe donc toujours pas de base vérifiée pour classer les requêtes par clics, impressions ou positions du site. Les prochaines révisions éditoriales devront partir de ces données lorsqu'elles seront disponibles, et de besoins réels des visiteurs.

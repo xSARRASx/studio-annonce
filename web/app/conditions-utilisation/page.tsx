@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Conditions d’utilisation · Studio Annonce",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function ConditionsUtilisationPage() {
-  return <main className="privacy-page">
+  return <><main className="privacy-page">
     <header><Logo taille="size-10"/><Link href="/"><ArrowLeft size={16}/> Retour au site</Link></header>
     <article>
       <p className="privacy-eyebrow"><FileText size={15}/> LE SERVICE</p>
@@ -29,5 +30,5 @@ export default function ConditionsUtilisationPage() {
       <section><h2>Données et assistance</h2><p>La <Link href="/confidentialite/">politique de confidentialité</Link> explique le traitement des données du compte ; la <Link href="/cookies/">page Cookies et stockage local</Link> décrit les données gardées dans le navigateur. Pour une question sur le service ou votre compte, écrivez à <a href="mailto:contact@studioannonce.fr">contact@studioannonce.fr</a>.</p></section>
       <p className="privacy-note">Dernière mise à jour : 3 octobre 2026.</p>
     </article>
-  </main>;
+  </main><SiteFooter /></>;
 }

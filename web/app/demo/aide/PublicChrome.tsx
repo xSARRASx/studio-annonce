@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { SiteFooter } from "@/components/site-footer";
 
 const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -32,22 +33,5 @@ export function PublicHeader({ current }: { current: "tarifs" | "aide" | "exempl
 }
 
 export function PublicFooter() {
-  return (
-    <footer className="public-footer">
-      <Brand />
-      <p>Un nouveau regard sur votre intérieur.</p>
-      <nav aria-label="Liens de bas de page">
-        <Link href="/">Accueil</Link>
-        <Link href="/application/">Application</Link>
-        <Link href="/tarifs/">Tarifs</Link>
-        <Link href="/aide/">Aide</Link>
-        <Link href="/blog/">Blog</Link>
-        <Link href="/entreprise/">L’entreprise</Link>
-        <Link href="/mentions-legales/">Mentions légales</Link>
-        <Link href="/confidentialite/">Confidentialité</Link>
-        <Link href="/cookies/">Cookies</Link>
-        <Link href="/conditions-utilisation/">Conditions d’utilisation</Link>
-      </nav>
-    </footer>
-  );
+  return <SiteFooter />;
 }

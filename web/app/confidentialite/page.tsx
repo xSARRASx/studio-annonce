@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Cookie, Mail, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/confidentialite/" },
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function Confidentialite() {
-  return <main className="privacy-page">
+  return <><main className="privacy-page">
     <header><Logo taille="size-10"/><Link href="/"><ArrowLeft size={16}/> Retour au site</Link></header>
     <article>
       <p className="privacy-eyebrow"><ShieldCheck size={15}/> VIE PRIVÉE</p>
@@ -27,5 +28,5 @@ export default function Confidentialite() {
       <section><h2>Vos droits</h2><p><Mail size={16}/> Pour exercer vos droits ou poser une question, écrivez à <a href="mailto:contact@studioannonce.fr">contact@studioannonce.fr</a>. Vous pouvez aussi saisir la <a href="https://www.cnil.fr/fr/plaintes" target="_blank" rel="noopener noreferrer">CNIL</a> si vous estimez que vos droits ne sont pas respectés.</p></section>
       <p className="privacy-note"><Cookie size={16}/> Dernière mise à jour : 3 octobre 2026.</p>
     </article>
-  </main>;
+  </main><SiteFooter /></>;
 }

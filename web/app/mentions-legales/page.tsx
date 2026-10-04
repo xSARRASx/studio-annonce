@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Mentions légales · Studio Annonce",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function MentionsLegalesPage() {
-  return <main className="privacy-page">
+  return <><main className="privacy-page">
     <header><Logo taille="size-10"/><Link href="/"><ArrowLeft size={16}/> Retour au site</Link></header>
     <article>
       <p className="privacy-eyebrow"><FileText size={15}/> INFORMATIONS SUR LE SITE</p>
@@ -25,5 +26,5 @@ export default function MentionsLegalesPage() {
       <section><h2>Données personnelles</h2><p>La <Link href="/confidentialite/">politique de confidentialité</Link> décrit les données du compte et des créations. La <Link href="/cookies/">page Cookies et stockage local</Link> explique ce qui reste dans le navigateur.</p></section>
       <p className="privacy-note">Dernière mise à jour : 3 octobre 2026.</p>
     </article>
-  </main>;
+  </main><SiteFooter /></>;
 }

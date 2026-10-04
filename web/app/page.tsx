@@ -2,6 +2,7 @@ import Landing from "./demo/landing";
 import type { Metadata } from "next";
 import "./demo/studio.css";
 import "./public-contrast.css";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Studio Annonce — retouche photo immobilière et décoration virtuelle",
@@ -18,5 +19,5 @@ export default function Accueil() {
       { "@type": "WebSite", "@id": "https://studioannonce.fr/#website", name: "Studio Annonce", alternateName: "StudioAnnonce", url: "https://studioannonce.fr/", inLanguage: "fr-FR", publisher: { "@id": "https://studioannonce.fr/#organization" } },
     ],
   };
-  return <div className="studio-demo seo-home"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} /><Landing /></div>;
+  return <div className="studio-demo seo-home"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} /><Landing /><SiteFooter /></div>;
 }

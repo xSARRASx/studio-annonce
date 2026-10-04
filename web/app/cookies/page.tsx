@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Cookie, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Cookies et stockage local · Studio Annonce",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function CookiesPage() {
-  return <main className="privacy-page">
+  return <><main className="privacy-page">
     <header><Logo taille="size-10"/><Link href="/"><ArrowLeft size={16}/> Retour au site</Link></header>
     <article>
       <p className="privacy-eyebrow"><Cookie size={15}/> NAVIGATEUR</p>
@@ -24,5 +25,5 @@ export default function CookiesPage() {
       <section><h2>Si les outils changent</h2><p>Un outil de mesure ou de publicité nécessitant votre accord ne sera pas activé sans une information adaptée et, lorsque la loi l’exige, votre consentement préalable.</p></section>
       <p className="privacy-note"><ShieldCheck size={16}/> Dernière mise à jour : 3 octobre 2026.</p>
     </article>
-  </main>;
+  </main><SiteFooter /></>;
 }
