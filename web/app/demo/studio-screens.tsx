@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronDown, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 import { BriefAssistant } from "./brief-assistant";
@@ -42,9 +42,9 @@ function statut(p: DemoProject, now: number) {
 }
 
 /* Mes photos : d'abord une liste, rangée par logement. Rien encore ? Un seul bouton pour commencer. */
-export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, onExample, onOpen, onManageProperty }: {
+export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, onExample, onOpen, onManageProperty, onArchive, onDelete, extraContent }: {
   library: DemoLibrary; source: Source; now: number; busy: boolean;
-  onCreate: () => void; onAddPhoto: (logement: string) => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void; onManageProperty?: (photoId: string) => void;
+  onCreate: () => void; onAddPhoto: (logement: string) => void; onExample: (kind: "photo" | "video") => void; onOpen: (p: DemoProject) => void; onManageProperty?: (photoId: string) => void; onArchive?: (p: DemoProject) => void; onDelete?: (p: DemoProject) => void; extraContent?: ReactNode;
 }) {
   const [recherche, setRecherche] = useState("");
   const [ordre, setOrdre] = useState<"recent" | "ancien">("recent");
@@ -62,7 +62,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
     <span className="st-row-main"><strong>{p.title}</strong><small>{p.kind === "video" ? "Vidéo" : "Photo"} · {p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}</small></span>
     <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
     <ChevronRight size={20} className="st-chevron"/>
-  </button></li>;
+  </button>{!p.sample && (onArchive || onDelete) && <div className="creation-row-actions">{onArchive && <button type="button" onClick={() => onArchive(p)}>Archiver</button>}{onDelete && <button type="button" className="creation-delete" onClick={() => onDelete(p)}>Supprimer</button>}</div>}</li>;
   /* Les exemples ne sont pas un logement : ils ont leur partie à eux, toujours la même, tout en bas. */
   const vus = new Set(exemples.map(p => p.kind));
   const cartesExemples = [
@@ -94,6 +94,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
         </div>
       </div>
     </section>
+    {extraContent}
     {partieExemples}
   </main>;
 
@@ -108,6 +109,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
       <div className="st-group-head"><h2><Building2 size={18}/> {g.nom}</h2><span>{g.photos.length} {g.photos.length > 1 ? "créations" : "création"}</span><button className="text-action" onClick={() => onAddPhoto(g.nom)}><Plus size={15}/> Ajouter une photo</button>{onManageProperty && <button className="text-action" onClick={() => onManageProperty(g.photos[0].id)}>Gérer les photos</button>}</div>
       <ul className="st-list">{g.photos.map(ligne)}</ul>
     </section>)}
+    {extraContent}
     {partieExemples}
   </main>;
 }
@@ -121,53 +123,58 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const logements = logementsDe(library, false);
   const [choix, setChoix] = useState(initial && initial !== UNASSIGNED_PROPERTY ? logements.includes(initial) ? initial : "__nouveau" : "");
   const [nouveau, setNouveau] = useState(initial && !logements.includes(initial) ? initial : "");
-  const [fichier, setFichier] = useState<File | null>(null);
+  const [fichiers, setFichiers] = useState<File[]>([]);
   const [demande, setDemande] = useState("");
   const [erreur, setErreur] = useState("");
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
-  const apercu = useMemo(() => fichier ? URL.createObjectURL(fichier) : "", [fichier]);
-  useEffect(() => () => { if (apercu) URL.revokeObjectURL(apercu); }, [apercu]);
+  const apercus = useMemo(() => fichiers.map(file => URL.createObjectURL(file)), [fichiers]);
+  useEffect(() => () => apercus.forEach(url => URL.revokeObjectURL(url)), [apercus]);
   const logement = (choix === "__nouveau" ? nouveau.trim() : choix) || UNASSIGNED_PROPERTY;
   const premiere = !library.projects.some(project => !project.sample);
   function recevoir(liste: File[]) {
-    const image = liste.find(f => f.type.startsWith("image/"));
-    if (!image) { setErreur("Choisissez une photo (JPG, PNG ou WebP)."); return; }
-    setErreur(""); setFichier(image);
+    if (envoi || busy) return;
+    const images = liste.filter(f => ["image/jpeg", "image/png", "image/webp"].includes(f.type));
+    if (!images.length) { setErreur("Choisissez des photos JPG, PNG ou WebP."); return; }
+    if (images.some(f => f.size > 30 * 1024 * 1024)) { setErreur("Chaque photo doit faire moins de 30 Mo."); return; }
+    const added = images.filter(file => !fichiers.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified));
+    if (fichiers.length + added.length > 40) { setErreur("Ajoutez jusqu’à 40 photos à la fois."); return; }
+    setErreur(images.length < liste.length ? "Seuls les fichiers JPG, PNG et WebP ont été ajoutés." : ""); setFichiers(previous => [...previous, ...added]);
   }
   async function creer(e: React.FormEvent) {
     e.preventDefault();
-    if (!fichier || !logement || envoi || demande.length > maxRequest) return;
+    if (!fichiers.length || !logement || envoi || demande.length > maxRequest) return;
     setEnvoi(true); setErreur("");
-    try { await onCreate([fichier], logement, demande.trim()); }
-    catch (cause) { setErreur(storageError(cause)); setEnvoi(false); }
+    try { await onCreate(fichiers, logement, demande.trim()); }
+    catch (cause) { setErreur(storageError(cause)); } finally { setEnvoi(false); }
   }
   return <main className="st-main st-create">
     <CreationBack onClick={onCancel}/>
     <p className="eyebrow">{premiere ? "VOTRE PREMIÈRE RETOUCHE" : "NOUVELLE RETOUCHE"}</p>
-    <h1>{premiere ? "On commence par une photo." : "Une nouvelle photo à sublimer."}</h1>
+    <h1>{premiere ? "Vos premières photos à sublimer." : "De nouvelles photos à sublimer."}</h1>
     {onBatch && <button type="button" className="st-imagine-link" onClick={onBatch}><Images size={16}/> J’ai une annonce et plusieurs photos <ArrowRight size={15}/></button>}
     <button type="button" className="st-imagine-link" onClick={onImagine}><Sparkles size={16}/> Créer une image sans photo de départ <ArrowRight size={15}/></button>
     {!library.freeUsed && <p className="st-offer"><Sparkles size={16}/> Votre première photo retouchée est offerte.</p>}
     <form className="st-form" onSubmit={creer}>
-      <fieldset className="st-step"><legend><span>1</span> Votre photo</legend>
-        <div className={`st-drop ${glisse ? "on" : ""} ${fichier ? "st-drop-full" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
-          {fichier ? <div className="st-single">
-            <span className="st-single-img">
+      <fieldset className="st-step"><legend><span>1</span> Vos photos</legend>
+        <div className={`st-drop ${glisse ? "on" : ""} ${fichiers.length ? "st-drop-full" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
+          {fichiers.length ? <div className="st-upload-selection">
+            <p role="status"><strong>{fichiers.length} photo{fichiers.length > 1 ? "s" : ""} sélectionnée{fichiers.length > 1 ? "s" : ""}</strong> · ajoutez-en ou retirez-en avant de continuer.</p>
+            <div className="st-upload-grid">{fichiers.map((file, index) => <div key={`${file.name}-${file.lastModified}-${file.size}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={apercu} alt="Votre photo"/>
-              <button type="button" aria-label="Retirer la photo" onClick={() => setFichier(null)}><X size={14}/></button>
-            </span>
-            <div className="st-pick"><button type="button" className="button outlined st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Reprendre la photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir une autre photo</button></div>
+              <img src={apercus[index]} alt={`Photo ${index + 1} : ${file.name}`}/><span>{index + 1}</span><button type="button" disabled={envoi || busy} aria-label={`Retirer ${file.name}`} onClick={() => setFichiers(previous => previous.filter(item => item !== file))}><X size={15}/></button><small>{file.name}</small>
+            </div>)}</div>
+            <button type="button" className="button outlined" disabled={envoi || busy} onClick={() => input.current?.click()}><Images size={17}/> Ajouter d’autres photos</button>
           </div>
-          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez votre photo ici</strong><strong className="st-camera">Prenez la pièce en photo</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Une photo à la fois, même prise au téléphone.</small></>}
+          : <><span className="st-drop-icon"><ImagePlus size={28}/></span><strong className="st-drop-desk">Glissez une ou plusieurs photos ici</strong><strong className="st-camera">Choisissez vos photos</strong><small className="st-drop-desk">ou</small><div className="st-pick"><button type="button" className="button dark st-camera" onClick={() => camera.current?.click()}><Camera size={17}/> Prendre une photo</button><button type="button" className="button outlined" onClick={() => input.current?.click()}><Images size={17}/> Choisir dans mes photos</button></div><small>Jusqu’à 40 photos à la fois · JPG, PNG ou WebP.</small></>}
           <input ref={camera} id="st-camera" type="file" accept="image/*" capture="environment" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
-          <input ref={input} id="st-fichiers" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
+          <input ref={input} id="st-fichiers" type="file" multiple accept="image/jpeg,image/png,image/webp" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
         </div>
       </fieldset>
       <fieldset className="st-step"><legend><span>2</span> Ce que vous voulez changer <em>facultatif</em></legend>
+        {fichiers.length > 1 && <p className="creation-small">Cette demande sera proposée pour toutes les photos. À l’étape suivante, choisissez de les retoucher ensemble ou une par une.</p>}
         <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={maxRequest} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
         <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => d ? `${d}, ${i.toLowerCase()}` : i)}><Plus size={13}/> {i}</button>)}</div>
         <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>
@@ -176,8 +183,8 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       <OptionalProperty options={logements} choice={choix} name={nouveau} onChoice={setChoix} onName={setNouveau} disabled={envoi}/>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichier || !logement || demande.length > maxRequest}>{envoi ? "Ajout de la photo…" : "Continuer avec cette photo"} <ArrowRight size={18}/></button>
-        <span>{!fichier ? "Ajoutez votre photo." : "Vous paierez seulement la photo que vous garderez."}</span>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichiers.length || !logement || demande.length > maxRequest}>{envoi ? "Ajout de vos photos…" : fichiers.length > 1 ? `Préparer ces ${fichiers.length} retouches` : "Continuer avec cette photo"} <ArrowRight size={18}/></button>
+        <span>{!fichiers.length ? "Ajoutez vos photos." : "Aucune génération ni aucun débit à cette étape."}</span>
       </div>
     </form>
     <button className="st-example-link" disabled={busy} onClick={onExample}>Pas de photo sous la main ? Essayer avec le salon d’exemple <ArrowRight size={15}/></button>

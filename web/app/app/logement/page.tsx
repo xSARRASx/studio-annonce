@@ -6,6 +6,7 @@ import { Upload, ImagePlus, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { api, ErreurApi, type Logement, type Photo } from "@/lib/api";
 import { envoyerPhoto } from "@/lib/photo-upload";
 import { useStudioAccount } from "@/components/studio-account";
+import { CreationConfirmation, CreationNotice, type CreationAction } from "@/components/creation-actions";
 import { Bouton, Message, Pastille } from "@/components/ui";
 
 function PageLogement() {
@@ -18,9 +19,10 @@ function PageLogement() {
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState<{ fait: number; total: number } | null>(null);
   const [glisse, setGlisse] = useState(false);
-  const [selection, setSelection] = useState<string[]>([]);
+  const [selection, setSelection] = useState<string[]>(() => (parametres.get("selection") || "").split(",").filter(Boolean));
   const [afficherArchives, setAfficherArchives] = useState(parametres.get("archives") === "true");
-  const [aArchiver, setAArchiver] = useState<string | null>(null);
+  const [action, setAction] = useState<CreationAction | null>(null);
+  const [notice, setNotice] = useState("");
   const [archiveOccupe, setArchiveOccupe] = useState(false);
   const [demandeCommune, setDemandeCommune] = useState("");
   const [lotEnCours, setLotEnCours] = useState(false);
@@ -31,9 +33,14 @@ function PageLogement() {
 
   useEffect(() => { if (id) api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`).then(setLogement).catch((e) => setErreur(e.message)); }, [id, afficherArchives]);
 
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => { if (active) { try { const draft = sessionStorage.getItem(`studio:${compte.id}:batch:${id}:draft`); if (draft) setDemandeCommune(draft); } catch { /* Le champ reste modifiable. */ } } });
+    return () => { active = false; };
+  }, [id, compte.id]);
   const choisies = logement?.photos.filter(photo => selection.includes(photo.id)) || [];
   const nouvellesChoisies = choisies.filter(photo => photo.essais === 0);
-  const cout = choisies.filter(photo => !photo.offerte && !photo.creditee).length;
+  const cout = compte.gratuit_illimite ? 0 : choisies.filter(photo => !photo.offerte && !photo.creditee).length;
   function basculer(photoId: string) {
     setSelection(current => current.includes(photoId) ? current.filter(id => id !== photoId) : [...current, photoId]);
   }
@@ -57,7 +64,7 @@ function PageLogement() {
     try {
       await api(`/photos/${photoId}/${archiver ? "archiver" : "restaurer"}`, { method: "POST" });
       setSelection(ids => ids.filter(id => id !== photoId));
-      setAArchiver(null);
+      setAction(null); setNotice(archiver ? "Photo archivée." : "Photo restaurée.");
       setLogement(await api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`));
       window.dispatchEvent(new Event("studio:credits-updated"));
     } catch (cause) { setErreur((cause as Error).message); }
@@ -143,7 +150,13 @@ function PageLogement() {
       {logement?.source_url && <p className="text-sm text-fg-muted">Annonce liée : <a href={logement.source_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">voir le lien d’origine</a></p>}
       <Message texte={erreur} />
       <div className="batch-manage-bar"><button type="button" aria-pressed={afficherArchives} onClick={() => setAfficherArchives(value => !value)}>{afficherArchives ? "Masquer les archives" : "Voir les photos archivées"}</button><span>Une photo archivée disparaît de Mes créations, mais peut être restaurée ici.</span></div>
-      {aArchiver && <div className="batch-archive-confirm" role="group" aria-label="Confirmer l’archivage"><p>Mettre cette photo de côté ? Elle et ses versions restent conservées, et vous pourrez la restaurer ici.</p><button type="button" className="button dark" disabled={archiveOccupe} onClick={() => void modifierArchive(aArchiver, true)}>Archiver cette photo</button><button type="button" className="button outlined" onClick={() => setAArchiver(null)}>Annuler</button></div>}
+      {action && <CreationConfirmation key={`${action.id}-${action.action}`} item={action} onClose={() => setAction(null)} onDone={() => {
+        setSelection(ids => ids.filter(item => item !== action.id));
+        setLogement(home => home && ({ ...home, photos: home.photos.filter(item => item.id !== action.id) }));
+        setNotice(action.action === "archiver" ? "Photo archivée. Cliquez sur Voir les photos archivées pour la retrouver." : "Photo déplacée dans la corbeille de Mes créations.");
+        setAction(null);
+      }}/>}<CreationNotice text={notice} onClose={() => setNotice("")}/>
+
       <div onDragOver={(e) => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)}
            onDrop={(e) => { e.preventDefault(); setGlisse(false); deposer(e.dataTransfer.files); }}
            className={`rounded-3xl border-2 border-dashed transition p-8 text-center ${glisse ? "border-accent bg-accent/5" : "border-line"}`}>
@@ -154,9 +167,9 @@ function PageLogement() {
       {logement && logement.photos.length > 0 && (
         <>
         <div className="batch-property-bar"><div><strong>{selection.length} photo{selection.length > 1 ? "s" : ""} choisie{selection.length > 1 ? "s" : ""}</strong><p>{pourVideo ? "Choisissez les photos à mettre dans votre projet vidéo, dans l’ordre souhaité." : `Si vous gardez toutes ces retouches en HD : ${cout} crédit${cout > 1 ? "s" : ""}. Chaque photo se décide séparément.`}</p></div><button className="button dark" disabled={!selection.length || lotEnCours} onClick={pourVideo ? utiliserPourVideo : commencerSelection}>{pourVideo ? "Utiliser pour ma vidéo →" : "Ouvrir ma sélection →"}</button></div>
-        {selection.length >= 2 && <section className="batch-retouch-panel" aria-labelledby="batch-retouch-title"><h2 id="batch-retouch-title">Retoucher plusieurs photos ensemble</h2><p>La même consigne s’applique aux {nouvellesChoisies.length} photo{nouvellesChoisies.length > 1 ? "s" : ""} sélectionnée{nouvellesChoisies.length > 1 ? "s" : ""} sans retouche. Deux retouches au maximum avancent en parallèle ; chaque résultat reste accessible séparément.</p>
+        {selection.length >= 2 && <section className="batch-retouch-panel" aria-labelledby="batch-retouch-title"><h2 id="batch-retouch-title">Retoucher plusieurs photos ensemble</h2><p>{nouvellesChoisies.length === 0 ? "Vos retouches sont prêtes. Ouvrez chaque photo pour comparer ses versions." : <>La même consigne s’applique aux {nouvellesChoisies.length} photo{nouvellesChoisies.length > 1 ? "s" : ""} sélectionnée{nouvellesChoisies.length > 1 ? "s" : ""} sans retouche. Deux retouches au maximum avancent en parallèle ; chaque résultat reste accessible séparément.</>}</p>
           <label htmlFor="batch-retouch-request">Ce que vous souhaitez améliorer</label><textarea id="batch-retouch-request" maxLength={4000} rows={3} value={demandeCommune} disabled={lotEnCours} onChange={event => setDemandeCommune(event.target.value)} placeholder="Ex. : rends chaque pièce plus lumineuse, range les objets visibles et conserve les ouvertures et les équipements fixes."/>
-          <button type="button" className="button dark" disabled={lotEnCours || nouvellesChoisies.length < 2 || !demandeCommune.trim() || !sante?.retouche_disponible} onClick={() => void lancerLot()}>{lotEnCours ? "Retouches en cours…" : `Lancer ${nouvellesChoisies.length} retouches`}</button>
+          <button type="button" className="button dark" disabled={lotEnCours || nouvellesChoisies.length < 2 || !demandeCommune.trim() || !sante?.retouche_disponible} onClick={() => void lancerLot()}>{lotEnCours ? "Retouches en cours…" : nouvellesChoisies.length ? `Lancer ${nouvellesChoisies.length} retouches` : "Retouches déjà réalisées"}</button>
           {!sante?.retouche_disponible && <p role="status">La retouche n’est pas disponible sur ce compte pour le moment.</p>}
           {nouvellesChoisies.length < selection.length && <p>Les photos déjà retouchées s’ouvrent une par une pour choisir la version de départ.</p>}
           {Object.keys(lotEtat).length > 0 && <ul className="batch-retouch-status" aria-live="polite">{logement.photos.filter(photo => lotEtat[photo.id]).map(photo => <li key={photo.id}><span>Photo {logement.photos.indexOf(photo) + 1} · {lotEtat[photo.id] === "prete" ? "Prête" : lotEtat[photo.id] === "encours" ? "En cours" : lotEtat[photo.id] === "attente" ? "En attente" : lotEtat[photo.id] === "incertain" ? "À vérifier" : "Échec"}</span>{lotMessages[photo.id] && <small>{lotMessages[photo.id]}</small>}<Link href={`/app/photo/?id=${photo.id}`}>Voir la photo →</Link></li>)}</ul>}
@@ -174,7 +187,7 @@ function PageLogement() {
                     : p.essais > 0 ? <span className="ml-auto text-fg-muted">{p.essais} essai{p.essais > 1 ? "s" : ""}</span> : <span className="ml-auto text-accent">à retoucher</span>}
                 </div>
               </button>
-              <div className="batch-photo-actions"><Link href={`/app/photo?id=${p.id}`} className="batch-property-open">Ouvrir →</Link>{p.archivee ? <button type="button" disabled={archiveOccupe} onClick={() => void modifierArchive(p.id, false)}>Restaurer</button> : <button type="button" disabled={archiveOccupe || lotEnCours} onClick={() => setAArchiver(p.id)}>Archiver</button>}</div>
+              <div className="batch-photo-actions"><Link href={`/app/photo?id=${p.id}`} className="batch-property-open">Ouvrir →</Link>{p.archivee ? <button type="button" disabled={archiveOccupe} onClick={() => void modifierArchive(p.id, false)}>Restaurer</button> : <button type="button" disabled={archiveOccupe || lotEnCours} onClick={() => setAction({ id: p.id, nature: "photos", titre: p.titre || `Photo ${i + 1}`, vignette: p.vignette, action: "archiver" })}>Archiver</button>}<button type="button" className="creation-delete" disabled={archiveOccupe || lotEnCours} onClick={() => setAction({ id: p.id, nature: "photos", titre: p.titre || `Photo ${i + 1}`, vignette: p.vignette, action: "supprimer" })}>Supprimer</button></div>
             </li>
           ))}
         </ul>

@@ -30,6 +30,8 @@ def migrer(engine=moteur):
             connexion.execute(text("ALTER TABLE photos ADD COLUMN demande_brouillon TEXT NOT NULL DEFAULT ''"))
         if "archive_le" not in colonnes_photos:
             connexion.execute(text("ALTER TABLE photos ADD COLUMN archive_le TIMESTAMP NULL"))
+        if "supprime_le" not in colonnes_photos:
+            connexion.execute(text("ALTER TABLE photos ADD COLUMN supprime_le TIMESTAMP NULL"))
         for nom, definition in {"cle_import": "VARCHAR(36) NULL", "empreinte_import": "VARCHAR(64) NULL"}.items():
             if nom not in colonnes_photos:
                 connexion.execute(text(f"ALTER TABLE photos ADD COLUMN {nom} {definition}"))
@@ -38,6 +40,8 @@ def migrer(engine=moteur):
         if "source_url" not in colonnes_logements:
             connexion.execute(text("ALTER TABLE logements ADD COLUMN source_url VARCHAR(1000) NOT NULL DEFAULT ''"))
         colonnes_videos = {c["name"] for c in inspect(connexion).get_columns("videos")}
+        if "supprime_le" not in colonnes_videos:
+            connexion.execute(text("ALTER TABLE videos ADD COLUMN supprime_le TIMESTAMP NULL"))
         for nom, definition in {"cle_demande": "VARCHAR(36) NULL", "traitement_jeton": "VARCHAR(24) NOT NULL DEFAULT ''", "traitement_jusqu_au": "TIMESTAMP NULL"}.items():
             if nom not in colonnes_videos:
                 connexion.execute(text(f"ALTER TABLE videos ADD COLUMN {nom} {definition}"))

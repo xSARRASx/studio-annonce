@@ -45,7 +45,7 @@ def _verrouiller_compte(s: Session, compte_id: str, nettoyage: bool = False) -> 
 
 def _photo_du_compte(s: Session, compte: Compte, photo_id: str) -> Photo:
     p = s.get(Photo, photo_id)
-    if not p or p.logement.compte_id != compte.id:
+    if not p or p.logement.compte_id != compte.id or p.supprime_le:
         raise HTTPException(404, "Photo introuvable.")
     return p
 
@@ -178,6 +178,8 @@ def _deposer(logement_id: str, donnees: bytes, demande: str, cle_import: str | N
         if deja:
             if deja.logement.compte_id != compte_id:
                 raise HTTPException(404, "Photo introuvable.")
+            if deja.supprime_le:
+                raise HTTPException(409, "Cette photo est dans la corbeille. Restaurez-la depuis Mes créations.")
             if deja.logement_id != logement_id or deja.empreinte_import != empreinte:
                 raise HTTPException(409, "Cette confirmation correspond à un autre envoi photo.")
             s.commit()

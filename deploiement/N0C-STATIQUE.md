@@ -1,5 +1,9 @@
 # Studio Annonce sur N0C — état vérifié le 4 octobre 2026
 
+## Mise à jour suivante : archives, corbeille et ajout multiple
+
+Livraison `creations-20261004T134311Z` publiée : popup d’archivage, suppression réversible des photos/vidéos, restauration et ajout de plusieurs photos dès le premier écran. Migration additive `supprime_le` sur photos/vidéos, sans purge ni modification des crédits. Sauvegarde N0C et copie locale contrôlées sous le même identifiant. 166 fichiers vérifiés sur disque, 85 relus par HTTPS ; API privée refusée aux anonymes. Données avant/après conservées : 1 compte, 3 logements, 13 photos, 2 versions, 3 vidéos. 123 tests API, 51 web, 23 mobile ; contrôles navigateur avec compte fictif. Voir [la recette détaillée](../docs/CORBEILLE-ET-AJOUT-MULTIPLE-2026-10-04.md). L’accueil public et les fichiers de configuration privés sont inchangés.
+
 ## Publication du 4 octobre : import fiable et studio connecté
 
 L'échec d'ajout après la première photo a été relié à un quota de compte plein : le serveur refusait même la création d'un dossier de sauvegarde avec `Disk quota exceeded`. Trois anciennes archives `public_html.tar.gz` ont été copiées sur l'ordinateur, contrôlées par SHA-256 et lecture complète du catalogue tar, puis seules les copies distantes exactes ont été retirées. Les 211 244 510 octets libérés ont permis une nouvelle sauvegarde et les envois photo. Les originaux clients, versions, base, `.env` et autres sauvegardes sont conservés.

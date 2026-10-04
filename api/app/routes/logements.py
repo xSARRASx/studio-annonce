@@ -44,7 +44,7 @@ def _vue(l: Logement, archives: bool = False) -> dict:
                         "cree_le": _utc(p.cree_le), "original": stockage.url_publique(p.cle_originale),
                         "version_gardee": p.version_gardee_id,
                         "versions": [_vue_version(v, bool(acces_ia.gratuit_proprietaire(l.compte) or p.offerte or p.credite_le)) for v in p.versions]
-                       } for p in l.photos if archives or not p.archive_le]}
+                       } for p in l.photos if not p.supprime_le and (archives or not p.archive_le)]}
 
 
 @routeur.get("")

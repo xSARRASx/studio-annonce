@@ -8,14 +8,14 @@ from .config import reglages
 from .db import Base, moteur, session
 from .models import Compte, Jeton
 from sqlalchemy.orm import Session
-from .routes import auth, compte, logements, photos, paiements, admin, videos
+from .routes import auth, compte, logements, photos, paiements, admin, videos, creations
 
 Base.metadata.create_all(moteur)
 
 app = FastAPI(title="Studio Annonce", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-Photo-Credit-Consomme", "X-Photo-Offerte", "X-Photo-Reprise-Jusqu-Au"])
-for r in (auth, logements, photos, videos, compte, paiements, admin):
+for r in (auth, logements, photos, videos, compte, paiements, admin, creations):
     app.include_router(r.routeur)
 
 
@@ -28,7 +28,7 @@ async def donnees_privees(request, call_next):
     racine = request.scope.get("root_path", "").rstrip("/")
     if racine and chemin.startswith(racine + "/"):
         chemin = chemin[len(racine):]
-    if chemin.startswith(("/admin", "/compte", "/auth", "/photos", "/videos", "/logements", "/fichiers")):
+    if chemin.startswith(("/admin", "/compte", "/auth", "/photos", "/videos", "/logements", "/fichiers", "/creations")):
         response.headers["Cache-Control"] = "private, no-store"
     return response
 

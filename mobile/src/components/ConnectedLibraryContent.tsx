@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAccount } from './AccountConnection';
 import { Button, colors } from './Studio';
 import { ApiError, type AccountPhoto, type Property } from '../lib/account-api';
+
+import { ConnectedCreationConfirmation, ConnectedCreationExtras, ConnectedCreationFeedback, type CreationAction } from './ConnectedCreationActions';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Cette action n’a pas abouti.';
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -12,20 +14,23 @@ export function ConnectedLibraryContent() {
   const [properties, setProperties] = useState<Property[]>([]); const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(''); const [oldest, setOldest] = useState(false); const [archives, setArchives] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]); const [notice, setNotice] = useState('');
-  const [archive, setArchive] = useState<string | null>(null); const [archiving, setArchiving] = useState(false);
+  const params = useLocalSearchParams<{ selection?: string }>();
+  const selectionLoaded = useRef('');
+  const [revision, setRevision] = useState(0); const [action, setAction] = useState<CreationAction | null>(null); const [feedback, setFeedback] = useState('');
+  const [archiving, setArchiving] = useState(false);
   const [prompt, setPrompt] = useState(''); const [running, setRunning] = useState(false);
   const [jobs, setJobs] = useState<Record<string, string>>({}); const active = useRef(false);
   const load = useCallback(async () => {
     try { setProperties(await api.json<Property[]>('/logements?archives=true')); }
     catch (error) { setNotice(message(error)); } finally { setLoading(false); }
   }, [api]);
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => { void load(); if (params.selection && selectionLoaded.current !== params.selection) { selectionLoaded.current = params.selection; setChosen(params.selection.split(',').filter(Boolean)); } }, [load, params.selection]));
   const photos = properties.flatMap(property => property.photos.map(photo => ({ ...photo, home: property.nom, homeId: property.id })))
     .sort((a, b) => ((a.cree_le || '').localeCompare(b.cree_le || '') || (a.ordre || 0) - (b.ordre || 0)) * (oldest ? 1 : -1));
   const selected = chosen.flatMap(id => { const photo = photos.find(item => item.id === id && !item.archivee); return photo ? [photo] : []; });
-  async function archivePhoto(restore = false, id = archive || '') {
+  async function archivePhoto(restore: boolean, id: string) {
     if (!id || archiving) return; setArchiving(true);
-    try { await api.json(`/photos/${id}/${restore ? 'restaurer' : 'archiver'}`, { method: 'POST' }); setChosen(current => current.filter(item => item !== id)); setArchive(null); await load(); setNotice(restore ? 'Photo restaurée.' : 'Photo archivée. Vous pouvez la restaurer dans les archives.'); }
+    try { await api.json(`/photos/${id}/${restore ? 'restaurer' : 'archiver'}`, { method: 'POST' }); setChosen(current => current.filter(item => item !== id)); await load(); setFeedback(restore ? 'Photo restaurée.' : 'Photo archivée. Vous pouvez la restaurer dans les archives.'); }
     catch (error) { setNotice(message(error)); } finally { setArchiving(false); }
   }
   async function batch() {
@@ -62,20 +67,23 @@ export function ConnectedLibraryContent() {
     <Button secondary title="Préparer une vidéo" onPress={() => router.navigate('/visite')}/>
     <View style={s.card}><TextInput accessibilityLabel="Retrouver une création" value={search} onChangeText={setSearch} placeholder="Une pièce ou un logement…" style={s.input}/><View style={s.row}><Button secondary title={oldest ? 'Les plus anciennes' : 'Les plus récentes'} onPress={() => setOldest(value => !value)}/><Button secondary title={archives ? 'Voir mes photos actives' : 'Voir mes archives'} onPress={() => setArchives(value => !value)}/></View></View>
     {!!notice && <Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>}
-    {loading ? <ActivityIndicator/> : <View style={s.grid}>{photos.filter(photo => !!photo.archivee === archives && normalize(`${photo.home} ${photo.titre || ''}`).includes(normalize(search))).map(photo => <View key={photo.id} style={[s.tile, chosen.includes(photo.id) && s.chosen]}>
-      <Pressable accessibilityRole="button" disabled={archives || running} accessibilityState={{ selected: chosen.includes(photo.id) }} accessibilityLabel={`Sélectionner ${photo.titre || 'Photo'} · ${photo.home}`} onPress={() => setChosen(current => current.includes(photo.id) ? current.filter(id => id !== photo.id) : [...current, photo.id])}><Image source={{ uri: photo.vignette }} style={s.thumb}/><Text style={s.title}>{chosen.includes(photo.id) ? `${chosen.indexOf(photo.id) + 1} · ` : ''}{photo.titre || `Photo ${(photo.ordre || 0) + 1}`}</Text><Text style={s.small}>{photo.home} · {photo.essais ? 'Retouche disponible' : 'Original'}</Text></Pressable>
-      {!!jobs[photo.id] && <Text accessibilityLiveRegion="polite" style={s.small}>{jobs[photo.id]}</Text>}
-      <Button secondary title="Ouvrir" onPress={() => router.push({ pathname: '/retouche', params: { id: photo.id, mode: 'compte' } })}/>
-      <Pressable accessibilityRole="button" disabled={archiving || running} onPress={() => archives ? void archivePhoto(true, photo.id) : setArchive(photo.id)}><Text style={s.link}>{archives ? 'Restaurer' : 'Archiver'}</Text></Pressable>
-    </View>)}</View>}
-    {!loading && !photos.some(photo => !!photo.archivee === archives) && <Text style={s.small}>{archives ? 'Aucune photo archivée.' : 'Ajoutez vos premières photos pour les retrouver ici.'}</Text>}
     {!!selected.length && !archives && <View style={s.card}><Text style={s.title}>{selected.length} photos choisies</Text><Text style={s.small}>{account?.gratuit_illimite ? 'Sans débit sur votre compte.' : `Si vous gardez toutes les retouches en HD : ${selected.filter(photo => !photo.offerte && !photo.creditee).length} crédits. Vous décidez pour chacune.`}</Text>
       <Button secondary title="Retoucher une par une" onPress={() => router.push({ pathname: '/retouche', params: { id: selected[0].id, mode: 'compte', lot: selected.map(photo => photo.id).join(',') } })}/>
       <Button secondary title="Préparer la vidéo avec cette sélection" disabled={selected.length > 6 || new Set(selected.map(photo => photo.homeId)).size > 1} onPress={() => router.push({ pathname: '/visite', params: { photos: selected.map(photo => photo.id).join(',') } })}/>
       <Text style={s.label}>Une même demande pour les premières retouches</Text><TextInput accessibilityLabel="Demande pour la retouche du lot" value={prompt} onChangeText={setPrompt} editable={!running} multiline maxLength={4000} placeholder="Éclaircir les photos et ranger les objets, garder les pièces identiques…" style={[s.input, s.multiline]}/><Text style={s.small}>Deux photos au maximum sont traitées en même temps. Chaque résultat se retrouve dans sa photo.</Text><Button title={running ? 'Retouches en cours…' : `Lancer les ${selected.length} premières retouches`} onPress={() => void batch()} disabled={running || !prompt.trim() || selected.some(photo => photo.essais > 0) || !health?.retouche_disponible || account?.limites?.photo.bloque}/>
     </View>}
+    {loading ? <ActivityIndicator/> : <View style={s.grid}>{photos.filter(photo => !!photo.archivee === archives && normalize(`${photo.home} ${photo.titre || ''}`).includes(normalize(search))).map(photo => <View key={photo.id} style={[s.tile, chosen.includes(photo.id) && s.chosen]}>
+      <Pressable accessibilityRole="button" disabled={archives || running} accessibilityState={{ selected: chosen.includes(photo.id) }} accessibilityLabel={`Sélectionner ${photo.titre || 'Photo'} · ${photo.home}`} onPress={() => setChosen(current => current.includes(photo.id) ? current.filter(id => id !== photo.id) : [...current, photo.id])}><Image source={{ uri: photo.vignette }} style={s.thumb}/><Text style={s.title}>{chosen.includes(photo.id) ? `${chosen.indexOf(photo.id) + 1} · ` : ''}{photo.titre || `Photo ${(photo.ordre || 0) + 1}`}</Text><Text style={s.small}>{photo.home} · {photo.essais ? 'Retouche disponible' : 'Original'}</Text></Pressable>
+      {!!jobs[photo.id] && <Text accessibilityLiveRegion="polite" style={s.small}>{jobs[photo.id]}</Text>}
+      <Button secondary title="Ouvrir" onPress={() => router.push({ pathname: '/retouche', params: { id: photo.id, mode: 'compte' } })}/>
+      <Pressable accessibilityRole="button" disabled={archiving || running} onPress={() => archives ? void archivePhoto(true, photo.id) : setAction({ id: photo.id, nature: 'photos', titre: photo.titre || 'Photo', vignette: photo.vignette, action: 'archiver' })}><Text style={s.link}>{archives ? 'Restaurer' : 'Archiver'}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={archiving || running} onPress={() => setAction({ id: photo.id, nature: 'photos', titre: photo.titre || 'Photo', vignette: photo.vignette, action: 'supprimer' })}><Text style={[s.link, { color: '#973f28' }]}>Supprimer</Text></Pressable>
+    </View>)}</View>}
+    {!loading && !photos.some(photo => !!photo.archivee === archives) && <Text style={s.small}>{archives ? 'Aucune photo archivée.' : 'Ajoutez vos premières photos pour les retrouver ici.'}</Text>}
+
     <Button secondary title="Actualiser mes créations" onPress={() => { void load(); void refresh(); }}/>
-    <Modal visible={!!archive} transparent onRequestClose={() => setArchive(null)}><View style={s.scrim}><View style={s.card}><Text style={s.title}>Archiver cette photo ?</Text><Text style={s.small}>Elle sera masquée dans vos créations. Son original et ses versions seront conservés et pourront être restaurés.</Text><Button title={archiving ? 'Archivage…' : 'Archiver la photo'} disabled={archiving} onPress={() => void archivePhoto()}/><Button secondary title="Annuler" disabled={archiving} onPress={() => setArchive(null)}/></View></View></Modal>
+    <ConnectedCreationExtras revision={revision} onChange={() => { setRevision(value => value + 1); void load(); }}/>
+    {action && <ConnectedCreationConfirmation key={action.id} item={action} onClose={() => setAction(null)} onDone={() => { setChosen(current => current.filter(id => id !== action.id)); setFeedback(action.action === 'archiver' ? 'Photo archivée. Retrouvez-la dans vos archives.' : 'Photo déplacée dans la corbeille.'); setAction(null); setRevision(value => value + 1); void load(); }}/>}<ConnectedCreationFeedback text={feedback} onClose={() => setFeedback('')}/>
   </>;
 }
 const s = StyleSheet.create({

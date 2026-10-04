@@ -55,7 +55,7 @@ class DemandeVisite(DemandeVideo):
 
 def _photo(s: Session, compte: Compte, photo_id: str) -> Photo:
     p = s.get(Photo, photo_id)
-    if not p or p.logement.compte_id != compte.id:
+    if not p or p.logement.compte_id != compte.id or p.supprime_le:
         raise HTTPException(404, "Photo introuvable.")
     return p
 
@@ -63,7 +63,7 @@ def _photo(s: Session, compte: Compte, photo_id: str) -> Photo:
 def _video(s: Session, compte: Compte, video_id: str) -> Video:
     v = s.get(Video, video_id)
     logement = s.get(Logement, v.logement_id) if v else None
-    if not logement or logement.compte_id != compte.id:
+    if not logement or logement.compte_id != compte.id or v.supprime_le:
         raise HTTPException(404, "Vidéo introuvable.")
     return v
 
@@ -282,7 +282,7 @@ def voir(video_id: str, compte: Compte = Depends(compte_complet), s: Session = D
 @routeur.get("/photos/{photo_id}/derniere")
 def derniere(photo_id: str, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
     p = _photo(s, compte, photo_id)
-    videos = s.scalars(select(Video).where(Video.logement_id == p.logement_id)
+    videos = s.scalars(select(Video).where(Video.logement_id == p.logement_id, Video.supprime_le.is_(None))
                        .order_by(Video.cree_le.desc(), Video.id.desc())).all()
     v = next((item for item in videos if (item.plan or {}).get("photo_id") == p.id or
               any(source.get("photo_id") == p.id for source in (item.plan or {}).get("sources", []))), None)

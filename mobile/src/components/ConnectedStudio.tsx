@@ -101,7 +101,7 @@ function LimitsCard({ limits, detailed = false }: { limits?: Limits; detailed?: 
 }
 export function ConnectedLibrary() { return <AccountScreenFrame title="Mes créations" subtitle="Vos photos et leurs versions, sur tous vos appareils."><Gate><ConnectedLibraryContent/></Gate></AccountScreenFrame>; }
 export function ConnectedVideoPlanScreen() { return <AccountScreenFrame title="Préparer ma vidéo" subtitle="Choisissez les photos, leur ordre et votre demande avant de confirmer."><Gate><ConnectedVideoPreparation/></Gate></AccountScreenFrame>; }
-export function ConnectedUpload() { return <AccountScreenFrame title="Retoucher une photo" subtitle="Une première génération et une correction incluse."><Gate><UploadContent/></Gate></AccountScreenFrame>; }
+export function ConnectedUpload() { return <AccountScreenFrame title="Retoucher mes photos" subtitle="Choisissez une ou plusieurs photos, puis préparez vos retouches."><Gate><UploadContent/></Gate></AccountScreenFrame>; }
 function UploadContent() {
   const { api, account, refresh } = useAccount(); const params = useLocalSearchParams<{ logement?: string; retour?: string }>();
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]); const [selectedUris, setSelectedUris] = useState<string[]>([]); const [properties, setProperties] = useState<Property[]>([]);
@@ -118,7 +118,12 @@ function UploadContent() {
     try { if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) throw new Error('Autorisez l’appareil photo pour prendre une photo.');
       const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: .95, allowsEditing: false, allowsMultipleSelection: !camera, selectionLimit: camera ? 1 : params.retour === 'visite' ? 6 : 30 };
       const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-      if (!result.canceled && result.assets.length) { if (result.assets.some(asset => (asset.fileSize || 0) > 30 * 1024 * 1024)) throw new Error('Choisissez des photos de moins de 30 Mo chacune.'); setAssets(result.assets); setSelectedUris(result.assets.map(asset => asset.uri)); }
+      if (!result.canceled && result.assets.length) { if (result.assets.some(asset => (asset.fileSize || 0) > 30 * 1024 * 1024)) throw new Error('Choisissez des photos de moins de 30 Mo chacune.'); const limit = params.retour === 'visite' ? 6 : 30;
+        const combined = [...assets];
+        for (const asset of result.assets) if (!combined.some(item => item.uri === asset.uri || (item.assetId && item.assetId === asset.assetId))) combined.push(asset);
+        const kept = combined.slice(0, limit);
+        setAssets(kept); setSelectedUris(current => [...new Set([...current, ...kept.filter(item => !assets.some(previous => previous.uri === item.uri)).map(item => item.uri)])]);
+        if (combined.length > limit) setNotice(`Vous pouvez préparer ${limit} photos à la fois. Les premières photos ont été conservées.`); }
     } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
   }
   async function upload() {
@@ -149,7 +154,8 @@ function UploadContent() {
       const ids = importedIds.current;
       if (!ids.length) return;
       if (params.retour === 'visite') router.push({ pathname: '/visite', params: { photos: ids.slice(0, 6).join(',') } });
-      else router.push({ pathname: '/retouche', params: { id: ids[0], mode: 'compte', lot: ids.join(',') } });
+      else if (ids.length > 1) router.push({ pathname: '/', params: { selection: ids.join(',') } });
+      else router.push({ pathname: '/retouche', params: { id: ids[0], mode: 'compte' } });
     } catch (error) { setNotice(message(error)); }
     finally { sending.current = false; setBusy(false); }
   }
@@ -166,7 +172,7 @@ function UploadContent() {
   }
   const count = assets.filter(asset => selectedUris.includes(asset.uri)).length;
   const credits = account?.gratuit_illimite ? 0 : Math.max(0, count - (account?.photo_offerte_disponible ? 1 : 0));
-  return <><LimitsCard limits={account?.limites}/><View style={s.card}>{assets.length ? <><View style={s.photoGrid}>{assets.map((asset, index) => <Pressable key={asset.uri} accessibilityRole="button" accessibilityState={{ selected: selectedUris.includes(asset.uri) }} accessibilityLabel={`Photo ${index + 1}`} onPress={() => setSelectedUris(current => current.includes(asset.uri) ? current.filter(uri => uri !== asset.uri) : [...current, asset.uri])} style={[s.photoCard, selectedUris.includes(asset.uri) && s.photoCardChosen]}><Image source={{ uri: asset.uri }} style={s.thumbnail}/><Text style={s.photoTitle}>{selectedUris.includes(asset.uri) ? '✓ ' : ''}Photo {index + 1}</Text></Pressable>)}</View><View style={s.secondaryRow}><LinkButton title="Changer les photos" onPress={() => void pick()}/><LinkButton title="Ranger dans un logement" onPress={() => setShowProperties(v => !v)}/></View></> : <><View style={s.dropzone}><Text style={s.dropIcon}>＋</Text><Text style={s.cardTitle}>Choisissez vos photos</Text><Text style={s.small}>JPG, PNG ou WebP · 30 Mo maximum chacune</Text></View><Button title="Choisir dans mes photos" onPress={() => void pick()} disabled={busy || account?.limites?.photo.bloque}/><LinkButton title="Prendre une photo" onPress={() => void pick(true)}/></>}
+  return <><LimitsCard limits={account?.limites}/><View style={s.card}>{assets.length ? <><View style={s.photoGrid}>{assets.map((asset, index) => <Pressable key={asset.uri} accessibilityRole="button" accessibilityState={{ selected: selectedUris.includes(asset.uri) }} accessibilityLabel={`Photo ${index + 1}`} disabled={busy} onPress={() => setSelectedUris(current => current.includes(asset.uri) ? current.filter(uri => uri !== asset.uri) : [...current, asset.uri])} style={[s.photoCard, selectedUris.includes(asset.uri) && s.photoCardChosen]}><Image source={{ uri: asset.uri }} style={s.thumbnail}/><Text style={s.photoTitle}>{selectedUris.includes(asset.uri) ? '✓ ' : ''}Photo {index + 1}</Text></Pressable>)}</View><View style={s.secondaryRow}><LinkButton title="Ajouter d’autres photos" onPress={() => void pick()}/><LinkButton title="Ranger dans un logement" onPress={() => setShowProperties(v => !v)}/></View></> : <><View style={s.dropzone}><Text style={s.dropIcon}>＋</Text><Text style={s.cardTitle}>Choisissez vos photos</Text><Text style={s.small}>JPG, PNG ou WebP · 30 Mo maximum chacune</Text></View><Button title="Choisir dans mes photos" onPress={() => void pick()} disabled={busy || account?.limites?.photo.bloque}/><LinkButton title="Prendre une photo" onPress={() => void pick(true)}/></>}
     {(showProperties || !properties.length) && <View style={s.group}>{properties.map(property => <LinkButton key={property.id} title={`${propertyId === property.id ? '✓ ' : ''}${property.nom}`} onPress={() => { setPropertyId(property.id); setShowProperties(false); }}/>) }{properties.length > 0 && <LinkButton title="+ Nouveau logement" onPress={() => setPropertyId('')}/>} {!propertyId && <><Field label="Nom du logement" value={newName} onChangeText={setNewName}/><Field label="Lien Airbnb ou Booking (facultatif)" value={sourceUrl} onChangeText={setSourceUrl} placeholder="https://www.airbnb.fr/rooms/…" url/>{!!sourceUrl.trim() && <Text style={s.small}>{sourceName ? `Annonce ${sourceName} reconnue. ` : 'Lien enregistré avec ce logement. '}Les photos ne sont pas récupérées automatiquement : choisissez les originaux depuis votre téléphone.</Text>}{!!sourceUrl.trim() && !assets.length && <LinkButton title={busy ? 'Enregistrement…' : 'Enregistrer l’annonce pour plus tard'} onPress={() => void saveSource()}/>}</>}</View>}
     <Text style={s.small}>Choisissez les photos que vous possédez depuis votre appareil ; l’extraction des plateformes nécessite un accès autorisé.</Text>
     {assets.length > 0 && <><Text style={s.small}>{count} photo{count > 1 ? 's' : ''} sélectionnée{count > 1 ? 's' : ''} · si vous gardez toutes les retouches HD : {credits} crédit{credits > 1 ? 's' : ''}. Aucun débit à l’ajout.</Text><Button title={busy ? 'Import en cours…' : `Ajouter ${count} photo${count > 1 ? 's' : ''}`} onPress={() => void upload()} disabled={busy || !count || account?.limites?.photo.bloque}/></>}{!!notice && <Notice text={notice}/>}</View></>;
