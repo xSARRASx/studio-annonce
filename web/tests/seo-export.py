@@ -54,7 +54,8 @@ def file_for(url):
     candidate = ROOT / path
     return candidate / 'index.html' if not Path(path).suffix else candidate
 
-urls = [node.text for node in ET.parse(ROOT / 'sitemap.xml').findall('.//{*}loc')]
+sitemap = ET.parse(ROOT / 'sitemap.xml')
+urls = [node.text for node in sitemap.findall('./{*}url/{*}loc')]
 check(len(urls) == len(set(urls)), 'Duplicate sitemap URLs')
 pages = {}
 incoming = {url: set() for url in urls}
@@ -145,6 +146,18 @@ home_graph = [entry for item in pages[ORIGIN + '/'].jsonld for entry in item.get
 check(any(item.get('@type') == 'WebSite' and item.get('url') == ORIGIN + '/' for item in home_graph), 'Missing website identity')
 check(any(item.get('@id') == ORIGIN + '/#organization' for item in home_graph), 'Missing organization identity')
 
-report = {'pages': len(pages), 'articles': len(blog_urls), 'errors': errors}
+image_urls = set()
+for entry in sitemap.findall('./{*}url'):
+    url = entry.find('{*}loc').text
+    listed = [node.text for node in entry.findall('{http://www.google.com/schemas/sitemap-image/1.1}image/{http://www.google.com/schemas/sitemap-image/1.1}loc')]
+    for image in listed:
+        image_urls.add(image)
+        check(image.startswith(ORIGIN + '/demo/exemples/'), f'Unexpected sitemap image: {image}')
+        check(file_for(image).is_file(), f'Missing sitemap image: {image}')
+        check(any(urljoin(url, a.get('src', '')) == image for a in pages[url].attrs('img')), f'Sitemap image not present on its page: {image} in {url}')
+    if url.startswith(ORIGIN + '/exemples/') and url != ORIGIN + '/exemples/':
+        check(len(listed) == 2, f'Example must list its original and result images: {url}')
+
+report = {'pages': len(pages), 'articles': len(blog_urls), 'sitemapImages': len(image_urls), 'errors': errors}
 print(json.dumps(report, ensure_ascii=False, indent=2))
 sys.exit(1 if errors else 0)
