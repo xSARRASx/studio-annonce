@@ -1,0 +1,13 @@
+# Studio Annonce — pied de page compact, 4 octobre 2026
+
+Martin demande de reprendre les proportions du pied de page de Leapway montré dans ses captures. Le grand titre supplémentaire et le bloc mobile sur une seconde rangée ont été remplacés par quatre colonnes : marque, découverte, aide et application à venir. Les liens légaux sont regroupés en bas. Les 14 destinations du pied de page précédent sont conservées, sans le lien dupliqué vers les exemples.
+
+Les encarts App Store et Google Play font 56 pixels de hauteur, avec des symboles de 26 pixels, et restent sans lien de téléchargement avant la publication des applications. Le symbole Google Play reprend la forme du triangle montré dans la référence de Martin ; la pomme Apple et le logo Studio Annonce gardent un contraste net sur le fond vert. Les actifs sont locaux, sans téléchargement de ressources tierces par le visiteur.
+
+Dans le navigateur à 1 512 pixels de largeur, le pied de page passe de 956 à 391 pixels de hauteur, soit une réduction de 59 %. À 390 pixels, les deux encarts tiennent côte à côte, les quatre liens légaux restent accessibles et le document ne déborde pas horizontalement. La version contrôlée a été figée avant transfert pour conserver cette recette malgré le travail simultané sur le parcours photo/vidéo dans le même dépôt.
+
+L'export Next.js de 62 routes et le contrôle SEO de 43 pages publiques / 24 guides réussissent sans erreur. Le lint ne signale aucune erreur ; quatre avertissements déjà présents concernent les images des écrans privés. L'audit après transfert confirme les 43 pages publiques identiques à l'export contrôlé, avec le nouveau pied de page ; l'API, le mobile et la connexion répondent aussi. Les écrans privés gardent leur directive `noindex`.
+
+Une sauvegarde complète, vérifiée par contenu, précède la publication : `/Users/more/Documents/Codex/studio-annonce-backups/compact-footer-20261004T085704Z-before/public_html/`. Le dossier conserve l'export contrôlé, le manifeste des 295 fichiers de publication, les comparaisons et les captures du site publié. Les ressources sont transférées avant les pages, sans suppression. Seules les pages portant le pied de page commun et leurs ressources sont incluses ; aucun fichier des routes privées, de l'API ou de l'application mobile n'est transféré. Les modifications simultanées du parcours photo/vidéo ne font pas partie de ce commit.
+
+Le référencement technique reste distinct de la visibilité mesurée : le contrôle Search Console du même jour montre encore des rapports de performances et d'indexation en traitement. Il ne prouve ni classement Google ni citation par un assistant IA. Le suivi détaillé de Search Console reste dans le rapport privé local.
