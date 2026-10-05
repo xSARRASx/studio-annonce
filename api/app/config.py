@@ -11,11 +11,13 @@ class Reglages(BaseSettings):
     VIDEO_ACTIVE: bool = False  # ouvrir seulement après une recette Higgsfield réussie
     VENTE_VIDEO_ACTIVE: bool = False  # seulement après débit par essai et livraison client vérifiés
     DATABASE_URL: str = "sqlite:///./studio.db"
-    # Stockage des fichiers, compatible S3 : Amazon S3 (AWS_REGION) ou Cloudflare R2 (R2_ACCOUNT_ID).
+    # Stockage privé compatible S3 : Amazon, Cloudflare R2 ou N0C Storage.
     S3_ACCESS_KEY_ID: str = ""
     S3_SECRET_ACCESS_KEY: str = ""
     S3_BUCKET: str = "studio-annonce"
-    S3_PUBLIC_URL: str = ""        # ex. https://d1234.cloudfront.net ou https://photos.mondomaine.fr
+    S3_PUBLIC_URL: str = ""        # doit rester vide : les photos utilisent des liens temporaires signés
+    S3_ENDPOINT_URL: str = ""      # N0C Storage : https://hote:port affiché dans le panneau du compte
+    S3_KEY_PREFIX: str = ""        # N0C Storage : Private/studio-annonce (jamais Public)
     AWS_REGION: str = ""           # Amazon S3, ex. eu-west-3 (Paris)
     R2_ACCOUNT_ID: str = ""        # Cloudflare R2
     STRIPE_SECRET_KEY: str = ""
