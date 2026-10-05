@@ -30,7 +30,7 @@ class ArticleAchat(BaseModel):
 class DemandeAchat(BaseModel):
     model_config = ConfigDict(extra="forbid")
     pack_id: str | None = None
-    articles: list[ArticleAchat] | None = Field(default=None, max_length=8)
+    articles: list[ArticleAchat] | None = Field(default=None, max_length=12)
     cle_demande: UUID
 
     @model_validator(mode="after")

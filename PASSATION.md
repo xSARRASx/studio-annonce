@@ -1,5 +1,7 @@
 # PROMPT DE PASSATION : reprends le projet « Studio Annonce » (photos et vidéos IA pour annonces de logements)
 
+> État du 5 octobre : [parcours simplifié, brouillons, imports et durée vidéo](docs/SUIVI-2026-10-05.md), livraison publiée. Retouche photo ouverte aux clients ; vidéo réservée au propriétaire et paiements fermés. Ne pas confondre les tests simulés avec une validation du rendu vidéo réel.
+
 > Dernière intervention vidéo : [direction de caméra du 4 octobre](docs/VIDEO-CAMERA-2026-10-04.md). Les nouveaux prompts et choix par photo sont testés sans fournisseur réel. Le rendu dynamique et le candidat Kling restent à valider après recharge ; ne pas présenter un test simulé comme une validation visuelle.
 
 > Archive historique. Pour l'état actuel au 4 octobre 2026, lire d'abord [les archives, la corbeille et l’ajout multiple](docs/CORBEILLE-ET-AJOUT-MULTIPLE-2026-10-04.md), [les corrections et la recette du studio](docs/CORRECTIONS-STUDIO-2026-10-04.md), [les règles de création](REGLES-CREATIONS-2026-09-29.md) et [le déploiement N0C](deploiement/N0C-STATIQUE.md). Le pack de départ est de 10 crédits pour 9,99 €, avec une génération et une correction incluse par photo. Les paiements sont reportés à la fin à la demande de Martin. Le pilote photo et vidéo est ouvert au propriétaire ; les anciens tarifs, limites par photo, couleurs et consignes de publication ci-dessous ne font pas autorité sur les décisions plus récentes.

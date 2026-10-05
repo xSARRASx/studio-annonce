@@ -124,7 +124,11 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
                          [("photo10-999", 10, 999), ("photo30-2499", 30, 2499),
                           ("photo50-3499", 50, 3499), ("photo100-5999", 100, 5999)])
         self.assertEqual([(p["id"], p["credits"], p["secondes"], p["prix_centimes"]) for p in compte_json["packs_video"]],
-                         [("video1-699", 1, 5, 699), ("video2-1299", 2, 10, 1299), ("video4-2199", 4, 20, 2199), ("video6-2999", 6, 30, 2999)])
+                         [("video1-897", 1, 5, 897), ("video2-1697", 2, 10, 1697), ("video3-2497", 3, 15, 2497), ("video4-3297", 4, 20, 3297), ("video5-4097", 5, 25, 4097), ("video6-4797", 6, 30, 4797), ("video12-9297", 12, 60, 9297), ("video18-13497", 18, 90, 13497), ("video24-17497", 24, 120, 17497)])
+        video_packs = compte_json["packs_video"]
+        self.assertTrue(all(p["secondes"] == p["credits"] * 5 for p in video_packs))
+        self.assertTrue(all(left["prix_centimes"] * right["credits"] > right["prix_centimes"] * left["credits"]
+                            for left, right in zip(video_packs, video_packs[1:])))
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
                 "id": "cs_test_nouveau", "url": "https://checkout.stripe.com/c/pay/cs_test_nouveau"}, None)):
             response = await self.client.post("/paiements/checkout", json={"pack_id": packs[0]["id"], "cle_demande": str(uuid4())})
@@ -172,7 +176,7 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
     async def test_panier_refuse_melange_photo_video_et_quantite_excessive(self):
         await self.profil()
         melange = await self.client.post("/paiements/checkout", json={"articles": [
-            {"pack_id": "photo10-999", "quantite": 1}, {"pack_id": "video2-1299", "quantite": 1}],
+            {"pack_id": "photo10-999", "quantite": 1}, {"pack_id": "video2-1697", "quantite": 1}],
             "cle_demande": str(uuid4())})
         self.assertEqual(melange.status_code, 400)
         trop = await self.client.post("/paiements/checkout", json={"articles": [
@@ -187,10 +191,10 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
                        QuotaCreation(compte_id="a", nature="video", utilisees=8)]); s.commit()
         with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
                 "id": "cs_test_video", "url": "https://checkout.stripe.com/c/pay/cs_test_video"}, None)):
-            response = await self.client.post("/paiements/checkout", json={"pack_id": "video4-2199", "cle_demande": str(uuid4())})
+            response = await self.client.post("/paiements/checkout", json={"pack_id": "video4-3297", "cle_demande": str(uuid4())})
         self.assertEqual(response.status_code, 200, response.text)
         objet = {"id": "cs_test_video", "object": "checkout.session", "mode": "payment", "payment_status": "paid",
-                 "amount_total": 2199, "currency": "eur", "livemode": False, "client_reference_id": "a",
+                 "amount_total": 3297, "currency": "eur", "livemode": False, "client_reference_id": "a",
                  "metadata": {"achat_id": response.json()["achat_id"], "compte_id": "a", "nature": "video"}}
         self.assertEqual((await self.evenement(objet)).status_code, 200)
         self.assertEqual(self.solde(), 0)
@@ -199,6 +203,20 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(etat["solde_video"], 4)
         self.assertEqual(etat["limites"]["photo"]["utilisees"], 12)
         self.assertEqual(etat["limites"]["video"]["utilisees"], 0)
+
+    async def test_pack_video_120_secondes_credite_24_credits_reutilisables(self):
+        await self.profil()
+        with patch.object(stripe.checkout.Session, "create", return_value=stripe.StripeObject.construct_from({
+                "id": "cs_test_video_120", "url": "https://checkout.stripe.com/c/pay/cs_test_video_120"}, None)):
+            response = await self.client.post("/paiements/checkout", json={"pack_id": "video24-17497", "cle_demande": str(uuid4())})
+        self.assertEqual(response.status_code, 200, response.text)
+        objet = {"id": "cs_test_video_120", "object": "checkout.session", "mode": "payment", "payment_status": "paid",
+                 "amount_total": 17497, "currency": "eur", "livemode": False, "client_reference_id": "a",
+                 "metadata": {"achat_id": response.json()["achat_id"], "compte_id": "a", "nature": "video"}}
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual((await self.evenement(objet)).status_code, 200)
+        self.assertEqual(self.solde_video(), 24)
+        self.assertEqual((await self.client.get("/compte")).json()["solde_video"], 24)
 
     async def test_ancienne_commande_garde_prix_et_cle_ne_change_pas_de_pack(self):
         await self.profil()

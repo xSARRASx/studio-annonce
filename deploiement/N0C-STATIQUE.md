@@ -1,4 +1,12 @@
-# Studio Annonce sur N0C — état vérifié le 4 octobre 2026
+# Studio Annonce sur N0C — état vérifié le 5 octobre 2026
+
+## Parcours, brouillons et imports du 5 octobre
+
+Livraison `parcours-20261005T040602Z` publiée et vérifiée : 174 fichiers sur disque, 85 relus par HTTPS, migration additive `brouillons`, données conservées. Retouche publique activée (`IA_PUBLIQUE=true`) avec sauvegarde privée préalable ; vidéo propriétaire et achats fermés inchangés. Reprise des vidéos confirmées par `scripts/reprendre_videos.py`, cron chaque minute sous verrou `flock`, journal privé `studioapi/tmp/video-recovery.log`. Première exécution vérifiée sans erreur. Recette isolée Python 3.11 : 136 tests réussis. [Détail des changements, preuves et limites](../docs/SUIVI-2026-10-05.md).
+
+Pour les exports Expo, conserver `EXPO_BASE_URL=/mobile`. Utiliser `--clear` lorsqu’on change `EXPO_PUBLIC_API_URL` entre recette et production, puis vérifier l’URL réellement présente dans le JavaScript exporté.
+
+Lot du 5 octobre après-midi publié sur `vzbbtadpbm` : correctifs de navigation administration, archivage/corbeille réactifs, tarifs et solde vidéo fractionnable, export mobile associé. Archive privée `~/livraisons-studio/studio-annonce-lot-20261005.zip` (SHA-256 `6d8ee69ae4663095098be259e556b5cc282704149b74490198883bf85a0d0b04`), sauvegarde préalable `~/sauvegardes-studio/lot-20261005T0730Z/`. Les 177 fichiers, la base SQLite et huit pages publiques ont été vérifiés après publication ; `.env`, `.htaccess`, accueil et comptes clients inchangés. Paiements et vidéo client restent fermés. Le commit source local `0bbb3d1` n’a pas pu être poussé sur GitHub faute d’authentification HTTPS du poste ; la publication N0C est indépendante.
 
 ## Direction de caméra du 4 octobre
 

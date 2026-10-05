@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
-from app import higgsfield_video
+from app import credits_video, higgsfield_video
 from app.db import Base, session
 from app.models import Compte, Jeton, Logement, MouvementCreditVideo, Photo, Version, Video, maintenant
 from app.routes import videos
@@ -72,6 +72,27 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
+    async def test_duree_confirmee_et_worker_sans_lecture_navigateur(self):
+        from app.models import Brouillon
+        draft=str(uuid.uuid4())
+        with self.sessions() as s:
+            s.add(Brouillon(id=draft,compte_id="owner",nature="video",donnees={"duration":20}));s.commit()
+        data={**self.request(photos=[{"photo_id":"photo"},{"photo_id":"photo2"}]),"duree":20,"brouillon_id":draft}
+        result=await self.client.post("/videos/visites",json=data)
+        self.assertEqual(result.status_code,200,result.text)
+        self.assertEqual(result.json()["duree"],20)
+        id=result.json()["id"]
+        self.assertEqual((await self.client.post("/videos/visites",json=data)).json()["id"],id)
+        self.assertEqual((await self.client.post("/videos/visites",json={**data,"duree":30})).status_code,409)
+        self.poll.return_value={"status":"completed","video":{"url":"https://example.test/clip.mp4"}}
+        with patch.object(videos.video_montage,"assembler",return_value=b"0000ftypmontage"):
+            await videos._poursuivre(self.sessions,id,pause=0,tours=12)
+        with self.sessions() as s:
+            self.assertEqual(s.get(Video,id).statut,"prete")
+            self.assertEqual(s.get(Brouillon,draft).video_id,id)
+        self.assertEqual(self.submit.await_count,2)
+        self.assertEqual((await self.client.post("/videos/visites",json={**self.request(),"duree":21})).status_code,422)
+
     async def test_owner_confirmation_rapide_double_clic_et_zero_debit(self):
         data = self.request()
         first = await self.client.post("/videos/visites", json=data)
@@ -124,6 +145,38 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         video = await self.create()
         self.assertEqual((await self.client.get(f"/videos/{video['id']}", headers={"Authorization": "Bearer client"})).status_code, 404)
         self.submit.assert_not_awaited()
+
+    async def test_solde_video_utilisable_en_plusieurs_fois_et_rembourse_en_cas_echec(self):
+        with self.sessions() as s:
+            credits_video.mouvement(s, s.get(Compte, "client"), 6, "Pack 30 secondes", "achat:test")
+            s.commit()
+        first_request = {**self.request(photos=[{"photo_id": "foreign"}]), "duree": 5}
+        with patch.object(videos, "vente_video_disponible", return_value=True):
+            first = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json=first_request)
+            self.assertEqual(first.status_code, 200, first.text)
+            same = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json=first_request)
+            self.assertEqual(same.json()["id"], first.json()["id"])
+            with self.sessions() as s:
+                self.assertEqual(credits_video.solde(s, "client"), 5)
+                s.get(Video, first.json()["id"]).statut = "prete"
+                s.commit()
+            second = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json={**self.request(photos=[{"photo_id": "foreign"}]), "duree": 10})
+            self.assertEqual(second.status_code, 200, second.text)
+            with self.sessions() as s:
+                self.assertEqual(credits_video.solde(s, "client"), 3)
+                s.get(Video, second.json()["id"]).statut = "prete"
+                s.commit()
+            too_long = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json={**self.request(photos=[{"photo_id": "foreign"}]), "duree": 20})
+            self.assertEqual(too_long.status_code, 402, too_long.text)
+            third = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json={**self.request(photos=[{"photo_id": "foreign"}]), "duree": 15})
+            self.assertEqual(third.status_code, 200, third.text)
+            self.poll.return_value = {"status": "failed"}
+            await videos._avancer(self.sessions, third.json()["id"])
+            await videos._avancer(self.sessions, third.json()["id"])
+            with self.sessions() as s:
+                self.assertEqual(s.get(Video, third.json()["id"]).statut, "echec")
+                self.assertEqual(credits_video.solde(s, "client"), 3)
+                self.assertEqual(len(s.scalars(select(MouvementCreditVideo).where(MouvementCreditVideo.compte_id == "client")).all()), 5)
 
     async def test_reponse_perdue_reprend_meme_intention_fournisseur(self):
         self.submit.side_effect = [RuntimeError("timeout"), {"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"}]

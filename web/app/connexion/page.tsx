@@ -96,6 +96,7 @@ export default function Connexion() {
           <span className="size-11 grid place-items-center rounded-2xl bg-accent/10 text-accent mb-5">{etape === "code" ? <Mail className="size-5"/> : <ShieldCheck className="size-5"/>}</span>
           <h2 className="text-2xl font-semibold">{etape === "code" ? "Consultez votre boîte mail" : inscription ? "Créer mon compte" : "Ravi de vous revoir"}</h2>
           <p className="text-fg-muted text-sm mt-2">{etape === "code" ? `Votre code a été envoyé à ${email.trim()}. Il est valable 10 minutes.` : "Quelques instants pour accéder à votre espace."}</p>
+          {etape === "code" && <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 p-4 text-sm leading-relaxed"><strong>Vous ne trouvez pas l’email ?</strong><p>Vérifiez aussi le dossier <strong>Spams / Courriers indésirables</strong>. Cherchez l’expéditeur no-reply@studioannonce.fr. Si le message s’y trouve, marquez-le comme « Non indésirable » pour retrouver plus facilement les prochains codes.</p></div>}
           <form onSubmit={envoyer} className="mt-6 space-y-4">
             {etape === "identite" ? <>
               {inscription && <div className="grid sm:grid-cols-2 gap-3">

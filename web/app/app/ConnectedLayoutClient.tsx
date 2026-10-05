@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, FolderOpen, Info, LogOut, Menu, Plus, ShieldCheck, UserRound, Wallet, X } from "lucide-react";
 import { Brand } from "../demo/studio-parts";
 import { StudioAccount } from "@/components/studio-account";
+import { CreditDialog } from "@/components/credit-dialog";
 import { api, ErreurApi, jeton, poserJeton, type Compte, type Sante } from "@/lib/api";
 import "../demo/studio.css";
 import "../demo/workspace.css";
@@ -23,6 +24,7 @@ export default function ConnectedLayoutClient({ children }: { children: React.Re
   const [hash, setHash] = useState("");
   const [menu, setMenu] = useState(false);
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
+  const [creditDialog, setCreditDialog] = useState(false);
   const route = chemin.replace(/\/$/, "").split("/").at(-1) || "app";
   const screen = route === "app" ? hash.split("/")[0] || "studio" : route;
   const creating = tools.includes(screen);
@@ -31,8 +33,16 @@ export default function ConnectedLayoutClient({ children }: { children: React.Re
     const read = () => { setHash(window.location.hash.slice(1)); setMenu(false); };
     queueMicrotask(read);
     window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
+    window.addEventListener("popstate", read);
+    return () => { window.removeEventListener("hashchange", read); window.removeEventListener("popstate", read); };
   }, [chemin]);
+
+  useEffect(() => {
+    if (!compte?.role) return;
+    for (const destination of ["/app/", "/app/photo/", "/app/logement/", "/app/compte/", "/app/facturation/", ...(compte.role === "proprietaire" || compte.role === "admin" ? ["/app/admin/"] : [])]) {
+      routeur.prefetch(destination);
+    }
+  }, [compte?.role, routeur]);
 
   useEffect(() => {
     if (!jeton()) { routeur.replace("/connexion/"); return; }
@@ -47,7 +57,7 @@ export default function ConnectedLayoutClient({ children }: { children: React.Re
       api<Compte>("/compte").then(valeur => {
         if (annule) return;
         setErreurCompte(""); setCompte(valeur);
-        if (!valeur.profil_complet && !chemin.startsWith("/app/compte")) routeur.replace(window.location.hash === "#nouvelle" ? "/app/compte/?suite=photo" : "/app/compte/");
+        if (!valeur.profil_complet && !window.location.pathname.startsWith("/app/compte")) routeur.replace(window.location.hash === "#nouvelle" ? "/app/compte/?suite=photo" : "/app/compte/");
       }).catch((erreur: ErreurApi) => {
         if (annule) return;
         if (erreur.statut === 401) { poserJeton(null); routeur.replace("/connexion/"); }
@@ -58,13 +68,15 @@ export default function ConnectedLayoutClient({ children }: { children: React.Re
     window.addEventListener("studio:credits-updated", actualiser);
     window.addEventListener("focus", actualiser);
     return () => { annule = true; window.removeEventListener("studio:credits-updated", actualiser); window.removeEventListener("focus", actualiser); };
-  }, [routeur, chemin]);
+  }, [routeur]);
 
   function nav(destination: string) {
     setMenu(false);
     if (chemin.replace(/\/$/, "") === "/app" && (destination === "/app/" || destination.startsWith("/app/#"))) {
       window.location.hash = destination.split("#")[1] || "";
-    } else routeur.push(destination);
+    } else {
+      routeur.push(destination);
+    }
     window.scrollTo({ top: 0 });
   }
 
@@ -102,10 +114,11 @@ export default function ConnectedLayoutClient({ children }: { children: React.Re
         <header className="workspace-header">
           <button className="mobile-menu icon-button" onClick={() => setMenu(!menu)} aria-label="Ouvrir le menu" aria-expanded={menu}><Menu/></button>
           <div className="breadcrumb"><button onClick={() => nav(creating ? "/app/#creer" : "/app/")}>{creating ? "Créer" : "Mon studio"}</button><ChevronRight size={13}/><strong>{titles[screen] || "Mes créations"}</strong></div>
-          <button className="workspace-credit" aria-label={compte?.gratuit_illimite ? "Créer gratuitement" : compte?.photo_offerte_disponible ? "Préparer ma photo offerte" : "Voir mes crédits"} onClick={() => nav(compte?.gratuit_illimite || compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/facturation/")}><span className="status-dot"/>{compte?.gratuit_illimite ? "Créations offertes" : compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}{compte?.photo_offerte_disponible && !compte.gratuit_illimite && <span className="connected-gift">+ 1 photo offerte</span>}</button>
+          <button className="workspace-credit" aria-label={compte?.gratuit_illimite ? "Créer gratuitement" : compte?.photo_offerte_disponible ? "Préparer ma photo offerte" : compte?.solde === 0 ? "Ajouter des crédits photo" : "Voir mes crédits"} onClick={() => compte && !compte.gratuit_illimite && !compte.photo_offerte_disponible && compte.solde === 0 ? setCreditDialog(true) : nav(compte?.gratuit_illimite || compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/facturation/")}><span className="status-dot"/>{compte?.gratuit_illimite ? "Créations offertes" : compte ? `${compte.solde} crédit${compte.solde > 1 ? "s" : ""}` : "…"}{compte?.photo_offerte_disponible && !compte.gratuit_illimite && <span className="connected-gift">+ 1 photo offerte</span>}</button>
         </header>
         {erreurCompte && <div className="connected-service" role="alert"><Info size={17}/><p>{erreurCompte}</p><button className="text-action" onClick={() => window.dispatchEvent(new Event("studio:credits-updated"))}>Réessayer</button></div>}
         {compte ? <StudioAccount.Provider key={compte.id} value={{ compte, sante, screen }}>{children}</StudioAccount.Provider> : !erreurCompte && <main className="st-main"><p role="status">Ouverture de votre studio…</p></main>}
+        <CreditDialog open={creditDialog} onClose={() => setCreditDialog(false)} paiementDisponible={!!compte?.paiement_photo_disponible}/>
       </div>
     </div>
   </div>;

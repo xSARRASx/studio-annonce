@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CreationDrafts } from "@/components/creation-drafts";
 import { Info } from "lucide-react";
 import { api, type Logement } from "@/lib/api";
 import { loadProjects, photoProject, projectSource, summaryProjects } from "@/lib/studio-library";
@@ -25,6 +26,7 @@ export default function MonStudio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [videoDraftRevision, setVideoDraftRevision] = useState(0);
   const [property, setProperty] = useState("");
   const [example, setExample] = useState<"photo" | "video" | null>(null);
   const [exampleVersion, setExampleVersion] = useState("decor");
@@ -35,6 +37,7 @@ export default function MonStudio() {
   const importing = useRef(false);
   const [reload, setReload] = useState(0);
   const [action, setAction] = useState<CreationAction | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function MonStudio() {
     }
   }, [screen]);
 
-  const library: DemoLibrary = { schema: 1, credits: compte.solde, freeUsed: !compte.photo_offerte_disponible, events: [], projects };
+  const library: DemoLibrary = { schema: 1, credits: compte.solde, freeUsed: !compte.photo_offerte_disponible, events: [], projects: projects.filter(project => !pendingRemoval.includes(project.id)) };
   const go = (hash: string) => { window.location.hash = hash === "studio" ? "" : hash; window.scrollTo({ top: 0 }); };
 
   async function addPhotos(files: File[], logement: string, draft = "", onProgress?: (project: DemoProject) => void) {
@@ -112,16 +115,27 @@ export default function MonStudio() {
   if (error && !projects.length) return <main className="st-main"><p role="alert">{error}</p><button className="button outlined" onClick={() => { setLoading(true); setReload(r => r + 1); }}>Réessayer</button></main>;
 
   return <>
+    {["studio", "brouillons"].includes(screen) && <nav className="creation-tabs" aria-label="Mes créations et brouillons"><button type="button" aria-current={screen === "studio" ? "page" : undefined} onClick={() => go("studio")}>Mes créations</button><button type="button" aria-current={screen === "brouillons" ? "page" : undefined} onClick={() => go("brouillons")}>Brouillons</button></nav>}
+    {screen === "brouillons" && <CreationDrafts accountId={compte.id} onResume={draft => {
+      const key = `studio:${compte.id}:video-plan`;
+      localStorage.setItem(key, JSON.stringify(draft.donnees));
+      localStorage.setItem(`${key}:draft-id`, draft.id);
+      localStorage.removeItem(`${key}:generation`);
+      localStorage.removeItem(`${key}:launched-snapshot`);
+      if (draft.donnees.assistant) localStorage.setItem(`${key}:assistant`, JSON.stringify(draft.donnees.assistant)); else localStorage.removeItem(`${key}:assistant`);
+      setVideoDraftRevision(value => value + 1); go("visite");
+    }}/>}
+
     {error && <div className="connected-service" role="alert"><Info size={17}/><p>{error}</p></div>}
     {["studio", "nouvelle", "creer-image"].includes(screen) && <div className="connected-limits"><CreationLimits limites={compte.limites}/></div>}
     {screen === "visite" && <div className="connected-limits"><CreationLimits limites={compte.limites} kind="video"/></div>}
     {screen === "studio" && homeList.length > 0 && <details className="st-library-archives"><summary>Gérer mes logements et mes archives</summary><div>{homeList.map(home => <Link key={home.id} href={`/app/logement/?id=${home.id}&archives=true`}>{home.nom} · gérer les photos et archives →</Link>)}</div></details>}
     {screen === "studio" && <PhotoList library={library} source={projectSource} now={now} busy={busy} onCreate={() => go("creer")} onAddPhoto={name => { setProperty(name); go("nouvelle"); }} onManageProperty={photoId => { const home = homes.current.find(item => item.photos.some(photo => photo.id === photoId)); if (home) router.push(`/app/logement/?id=${home.id}`); }} onExample={setExample} onOpen={project => router.push(`/app/photo/?id=${project.id}`)} extraContent={<CreationExtras revision={reload} onNotice={setNotice} onChange={() => setReload(value => value + 1)}/>} onArchive={project => setAction({ id: project.id, nature: "photos", titre: project.title, vignette: projectSource(project), action: "archiver" })} onDelete={project => setAction({ id: project.id, nature: "photos", titre: project.title, vignette: projectSource(project), action: "supprimer" })}/>}
-    {action && <CreationConfirmation key={`${action.id}-${action.action}`} item={action} onClose={() => setAction(null)} onDone={() => { setNotice(action.action === "archiver" ? "Photo archivée. Retrouvez-la dans Gérer mes logements et mes archives." : "Photo déplacée dans la corbeille. Vous pouvez la restaurer."); setAction(null); setReload(value => value + 1); }}/>}
+    {action && <CreationConfirmation key={`${action.id}-${action.action}`} item={action} onClose={() => setAction(null)} onStart={() => { setPendingRemoval(ids => [...ids, action.id]); setNotice(action.action === "archiver" ? "Archivage en cours…" : "Déplacement vers la corbeille en cours…"); setAction(null); }} onDone={() => { setProjects(previous => previous.filter(project => project.id !== action.id)); setPendingRemoval(ids => ids.filter(id => id !== action.id)); setNotice(action.action === "archiver" ? "Photo archivée. Retrouvez-la dans Gérer mes logements et mes archives." : "Photo déplacée dans la corbeille. Vous pouvez la restaurer."); setReload(value => value + 1); }} onError={message => { setPendingRemoval(ids => ids.filter(id => id !== action.id)); setNotice(`L’action n’a pas abouti : ${message}`); }}/>}
     <CreationNotice text={notice} onClose={() => setNotice("")}/>
     {screen === "creer" && <CreationHub onChoose={go} onImportPhotos={() => router.push("/app/importer/")}/>}
     {screen === "nouvelle" && sante && !sante.retouche_disponible && <div className="connected-service" role="status"><Info size={17}/><p>Vous pouvez préparer votre photo. La retouche IA est momentanément indisponible ; aucun crédit n’est consommé.</p></div>}
-    {visited.includes("nouvelle") && <div hidden={screen !== "nouvelle"}><CreateView maxRequest={4000} key={property} library={library} busy={busy} initial={property} onCancel={() => go("creer")} onImagine={() => go("creer-image")} onBatch={() => router.push("/app/importer/")} onExample={() => setExample("photo")} onCreate={async (files, home, draft) => {
+    {visited.includes("nouvelle") && <div hidden={screen !== "nouvelle"}><CreateView draftKey={`studio:${compte.id}:new-photo`} maxRequest={4000} key={property} library={library} busy={busy} initial={property} onCancel={() => go("creer")} onImagine={() => go("creer-image")} onBatch={() => router.push("/app/importer/")} onExample={() => setExample("photo")} onCreate={async (files, home, draft) => {
       const added = await addPhotos(files, home, draft);
       if (added.length > 1) {
         const homeId = homes.current.find(item => item.photos.some(photo => photo.id === added[0].id))!.id;
@@ -130,7 +144,7 @@ export default function MonStudio() {
       } else router.push(`/app/photo/?id=${added[0].id}`);
     }}/></div>}
     {visited.includes("creer-image") && <div hidden={screen !== "creer-image"}><ImagePlanner storageKey={`studio:${compte.id}:image-plan`} onBack={() => go("creer")} onPhoto={() => go("nouvelle")}/></div>}
-    {visited.includes("visite") && <div hidden={screen !== "visite"}><VideoPlanner connected={compte.gratuit_illimite ? { enabled: !!sante?.video_disponible } : { enabled: false }} storageKey={`studio:${compte.id}:video-plan`} library={library} source={projectSource} onBack={() => go("creer")} onAddPhotos={(files, home, progress) => addPhotos(files, home, "", progress)}/></div>}
+    {visited.includes("visite") && <div hidden={screen !== "visite"}><VideoPlanner key={videoDraftRevision} connected={{ enabled: !!sante?.video_disponible, free: compte.gratuit_illimite, videoCredits: compte.solde_video, paymentEnabled: compte.paiement_video_disponible }} storageKey={`studio:${compte.id}:video-plan`} library={library} source={projectSource} onBack={() => go("creer")} onAddPhotos={(files, home, progress) => addPhotos(files, home, "", progress)}/></div>}
     {visited.includes("video-photos") && <div hidden={screen !== "video-photos"}><VideoFrames library={library} busy={busy} active={screen === "video-photos"} onCancel={() => go("creer")} onCreate={async (files, home, _name, request) => {
       await addPhotos(files, home, request); setVisited(previous => previous.filter(tool => tool !== "video-photos")); go("studio");
     }}/></div>}

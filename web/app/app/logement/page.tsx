@@ -61,13 +61,15 @@ function PageLogement() {
   async function modifierArchive(photoId: string, archiver: boolean) {
     if (archiveOccupe || lotEnCours) return;
     setArchiveOccupe(true); setErreur("");
+    setLogement(home => home && ({ ...home, photos: home.photos.map(photo => photo.id === photoId ? { ...photo, archivee: archiver } : photo).filter(photo => afficherArchives || !photo.archivee) }));
+    setNotice(archiver ? "Archivage en cours…" : "Restauration en cours…");
     try {
-      await api(`/photos/${photoId}/${archiver ? "archiver" : "restaurer"}`, { method: "POST" });
+      await api(`/photos/${photoId}/${archiver ? "archiver" : "restaurer"}`, { method: "POST", keepalive: true });
       setSelection(ids => ids.filter(id => id !== photoId));
       setAction(null); setNotice(archiver ? "Photo archivée." : "Photo restaurée.");
-      setLogement(await api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`));
+      void api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`).then(setLogement).catch(() => {});
       window.dispatchEvent(new Event("studio:credits-updated"));
-    } catch (cause) { setErreur((cause as Error).message); }
+    } catch (cause) { setNotice(""); setErreur((cause as Error).message); void api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`).then(setLogement).catch(() => {}); }
     finally { setArchiveOccupe(false); }
   }
 
@@ -150,12 +152,10 @@ function PageLogement() {
       {logement?.source_url && <p className="text-sm text-fg-muted">Annonce liée : <a href={logement.source_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">voir le lien d’origine</a></p>}
       <Message texte={erreur} />
       <div className="batch-manage-bar"><button type="button" aria-pressed={afficherArchives} onClick={() => setAfficherArchives(value => !value)}>{afficherArchives ? "Masquer les archives" : "Voir les photos archivées"}</button><span>Une photo archivée disparaît de Mes créations, mais peut être restaurée ici.</span></div>
-      {action && <CreationConfirmation key={`${action.id}-${action.action}`} item={action} onClose={() => setAction(null)} onDone={() => {
+      {action && <CreationConfirmation key={`${action.id}-${action.action}`} item={action} onClose={() => setAction(null)} onStart={() => { setLogement(home => home && ({ ...home, photos: home.photos.filter(item => item.id !== action.id) })); setNotice(action.action === "archiver" ? "Archivage en cours…" : "Déplacement vers la corbeille en cours…"); setAction(null); }} onDone={() => {
         setSelection(ids => ids.filter(item => item !== action.id));
-        setLogement(home => home && ({ ...home, photos: home.photos.filter(item => item.id !== action.id) }));
         setNotice(action.action === "archiver" ? "Photo archivée. Cliquez sur Voir les photos archivées pour la retrouver." : "Photo déplacée dans la corbeille de Mes créations.");
-        setAction(null);
-      }}/>}<CreationNotice text={notice} onClose={() => setNotice("")}/>
+      }} onError={message => { setNotice(`L’action n’a pas abouti : ${message}`); void api<Logement>(`/logements/${id}?archives=${afficherArchives ? "true" : "false"}`).then(setLogement).catch(() => {}); }}/>}<CreationNotice text={notice} onClose={() => setNotice("")}/>
 
       <div onDragOver={(e) => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)}
            onDrop={(e) => { e.preventDefault(); setGlisse(false); deposer(e.dataTransfer.files); }}

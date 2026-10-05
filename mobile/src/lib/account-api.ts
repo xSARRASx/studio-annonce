@@ -1,6 +1,6 @@
 /** Account operations always use the server balance and limits. No local debit. */
 export type Limit = { utilisees: number; limite: number; restantes: number; bloque: boolean };
-export type Limits = { photo: Limit; video: Limit; support_url: string; support_telephone: string; support_email?: string };
+export type Limits = { proprietaire?: boolean; photo: Limit; video: Limit; support_url: string; support_telephone: string; support_email?: string };
 export type Pack = { id: string; nature: 'photo' | 'video'; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
 export type Account = {
   id: string; email: string; prenom: string; nom: string; profil_complet: boolean;
@@ -69,5 +69,6 @@ export function previewIsProtected(photo: AccountPhoto, isVersion: boolean) {
   return isVersion && (photo.filigrane ?? (!photo.offerte && !photo.credite_le));
 }
 export function canRequestGeneration(photo: AccountPhoto, blocked: boolean, balance: number) {
-  return !blocked || (photo.reprise_necessaire && balance >= 1);
+  if (photo.reprise_necessaire) return balance >= 1;
+  return !blocked && (balance >= 1 || photo.offerte || !!photo.credite_le);
 }

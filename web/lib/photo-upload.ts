@@ -1,5 +1,12 @@
 import { api, ErreurApi, type Photo } from "./api";
 
+const preparations = new WeakMap<File, Promise<Blob>>();
+export function preparerPhoto(fichier: File): Promise<Blob> {
+  let result = preparations.get(fichier);
+  if (!result) { result = photoPourEnvoi(fichier); preparations.set(fichier, result); void result.catch(() => preparations.delete(fichier)); }
+  return result;
+}
+
 const imports = new WeakMap<File, Map<string, { cle: string; body: Promise<string> }>>();
 
 /** Réduit les grandes photos avant l'envoi, sans modifier le fichier original. */
@@ -42,7 +49,7 @@ export async function envoyerPhoto(fichier: File, logementId: string, demande = 
   let confirmation = confirmations.get(signature);
   if (!confirmation) {
     const cle = crypto.randomUUID();
-    confirmation = { cle, body: photoPourEnvoi(fichier).then(base64).then(image => JSON.stringify({ image, demande, cle_import: cle })) };
+    confirmation = { cle, body: preparerPhoto(fichier).then(base64).then(image => JSON.stringify({ image, demande, cle_import: cle })) };
     confirmations.set(signature, confirmation);
     void confirmation.body.catch(() => confirmations?.delete(signature));
   }

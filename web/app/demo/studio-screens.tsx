@@ -1,9 +1,12 @@
 "use client";
+import { appendPhotoRequest } from "../../../shared/photo-request";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, ArrowUpRight, Building2, Camera, ChevronDown, ChevronRight, Clock3, Download, Film, FileText, History, ImagePlus, Images, Plus, Sparkles, X } from "lucide-react";
 import { asset, dateText, isExpired, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
+import { preparerPhoto } from "@/lib/photo-upload";
+import { photoPreparation } from "@/lib/photo-preparation";
 import { BriefAssistant } from "./brief-assistant";
 import { CreationBack } from "./creation-hub";
 import "./studio-screens.css";
@@ -115,8 +118,8 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
 }
 
 /* Nouvelle retouche : une page à rouvrir à chaque fois. Logement, photos, idée. */
-export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine, onBatch, maxRequest = 20000 }: {
-  maxRequest?: number;
+export function CreateView({ library, busy, initial, onCreate, onExample, onCancel, onImagine, onBatch, draftKey, maxRequest = 20000 }: {
+  maxRequest?: number; draftKey?: string;
   library: DemoLibrary; busy: boolean; initial?: string;
   onCreate: (files: File[], logement: string, demande: string) => Promise<void>; onExample: () => void; onCancel: () => void; onImagine: () => void; onBatch?: () => void;
 }) {
@@ -128,6 +131,21 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const [erreur, setErreur] = useState("");
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  const [draftReady, setDraftReady] = useState(!draftKey);
+  const [draftNotice, setDraftNotice] = useState("");
+  useEffect(() => {
+    if (!draftKey) return;
+    let active = true;
+    void photoPreparation(draftKey).then(saved => { if (saved && active) { setFichiers(saved.fichiers); setDemande(saved.demande); setChoix(saved.choix); setNouveau(saved.nouveau); } }).catch(() => { if (active) setDraftNotice("Sauvegarde locale indisponible : continuez pour enregistrer les photos dans votre compte."); }).finally(() => { if (active) setDraftReady(true); });
+    return () => { active = false; };
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftReady || !draftKey) return;
+    void photoPreparation(draftKey, { fichiers, demande, choix, nouveau }).then(() => {
+      setDraftNotice(fichiers.length || demande ? "Brouillon enregistré sur cet appareil. Retrouvez-le dans Mes créations → Brouillons." : "");
+      window.dispatchEvent(new Event("studio:drafts-updated"));
+    }).catch(() => setDraftNotice("Le brouillon n’a pas pu être enregistré sur cet appareil. Continuez pour enregistrer vos photos dans votre compte."));
+  }, [draftReady, draftKey, fichiers, demande, choix, nouveau]);
   const input = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const apercus = useMemo(() => fichiers.map(file => URL.createObjectURL(file)), [fichiers]);
@@ -141,13 +159,18 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
     if (images.some(f => f.size > 30 * 1024 * 1024)) { setErreur("Chaque photo doit faire moins de 30 Mo."); return; }
     const added = images.filter(file => !fichiers.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified));
     if (fichiers.length + added.length > 40) { setErreur("Ajoutez jusqu’à 40 photos à la fois."); return; }
+    if (draftKey) for (const file of added) void preparerPhoto(file).catch(() => {});
     setErreur(images.length < liste.length ? "Seuls les fichiers JPG, PNG et WebP ont été ajoutés." : ""); setFichiers(previous => [...previous, ...added]);
   }
   async function creer(e: React.FormEvent) {
     e.preventDefault();
     if (!fichiers.length || !logement || envoi || demande.length > maxRequest) return;
     setEnvoi(true); setErreur("");
-    try { await onCreate(fichiers, logement, demande.trim()); }
+    try {
+      await onCreate(fichiers, logement, demande.trim());
+      if (draftKey) await photoPreparation(draftKey, { fichiers: [], demande: "", choix: "", nouveau: "" });
+      setFichiers([]); setDemande("");
+    }
     catch (cause) { setErreur(storageError(cause)); } finally { setEnvoi(false); }
   }
   return <main className="st-main st-create">
@@ -157,6 +180,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
     {onBatch && <button type="button" className="st-imagine-link" onClick={onBatch}><Images size={16}/> J’ai une annonce et plusieurs photos <ArrowRight size={15}/></button>}
     <button type="button" className="st-imagine-link" onClick={onImagine}><Sparkles size={16}/> Créer une image sans photo de départ <ArrowRight size={15}/></button>
     {!library.freeUsed && <p className="st-offer"><Sparkles size={16}/> Votre première photo retouchée est offerte.</p>}
+    {draftNotice && <p className="st-draft-status" role="status">{draftNotice}</p>}
     <form className="st-form" onSubmit={creer}>
       <fieldset className="st-step"><legend><span>1</span> Vos photos</legend>
         <div className={`st-drop ${glisse ? "on" : ""} ${fichiers.length ? "st-drop-full" : ""}`} onDragOver={e => { e.preventDefault(); setGlisse(true); }} onDragLeave={() => setGlisse(false)} onDrop={e => { e.preventDefault(); setGlisse(false); recevoir(Array.from(e.dataTransfer.files)); }}>
@@ -176,15 +200,15 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
       <fieldset className="st-step"><legend><span>2</span> Ce que vous voulez changer <em>facultatif</em></legend>
         {fichiers.length > 1 && <p className="creation-small">Cette demande sera proposée pour toutes les photos. À l’étape suivante, choisissez de les retoucher ensemble ou une par une.</p>}
         <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={maxRequest} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
-        <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => d ? `${d}, ${i.toLowerCase()}` : i)}><Plus size={13}/> {i}</button>)}</div>
-        <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>
+        <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => appendPhotoRequest(d, i, maxRequest))}><Plus size={13}/> {i}</button>)}</div>
+        <BriefAssistant storageKey={draftKey ? `${draftKey}:assistant` : undefined} kind="photo" request={demande} onUse={setDemande}/>
         {demande.length > maxRequest && <p className="st-error" role="alert">Raccourcissez votre demande à {maxRequest.toLocaleString("fr-FR")} caractères maximum. Votre texte est conservé.</p>}
       </fieldset>
       <OptionalProperty options={logements} choice={choix} name={nouveau} onChoice={setChoix} onName={setNouveau} disabled={envoi}/>
       {erreur && <p className="st-error" role="alert">{erreur}</p>}
       <div className="st-submit">
-        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichiers.length || !logement || demande.length > maxRequest}>{envoi ? "Ajout de vos photos…" : fichiers.length > 1 ? `Préparer ces ${fichiers.length} retouches` : "Continuer avec cette photo"} <ArrowRight size={18}/></button>
-        <span>{!fichiers.length ? "Ajoutez vos photos." : "Aucune génération ni aucun débit à cette étape."}</span>
+        <button type="submit" className="button dark st-big" disabled={busy || envoi || !fichiers.length || !logement || demande.length > maxRequest}>{envoi ? "Ajout de vos photos…" : fichiers.length > 1 ? `Préparer ces ${fichiers.length} retouches` : "Vérifier ma demande"} <ArrowRight size={18}/></button>
+        <span>{!fichiers.length ? "Ajoutez vos photos." : "Vos photos sont envoyées dans votre compte. Vous pourrez relire la demande avant de lancer la retouche."}</span>
       </div>
     </form>
     <button className="st-example-link" disabled={busy} onClick={onExample}>Pas de photo sous la main ? Essayer avec le salon d’exemple <ArrowRight size={15}/></button>
@@ -210,7 +234,7 @@ export function Billing({ library, onCreate }: { library: DemoLibrary; onCreate:
       <div className="st-packs">{PACKS.map(([nom, qte, prix, unite]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte}{unite ? ` · ${unite}` : ""}</small></div>)}</div>
     </section>
     <section className="st-bill-block"><div className="st-block-head"><h2>Packs vidéo</h2><span>Solde séparé · 1 crédit vidéo = 1 essai de 5 secondes.</span></div>
-      <div className="st-packs">{[["5 secondes", "1 crédit vidéo", "6,99 €"], ["10 secondes", "2 crédits vidéo", "12,99 €"], ["20 secondes", "4 crédits vidéo", "21,99 €"], ["30 secondes", "6 crédits vidéo", "29,99 €"]].map(([nom, qte, prix]) => <div key={nom} className="st-pack"><span>{nom}</span><strong>{prix}</strong><small>{qte} · ouverture après validation</small></div>)}</div>
+      <div className="st-packs">{[["5 secondes", "1 crédit vidéo", "8,97 €"], ["10 secondes", "2 crédits vidéo", "16,97 €"], ["15 secondes", "3 crédits vidéo", "24,97 €"], ["20 secondes", "4 crédits vidéo", "32,97 €"], ["25 secondes", "5 crédits vidéo", "40,97 €"], ["30 secondes", "6 crédits vidéo", "47,97 €"], ["60 secondes", "12 crédits vidéo", "92,97 €"], ["90 secondes", "18 crédits vidéo", "134,97 €"], ["120 secondes", "24 crédits vidéo", "174,97 €"]].map(([nom, qte, prix]) => <div key={nom} className="st-pack"><span>{nom} de crédits</span><strong>{prix}</strong><small>{qte} · ouverture après validation</small></div>)}</div>
     </section>
     <section className="st-bill-block"><div className="st-block-head"><h2><History size={18}/> Historique</h2><span>{library.events.length} {library.events.length > 1 ? "opérations" : "opération"}</span></div>
       {library.events.length ? <ul className="st-ledger">{library.events.map(e => <li key={e.id}><span><strong>{e.label}</strong><small>{e.project} · {dateText(e.at, true)}</small></span><b className={e.amount < 0 ? "debit" : ""}>{e.amount === 0 ? "Offerte" : `${e.amount} crédit`}</b></li>)}</ul>

@@ -126,7 +126,10 @@ class ConsignesFournisseurs(unittest.IsolatedAsyncioTestCase):
         ), patch.object(openai_images, "enregistrer"):
             constructeur.return_value.__aenter__.return_value = client
             self.assertEqual(await openai_images.retoucher(photo(1024, 768), demande), resultat)
-        self.assertEqual(client.post.call_args.kwargs["data"]["prompt"], REGLE_RETOUCHE + demande)
+        champs = client.post.call_args.kwargs["data"]
+        self.assertEqual(champs["prompt"], REGLE_RETOUCHE + demande)
+        self.assertEqual(champs["quality"], "high")
+        self.assertEqual(champs["size"], "2048x1536")
 
     async def test_regles_et_demande_atteignent_la_retouche_gemini(self):
         resultat = photo(100, 100)

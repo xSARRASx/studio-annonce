@@ -233,6 +233,8 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         raise HTTPException(402, "La période de retouche est terminée. Reprenez explicitement cette photo avec un crédit.")
     if periode["essais_cycle"] >= periode["limite"]:
         raise HTTPException(402, "Les créations incluses sont utilisées. Un crédit permet une correction supplémentaire, avec son téléchargement HD.")
+    if not (acces_ia.gratuit_proprietaire(compte) or p.offerte or p.credite_le) and credits.solde(s, compte_id) < 1:
+        raise HTTPException(402, "Votre solde photo est à zéro. Un crédit est nécessaire pour créer une nouvelle retouche. Votre première photo offerte et les corrections déjà incluses restent disponibles.")
     debut_jour = maintenant().replace(hour=0, minute=0, second=0, microsecond=0)
     essais_du_jour = s.scalar(select(func.count(Version.id)).join(Photo).join(Logement)
                               .where(Logement.compte_id == compte_id, Version.cree_le >= debut_jour)) or 0
@@ -271,6 +273,8 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
                     depuis_version_id=d.depuis_version_id, consigne=consigne,
                     cle_apercu=apercu, cle_pleine=pleine, cree_le=maintenant())
         s.add(v)
+        if p.demande_brouillon == d.demande:
+            p.demande_brouillon = ""
         p.essais += 1
         op.statut = "terminee"
         limites.terminer(s, jeton, True)
@@ -365,17 +369,22 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     # Une HD déjà produite reste récupérable, même après les sept jours.
     if periode["expiree"] and not v.cle_hd:
         raise HTTPException(402, "La période est terminée. Reprenez explicitement la photo avant de produire une autre version HD.")
-    if not v.cle_hd and not acces_ia.autorise(compte):
-        raise HTTPException(503, "La génération HD n'est pas encore disponible. Aucun crédit n'a été consommé.")
     if v.cle_hd:
         contenu = stockage.lire(v.cle_hd)
         cle_hd = v.cle_hd
     else:
         contenu = stockage.lire(v.cle_pleine)
         cle_hd = ""
+    deja_nette = images.hd_deja_prete(contenu)
+    if not cle_hd and not deja_nette and not acces_ia.autorise(compte):
+        raise HTTPException(503, "La génération HD n'est pas encore disponible. Aucun crédit n'a été consommé.")
     jeton = _reserver(s, p, compte_id, "hd")
     try:
-        if not cle_hd:
+        if not cle_hd and deja_nette:
+            # La version créée est déjà le JPEG 2K final. Garder exactement les
+            # mêmes pixels à l'écran et au téléchargement, sans nouvel appel IA.
+            cle_hd = v.cle_pleine
+        elif not cle_hd:
             contenu = await retouche.retoucher(contenu,
                 "Reproduis exactement cette image, sans rien changer, en haute définition et parfaitement nette.", hd=True)
             cle_hd = stockage.ecrire(f"{compte_id}/{p.logement_id}/{p.id}/{jeton}-hd.jpg", contenu, "image/jpeg")

@@ -16,7 +16,7 @@ function keepCompatibleAnswers(questions: readonly BriefQuestion[], answers: Bri
   }));
 }
 
-export function BriefAssistant({ kind, request, context, onUse }: { kind: BriefKind; request: string; context?: string; onUse: (brief: string) => void }) {
+export function BriefAssistant({ kind, request, context, onUse, storageKey }: { kind: BriefKind; request: string; context?: string; storageKey?: string; onUse: (brief: string) => void }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [answers, setAnswers] = useState<BriefAnswers>({});
@@ -40,10 +40,30 @@ export function BriefAssistant({ kind, request, context, onUse }: { kind: BriefK
   const allAnswered = questions.every(item => answered(answers[item.id]));
   const assistantName = kind === "video" ? "Assistant de visite vidéo" : kind === "image" ? "Assistant de création d’image" : "Assistant de retouche photo";
 
+  const [draftReady, setDraftReady] = useState(!storageKey);
+  useEffect(() => {
+    if (!storageKey) return;
+    queueMicrotask(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (saved?.answers) setAnswers(saved.answers);
+        if (typeof saved?.sourceRequest === "string") setSourceRequest(saved.sourceRequest);
+        if (Number.isInteger(saved?.step)) setStep(saved.step);
+      } catch { /* Les champs restent disponibles. */ }
+      setDraftReady(true);
+    });
+  }, [storageKey]);
+
   useEffect(() => {
     if (open) { titleRef.current?.focus({ preventScroll: true }); panelRef.current?.scrollIntoView({ block: "start" }); }
     else if (hasOpened.current) triggerRef.current?.focus({ preventScroll: true });
   }, [open, step]);
+
+  useEffect(() => {
+    if (!storageKey || !draftReady) return;
+    try { localStorage.setItem(storageKey, JSON.stringify({ answers, sourceRequest, step })); window.dispatchEvent(new CustomEvent("studio:assistant-draft", { detail: storageKey })); }
+    catch { /* La demande complète peut toujours être enregistrée. */ }
+  }, [storageKey, draftReady, answers, sourceRequest, step]);
 
   function updateSource() {
     const nextSource = request === lastApplied ? sourceRequest : normalizedRequest;
@@ -57,7 +77,7 @@ export function BriefAssistant({ kind, request, context, onUse }: { kind: BriefK
     setAnswers(previous => ({ ...previous, [question.id]: { ...readBriefAnswer(previous[question.id]), ...change } }));
   }
   function toggleChoice(label: string) {
-    setAnswers(previous => ({ ...previous, [question.id]: toggleBriefChoice(previous[question.id], label) }));
+    setAnswers(previous => ({ ...previous, [question.id]: question.id === "video-duration" ? { ...readBriefAnswer(previous[question.id]), choices: [label] } : toggleBriefChoice(previous[question.id], label) }));
   }
   function back() {
     if (editing) {
@@ -92,7 +112,7 @@ export function BriefAssistant({ kind, request, context, onUse }: { kind: BriefK
           {brief.length > 20000 && <p className="ba-length-warning" role="alert">Votre demande est trop longue pour être enregistrée. Raccourcissez votre idée ou certaines précisions avant de continuer.</p>}
           <div className="ba-footer"><button type="button" className="ba-back" onClick={() => { setAnswers({}); setStep(0); setEditing(false); }}>Recommencer</button><button type="button" className="ba-primary" disabled={!allAnswered || pendingSource || brief.length > 20000} onClick={() => { setLastApplied(brief); onUse(brief); setOpen(false); }}>{replacingExistingBrief ? "Remplacer par cette demande" : kind === "photo" ? "Utiliser cette demande" : "Utiliser ce brief"}<Check size={18}/></button></div>
         </> : <>
-          <p className="ba-selection-hint">Plusieurs choix possibles. Recliquez pour retirer un choix.{answer.choices.length > 0 && <span role="status">{answer.choices.length} sélectionné{answer.choices.length > 1 ? "s" : ""}</span>}</p>
+          <p className="ba-selection-hint">{question.id === "video-duration" ? "Choisissez une seule durée pour la vidéo finale." : "Plusieurs choix possibles. Recliquez pour retirer un choix."}{answer.choices.length > 0 && <span role="status">{answer.choices.length} sélectionné{answer.choices.length > 1 ? "s" : ""}</span>}</p>
           <div key={question.id} className="ba-options" role="group" aria-labelledby={`${id}-title`} aria-describedby={`${id}-help`}>{question.options.map(option => {
             const Icon = ICONS[option.icon] || Sparkles;
             return <label key={option.label} className="ba-option"><input type="checkbox" name={`${id}-${question.id}`} value={option.label} checked={answer.choices.includes(option.label)} onChange={() => toggleChoice(option.label)}/><span className="ba-option-surface"><span className="ba-option-top"><span className="ba-option-icon"><Icon size={23} strokeWidth={1.6}/></span><span className="ba-checkmark" aria-hidden="true">{answer.choices.includes(option.label) && <Check size={13}/>}</span></span><strong>{option.label}</strong><span className="ba-option-detail">{option.detail}</span></span></label>;
@@ -101,7 +121,7 @@ export function BriefAssistant({ kind, request, context, onUse }: { kind: BriefK
           <div className="ba-footer">{step > 0 || editing ? <button type="button" className="ba-back" onClick={back}><ArrowLeft size={16}/> {editing ? "Annuler" : "Retour"}</button> : <span className="ba-footer-hint">Vos mots comptent aussi.</span>}<button type="button" className="ba-primary" disabled={!answered(answer)} onClick={() => { setStep(editing ? questions.length : step + 1); setEditing(false); }}>{editing ? "Valider ma réponse" : step === questions.length - 1 ? "Voir ma demande" : "Continuer"}<ArrowRight size={18}/></button></div>
         </>}
       </div>
-      <p className="ba-note">Aperçu local · questions adaptées aux thèmes de votre texte, sans appel à une IA ni génération.</p>
+      <p className="ba-note">Vos réponses préparent la retouche. Cliquez sur « Utiliser cette demande », puis lancez la création quand vous êtes prêt.</p>
     </section>}
   </div>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /** Local-only drafts. A failed read never overwrites the existing stored value. */
@@ -36,9 +36,9 @@ export function useLocalDraft<T>(key: string | undefined, initial: T, parse: (va
     return () => { active = false; };
   }, [ready, key, serialized, scope.writable, scope.saved]);
 
-  function setDraft(update: SetStateAction<T>) {
+  const setDraft = useCallback((update: SetStateAction<T>) => {
     setScope(previous => previous.key === key && previous.ready ? { ...previous, draft: typeof update === 'function' ? (update as (draft: T) => T)(previous.draft) : update } : previous);
-  }
+  }, [key]);
 
   return { draft, setDraft, ready, notice: matches ? scope.notice : '', saved: !!key && ready && scope.saved === serialized && !scope.notice };
 }

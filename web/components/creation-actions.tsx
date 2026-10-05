@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { Modal } from "@/app/demo/studio-parts";
 
 export type CreationAction = { id: string; nature: "photos" | "videos"; titre: string; vignette?: string; action: "archiver" | "supprimer" };
-export function CreationConfirmation({ item, onClose, onDone }: { item: CreationAction; onClose: () => void; onDone: () => void }) {
+export function CreationConfirmation({ item, onClose, onStart, onDone, onError }: { item: CreationAction; onClose: () => void; onStart?: () => void; onDone: () => void; onError?: (message: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const archive = item.action === "archiver";
@@ -13,10 +13,15 @@ export function CreationConfirmation({ item, onClose, onDone }: { item: Creation
   async function confirm() {
     if (busy) return;
     setBusy(true); setError("");
+    onStart?.();
     try {
-      await api(archive ? `/photos/${item.id}/archiver` : `/creations/${item.nature}/${item.id}`, { method: archive ? "POST" : "DELETE" });
+      await api(archive ? `/photos/${item.id}/archiver` : `/creations/${item.nature}/${item.id}`, { method: archive ? "POST" : "DELETE", keepalive: true });
       onDone();
-    } catch (cause) { setError((cause as Error).message); setBusy(false); }
+    } catch (cause) {
+      const message = (cause as Error).message;
+      if (onError) onError(message);
+      else { setError(message); setBusy(false); }
+    }
   }
   return <Modal title={`${archive ? "Archiver" : "Supprimer"} cette ${name} ?`} mandatory={busy} onClose={() => { if (!busy) onClose(); }}>
     <div className="creation-confirm">
@@ -60,6 +65,6 @@ export function CreationExtras({ revision, onChange, onNotice }: { revision: num
       {trash ? <button type="button" className="button outlined" disabled={!!busy} onClick={() => void restore(item)}><Undo2 size={16}/> {busy === item.id ? "Restauration…" : "Restaurer"}</button> : <button type="button" className="text-action creation-delete" disabled={item.en_cours} onClick={() => setConfirmation({ ...item, action: "supprimer" })}><Trash2 size={16}/> Supprimer la vidéo</button>}
       {item.en_cours && <small>La suppression sera disponible une fois la création terminée.</small>}
     </article>)}</div>}
-    {confirmation && <CreationConfirmation key={confirmation.id} item={confirmation} onClose={() => setConfirmation(null)} onDone={() => { setConfirmation(null); onNotice("Vidéo déplacée dans la corbeille."); onChange(); }}/>}
+    {confirmation && <CreationConfirmation key={confirmation.id} item={confirmation} onClose={() => setConfirmation(null)} onStart={() => { setItems(previous => previous.filter(item => item.id !== confirmation.id)); onNotice("Déplacement de la vidéo vers la corbeille en cours…"); setConfirmation(null); }} onDone={() => { onNotice("Vidéo déplacée dans la corbeille."); onChange(); }} onError={message => { onNotice(`La suppression n’a pas abouti : ${message}`); onChange(); }}/>}
   </section>;
 }

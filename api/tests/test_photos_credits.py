@@ -173,6 +173,20 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(reprise.json()["essais_restants"], 1)
             self.assertEqual(self.balance(), 0)
 
+    async def test_jpeg_2k_achete_reste_identique_sans_seconde_generation(self):
+        haute_definition = io.BytesIO()
+        Image.new("RGB", (2048, 1365), (120, 101, 87)).save(haute_definition, "JPEG")
+        self.files["v1"] = haute_definition.getvalue()
+        avant = self.balance()
+        resultat = await self.download()
+        self.assertEqual(resultat.status_code, 200, resultat.text)
+        self.assertEqual(resultat.content, self.files["v1"])
+        self.assertEqual(self.balance(), avant - 1)
+        photos.retouche.retoucher.assert_not_awaited()
+        with self.sessions() as s:
+            version = s.get(Version, "v")
+            self.assertEqual(version.cle_hd, version.cle_pleine)
+
     async def test_retouche_pilote_reservee_au_proprietaire(self):
         self.update_photo(analyse=None)
         with patch.object(photos.reglages, "IA_PUBLIQUE", False):
@@ -188,6 +202,24 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
             })):
                 self.assertEqual((await self.client.post("/photos/p/analyser")).status_code, 200)
             self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
+
+    async def test_solde_zero_bloque_nouvelle_retouche_sauf_photo_deja_acquise_ou_offerte(self):
+        with self.sessions() as s:
+            s.query(MouvementCredit).filter(MouvementCredit.compte_id == "a").delete()
+            s.commit()
+        refus = await self.client.post("/photos/p/essai", json={"demande": "Éclaircir"})
+        self.assertEqual(refus.status_code, 402)
+        self.assertIn("solde photo", refus.json()["detail"])
+        photos.retouche.retoucher.assert_not_awaited()
+        self.assertEqual((await self.client.get("/photos/p")).json()["essais"], 1)
+        self.update_photo(offerte=1)
+        self.assertEqual((await self.client.post("/photos/p/essai", json={"demande": "Éclaircir"})).status_code, 200)
+        self.update_photo(offerte=0, credite_le=self.instant)
+        with self.sessions() as s:
+            s.get(Photo, "p").essais = 1
+            s.commit()
+        self.assertEqual((await self.client.post("/photos/p/essai", json={"demande": "Éclaircir"})).status_code, 200)
+        self.assertEqual(self.balance(), 0)
 
     async def test_vue_original_independant_de_la_vignette_sans_debit(self):
         before = self.balance()
@@ -463,10 +495,10 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.download()).status_code, 200)
         self.assertEqual(self.balance(), 4)
 
-    async def test_apercus_possibles_sans_solde_mais_hd_payante_refusee(self):
+    async def test_solde_zero_refuse_nouvel_apercu_et_hd_payante(self):
         with self.sessions() as s:
             s.add(MouvementCredit(compte_id="a", delta=-5, motif="Fixture")); s.commit()
-        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 200)
+        self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code, 402)
         self.assertEqual((await self.download()).status_code, 402)
         self.assertEqual(self.balance(), 0)
 

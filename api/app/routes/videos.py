@@ -1,4 +1,4 @@
-"""Vidéo propriétaire : intention explicite, suivi rapide et reprise idempotente."""
+"""Création vidéo : intention explicite, crédit par durée et reprise idempotente."""
 from __future__ import annotations
 
 import asyncio
@@ -12,11 +12,12 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
-from .. import acces_ia, higgsfield_video, images, stockage, video_montage
+from .. import acces_ia, credits_video, higgsfield_video, images, stockage, video_montage
 from ..config import reglages
 from ..consignes_video import Mouvement, VERSION, mouvement_du_plan, preparer_consigne
 from ..db import session
-from ..models import Compte, Logement, Photo, Video, identifiant, maintenant
+from ..models import Brouillon, Compte, Logement, MouvementCreditVideo, Photo, Video, identifiant, maintenant
+from ..paiements import video_disponible as vente_video_disponible
 from .auth import compte_complet
 
 routeur = APIRouter(prefix="/videos", tags=["videos"])
@@ -35,7 +36,7 @@ _verrou = Lock()
 
 
 class DemandeVideo(BaseModel):
-    demande: str = Field(min_length=3, max_length=3000)
+    demande: str = Field(min_length=3, max_length=6000)
 
     @field_validator("demande")
     @classmethod
@@ -57,6 +58,8 @@ def _selection(sources: list[SourceVideo]) -> list[dict]:
 
 
 class DemandeVisite(DemandeVideo):
+    brouillon_id: str | None = Field(default=None, max_length=36)
+    duree: int | None = Field(default=None, ge=5, le=30, strict=True)
     photos: list[SourceVideo] = Field(min_length=1, max_length=6)
     cle_demande: str = Field(pattern=r"^[a-fA-F0-9-]{36}$")
 
@@ -86,9 +89,27 @@ def _vue(v: Video) -> dict:
                       for p in plans if p.get("cle_clip")]}
 
 
-def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: str, cle: str | None) -> Video:
-    if not acces_ia.gratuit_proprietaire(compte) or not higgsfield_video.disponible():
+def _rembourser_echec(s: Session, v: Video, compte: Compte) -> None:
+    reserves = int((v.plan or {}).get("credits_reserves") or 0)
+    if not reserves:
+        return
+    reference = f"video:{v.id}:remboursement"
+    deja = s.scalar(select(MouvementCreditVideo.id).where(
+        MouvementCreditVideo.compte_id == compte.id, MouvementCreditVideo.reference == reference))
+    if not deja:
+        credits_video.mouvement(s, compte, reserves, "Remboursement d'une vidéo en échec", reference)
+
+
+def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: str, cle: str | None, duree: int | None = None) -> Video:
+    proprietaire = acces_ia.gratuit_proprietaire(compte)
+    if not (proprietaire or vente_video_disponible()) or not higgsfield_video.disponible():
         raise HTTPException(503, "La création vidéo n'est pas encore ouverte sur ce compte.")
+    duree = duree if duree is not None else len(sources) * 5
+    if duree not in (5, 10, 15, 20, 25, 30):
+        raise HTTPException(422, "Choisissez 5, 10, 15, 20, 25 ou 30 secondes.")
+    duree_source = next(n for n in (5, 10, 20, 30) if n * len(sources) >= duree)
+    if reglages.VIDEO_MODELE == higgsfield_video.MODELE_KLING and duree_source > 10:
+        raise HTTPException(422, "Ajoutez des photos : ce moteur accepte jusqu’à 10 secondes par plan.")
     compte_id = compte.id
     s.rollback()
     s.execute(update(Compte).where(Compte.id == compte_id).values(photos_offertes_utilisees=Compte.photos_offertes_utilisees))
@@ -100,7 +121,7 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
         deja = s.scalar(select(Video).where(Video.cle_demande == cle))
         if deja:
             _video(s, compte, deja.id)
-            if (deja.plan or {}).get("demande") != demande or (deja.plan or {}).get("selection") != _selection(sources):
+            if (deja.plan or {}).get("duree") != duree or (deja.plan or {}).get("demande") != demande or (deja.plan or {}).get("selection") != _selection(sources):
                 raise HTTPException(409, "Cette confirmation correspond à une autre demande vidéo.")
             s.commit()
             return deja
@@ -117,6 +138,7 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
         # Un vieux démarrage interrompu avant tout appel facturé peut être libéré.
         if en_cours.statut == "preparation" and not en_cours.requetes and en_cours.cree_le < maintenant() - timedelta(minutes=5):
             en_cours.statut, en_cours.erreur = "echec", "La préparation a été interrompue."
+            _rembourser_echec(s, en_cours, compte)
             s.flush()
         else:
             raise HTTPException(409, "Une vidéo de ce logement est déjà en cours. Retrouvez son suivi avant de recommencer.")
@@ -137,14 +159,21 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
             version = next((p for p in photo.versions if p.id == photo.version_gardee_id), None)
         plans.append({"photo_id": photo.id, "version_id": version.id if version else None,
                       "cle_source": version.cle_pleine if version else photo.cle_originale})
+    reserves = 0 if proprietaire else duree // 5
+    if reserves and credits_video.solde(s, compte.id) < reserves:
+        raise HTTPException(402, f"Cette vidéo de {duree} secondes utilise {reserves} crédits vidéo. Votre solde reste disponible pour une durée plus courte.")
     v = Video(logement_id=logement_id, cle_demande=cle, statut="preparation",
-              plan={"schema": 2, "photo_id": photos[0].id, "duree": 5 * len(plans), "demande": demande,
+              plan={"schema": 2, "photo_id": photos[0].id, "duree": duree, "duree_source": duree_source, "montage_exact": True, "demande": demande,
+                    "credits_reserves": reserves,
                     "selection": _selection(sources), "sources": plans,
                     "modele": reglages.VIDEO_MODELE, "direction_version": VERSION,
                     "directions": [{"mouvement": mouvement_du_plan(p.mouvement, i),
-                                    "prompt": preparer_consigne(demande, p.mouvement, i, len(sources))}
+                                    "prompt": preparer_consigne(demande, p.mouvement, i, len(sources), duree_source)}
                                    for i, p in enumerate(sources)]}, requetes={"clips": []})
     s.add(v)
+    s.flush()
+    if reserves:
+        credits_video.mouvement(s, compte, -reserves, f"Essai vidéo de {duree} secondes", f"video:{v.id}:reservation")
     s.commit()
     return v
 
@@ -162,7 +191,7 @@ def _planifier(s: Session, v: Video) -> None:
     video_id = v.id
     def travail():
         try:
-            asyncio.run(_avancer(fabrique, video_id))
+            asyncio.run(_poursuivre(fabrique, video_id))
         finally:
             with _verrou:
                 _planifies.discard(cle)
@@ -171,7 +200,19 @@ def _planifier(s: Session, v: Video) -> None:
 
 @routeur.post("/visites")
 def creer_visite(d: DemandeVisite, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
-    v = _reserver(s, compte, d.photos, d.demande, d.cle_demande)
+    brouillon = None
+    if d.brouillon_id:
+        brouillon = s.get(Brouillon, d.brouillon_id)
+        if not brouillon or brouillon.compte_id != compte.id:
+            raise HTTPException(404, "Brouillon introuvable.")
+        if brouillon.video_id:
+            deja = _video(s, compte, brouillon.video_id)
+            if deja.cle_demande != d.cle_demande:
+                raise HTTPException(409, "Cette préparation a déjà été lancée. Retrouvez-la dans Mes créations.")
+    v = _reserver(s, compte, d.photos, d.demande, d.cle_demande, d.duree)
+    if brouillon:
+        brouillon.video_id = v.id
+        s.commit()
     vue = _vue(v)
     _planifier(s, v)
     return vue
@@ -184,6 +225,20 @@ def creer(photo_id: str, d: DemandeVideo, compte: Compte = Depends(compte_comple
     vue = _vue(v)
     _planifier(s, v)
     return vue
+
+
+async def _poursuivre(fabrique, video_id: str, pause: float = 5, tours: int = 360) -> None:
+    echecs = 0
+    for _ in range(tours):
+        await _avancer(fabrique, video_id)
+        with fabrique() as s:
+            v = s.get(Video, video_id)
+            if not v or v.statut not in EN_COURS:
+                return
+            echecs = echecs + 1 if v.erreur else 0
+            if echecs >= 3:
+                return  # Reprise ultérieure bornée, même intention fournisseur.
+        await asyncio.sleep(pause)
 
 
 async def _avancer(fabrique, video_id: str) -> None:
@@ -199,9 +254,11 @@ async def _avancer(fabrique, video_id: str) -> None:
         v = s.get(Video, video_id)
         logement = s.get(Logement, v.logement_id)
         compte = s.get(Compte, logement.compte_id)
-        if not compte or compte.statut != "actif" or not acces_ia.gratuit_proprietaire(compte) or not higgsfield_video.disponible():
+        if not compte or compte.statut != "actif" or not (acces_ia.gratuit_proprietaire(compte) or int((v.plan or {}).get("credits_reserves") or 0) > 0) or not higgsfield_video.disponible():
             v.statut, v.erreur = "echec", "La création vidéo n'est plus disponible sur ce compte."
             v.traitement_jusqu_au = None
+            if compte:
+                _rembourser_echec(s, v, compte)
             s.commit()
             return
         # Les anciens clips conservent exactement leur reçu et leur idempotence.
@@ -244,7 +301,7 @@ async def _avancer(fabrique, video_id: str) -> None:
                 directions = v.plan.get("directions")
                 prompt = directions[index]["prompt"] if directions else CONSIGNE_FIDELITE + v.plan.get("demande", "")
                 modele = v.plan.get("modele", higgsfield_video.MODELE)
-                plan.update(await higgsfield_video.soumettre(plan["image_url"], prompt, 5, plan["idempotence"], modele))
+                plan.update(await higgsfield_video.soumettre(plan["image_url"], prompt, v.plan.get("duree_source", 5), plan["idempotence"], modele))
                 v.statut, v.erreur = "en_attente", ""
                 sauver()
                 return
@@ -261,17 +318,18 @@ async def _avancer(fabrique, video_id: str) -> None:
                     sauver()
                 elif resultat["status"] in {"failed", "nsfw", "canceled"}:
                     v.statut, v.erreur = "echec", "Un plan n'a pas abouti. Les clips terminés restent disponibles. Aucun plan n'est relancé automatiquement."
+                    _rembourser_echec(s, v, compte)
                     sauver()
                     return
                 else:
                     v.statut = "clips"
             if all(p.get("cle_clip") for p in plans):
-                if len(plans) == 1:
+                if len(plans) == 1 and not v.plan.get("montage_exact"):
                     v.cle_video = plans[0]["cle_clip"]
                 else:
                     v.statut = "montage"
                     sauver(minutes=15)
-                    contenu = video_montage.assembler([stockage.lire(p["cle_clip"]) for p in plans])
+                    contenu = video_montage.assembler([stockage.lire(p["cle_clip"]) for p in plans], v.plan["duree"])
                     v.cle_video = stockage.ecrire(f"prive/videos/{v.id}/video.mp4", contenu, "video/mp4")
                 v.statut, v.erreur = "prete", ""
             sauver()
@@ -285,6 +343,8 @@ async def _avancer(fabrique, video_id: str) -> None:
                     v.statut, v.erreur = "echec", "Le fournisseur n'a pas accepté un plan. Les clips déjà prêts restent disponibles. Vérifiez la connexion et le solde du service avant un nouvel essai."
                 else:
                     v.erreur = "Le suivi est momentanément interrompu. Revenez sur cette vidéo : le même projet sera vérifié sans recréer les plans terminés."
+                if v.statut == "echec":
+                    _rembourser_echec(s, v, compte)
                 s.commit()
         finally:
             s.execute(update(Video).where(Video.id == video_id, Video.traitement_jeton == jeton)

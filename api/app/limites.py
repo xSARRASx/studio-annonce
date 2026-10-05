@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .config import reglages
-from .models import QuotaCreation, ReservationCreation, maintenant
+from .models import Compte, QuotaCreation, ReservationCreation, maintenant
 
 
 def plafond(nature: str) -> int:
@@ -31,7 +31,8 @@ def _quota(s: Session, compte_id: str, nature: str) -> QuotaCreation:
 
 
 def vue(s: Session, compte_id: str) -> dict:
-    resultat = {"support_url": reglages.SUPPORT_URL, "support_telephone": reglages.SUPPORT_TELEPHONE,
+    compte = s.get(Compte, compte_id)
+    resultat = {"proprietaire": bool(compte and compte.role == "proprietaire"), "support_url": reglages.SUPPORT_URL, "support_telephone": reglages.SUPPORT_TELEPHONE,
                 "support_email": reglages.SUPPORT_EMAIL}
     for nature in ("photo", "video"):
         q = s.get(QuotaCreation, (compte_id, nature))

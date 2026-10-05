@@ -57,11 +57,32 @@ function format(kind: 'video' | 'image'): BriefQuestion {
 
 function baseQuestions(kind: BriefKind): BriefQuestion[] {
   if (kind === 'photo') return [
+    question('photo-room', 'La pièce', 'Quelle pièce souhaitez-vous mettre en valeur ?', 'Précisez la pièce ou l’espace visible, sans inventer une autre disposition.', 'Ex. : salon avec cuisine ouverte, ou chambre sous les combles.', [
+      option('Salon ou séjour', 'Un espace pour recevoir et se détendre.', 'Sofa'), option('Chambre', 'Le lit, les textiles et une ambiance reposante.', 'Moon'), option('Cuisine ou salle de bain', 'Des surfaces lisibles et un espace soigné.', 'House'), option('Autre espace', 'Précisez : entrée, terrasse, jardin…', 'Trees'),
+    ]),
+    question('photo-goal', 'Le résultat', 'Quel niveau de transformation souhaitez-vous ?', 'Une amélioration photographique garde le logement réel. Une nouvelle décoration sera une projection virtuelle à identifier.', 'Ex. : conserver la pièce et repenser complètement les meubles et les revêtements.', [
+      option('Embellir la photo', 'Corriger la lumière et le cadrage, sans changer les matériaux.', 'Camera'), option('Ranger et soigner', 'Préparer la pièce en conservant sa décoration.', 'Sparkles'), option('Changer quelques éléments', 'Nommez les meubles, objets ou couleurs concernés.', 'Paintbrush'), option('Repenser toute la décoration', 'Nouvelle ambiance ; portes, fenêtres et équipements fixes conservés.', 'Palette'),
+    ]),
     question('photo-preservation', 'À préserver', 'Que doit-on absolument garder dans la photo ?', 'Indiquez ce qui peut changer et ce qui doit rester fidèle à la photo.', 'Ex. : garder le parquet, les fenêtres et la table, changer uniquement le canapé.', [
       option('Le logement à l’identique', 'Préserver les volumes, les ouvertures et les équipements fixes.', 'House'),
       option('Le mobilier aussi', 'Conserver le logement et tous les meubles.', 'Armchair'),
       option('Certains éléments', 'Nommez précisément ce qui doit rester.', 'Pin'),
       option('Je précise mes limites', 'Décrivez les changements autorisés.', 'SlidersHorizontal'),
+    ]),
+    question('photo-exposure', 'La lumière', 'Comment améliorer la lumière et les couleurs ?', 'La lumière doit rester crédible et respecter les ouvertures présentes.', 'Ex. : enlever la dominante jaune, éclaircir sans rendre la fenêtre toute blanche.', [
+      option('Équilibrer naturellement', 'Récupérer les détails dans les zones sombres et claires.', 'Sun'), option('Un rendu plus chaleureux', 'Réchauffer légèrement les tons, sans effet artificiel.', 'Sunset'), option('Garder la lumière actuelle', 'Ne modifier ni l’éclairage ni la couleur de la lumière.', 'ShieldCheck'), option('Je précise le rendu', 'Décrivez l’heure, les ombres ou les couleurs à corriger.', 'Lamp'),
+    ]),
+    question('photo-objects', 'Le rangement', 'Que faut-il ranger ou retirer ?', 'Indiquez les objets concernés. Les équipements fixes et les défauts structurels restent visibles.', 'Ex. : faire le lit, retirer les câbles et les affaires sur la table, garder les plantes.', [
+      option('Ranger les objets personnels', 'Vêtements, sacs et petits objets visibles.', 'Package'), option('Soigner le lit et les textiles', 'Draps, plaids et coussins disposés proprement.', 'Layers'), option('Ne rien retirer', 'Tout ce qui est visible reste en place.', 'ShieldCheck'), option('Une liste précise', 'Nommez ce qui doit partir et ce qui doit rester.', 'ListChecks'),
+    ]),
+    question('photo-furniture', 'Les meubles', 'Souhaitez-vous conserver ou remplacer les meubles ?', 'Le mobilier peut évoluer selon votre demande, en conservant l’espace et ses dimensions.', 'Ex. : garder le canapé, remplacer la table par une table ronde en noyer.', [
+      option('Conserver les meubles', 'Préserver tous les meubles visibles.', 'Armchair'), option('Remplacer certains meubles', 'Décrivez les pièces de mobilier à changer.', 'Sofa'), option('Tout remeubler', 'Une proposition d’aménagement virtuel complète.', 'Layers'), option('Meubler une pièce vide', 'Ajoutez un style, des usages et les meubles souhaités.', 'House'),
+    ]),
+    question('photo-walls', 'Les murs', 'Que souhaitez-vous faire des murs ?', 'Changer la peinture ou un revêtement est une projection. Ne déplacer ni porte, ni fenêtre, ni radiateur.', 'Ex. : un seul mur bleu pétrole, les autres blanc cassé ; garder les briques.', [
+      option('Garder les murs actuels', 'Conserver leurs couleurs et leurs revêtements.', 'ShieldCheck'), option('Changer un mur', 'Précisez lequel et la couleur souhaitée.', 'Paintbrush'), option('Repeindre toute la pièce', 'Indiquez votre palette ou vos couleurs.', 'Palette'), option('Changer un revêtement', 'Décrivez le papier peint, les panneaux ou la matière.', 'Frame'),
+    ]),
+    question('photo-floor', 'Le sol', 'Souhaitez-vous changer l’apparence du sol ?', 'Le changement de sol reste virtuel et ne modifie pas les niveaux ni les proportions.', 'Ex. : remplacer le carrelage par du parquet en chêne clair, lames dans le sens de la pièce.', [
+      option('Conserver le sol', 'Garder la matière et la couleur présentes.', 'ShieldCheck'), option('Un parquet', 'Précisez l’essence, la teinte et le motif.', 'Layers'), option('Un carrelage ou une pierre', 'Précisez le format et la finition.', 'Square'), option('Un autre revêtement', 'Décrivez votre sol ou ajoutez seulement un tapis.', 'Palette'),
     ]),
     mood(kind),
     question('photo-framing', 'Cadrage', 'Quel cadrage souhaitez-vous garder ?', 'Une retouche peut conserver la vue ou recadrer la photo. Précisez votre préférence.', 'Ex. : garder l’angle actuel, mais retirer une petite bande à gauche.', [
@@ -72,17 +93,17 @@ function baseQuestions(kind: BriefKind): BriefQuestion[] {
     ]),
   ];
   if (kind === 'video') return [
-    question('video-camera', 'Vue caméra', 'Quelle vue et quel mouvement de caméra souhaitez-vous ?', 'Cette question est toujours posée, même si vous avez déjà évoqué un drone.', 'Ex. : une caméra façon drone à hauteur des yeux, qui avance puis contourne franchement la table.', [
+    question('video-camera', 'Vue caméra', 'Quelle vue et quel mouvement de caméra souhaitez-vous ?', 'Choisissez le déplacement voulu. La caméra reste dans l’espace visible ; les pièces sont reliées par des coupes.', 'Ex. : une caméra façon drone à hauteur des yeux, qui avance puis contourne franchement la table.', [
       option('Vue drone', 'Une avancée dynamique à hauteur des yeux, avec des virages visibles.', 'Plane'),
       option('À hauteur des yeux', 'Une visite comme si l’on marchait dans les pièces.', 'Eye'),
       option('Plans fixes', 'Des compositions stables qui laissent regarder les détails.', 'Camera'),
       option('Mouvements doux', 'Des déplacements lents et de légers panoramiques.', 'Move'),
     ]),
-    question('video-duration', 'Durée', 'Quelle durée visez-vous pour la vidéo finale ?', 'C’est un objectif de montage. Les durées disponibles dépendront du modèle utilisé.', 'Ex. : 25 secondes au total, dont 8 dans le salon.', [
+    question('video-duration', 'Durée', 'Quelle durée visez-vous pour la vidéo finale ?', 'La durée choisie est celle du montage final. Toutes les photos sélectionnées se partagent cette durée.', 'Ex. : 25 secondes au total, dont 8 dans le salon.', [
       option('10 secondes', 'Un aperçu très court.', 'Timer'),
       option('20 secondes', 'Une visite courte en quelques plans.', 'Clock'),
       option('30 secondes', 'Plus de temps pour les pièces et les détails.', 'Film'),
-      option('Une autre durée', 'Indiquez votre durée cible.', 'SlidersHorizontal'),
+      option('5 secondes', 'Un seul aperçu très rapide.', 'Timer'),
     ]),
     format(kind),
     mood(kind),
@@ -166,7 +187,7 @@ export function buildQuestions(kind: BriefKind, request: string): BriefQuestion[
     .map(({ topic, pattern }) => ({ topic, position: normalized.search(pattern) }))
     .filter(({ position }) => position >= 0)
     .sort((a, b) => a.position - b.position)
-    .slice(0, Math.min(3, 8 - base.length));
+    .slice(0, 3);
   return [...base, ...relevant.map(({ topic }) => contextualQuestion(kind, topic))];
 }
 

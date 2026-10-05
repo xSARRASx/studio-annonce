@@ -77,5 +77,7 @@ test('reaching the account cap permits an explicit paid correction, never an unp
   assert.equal(canRequestGeneration(base, true, 20), false);
   assert.equal(canRequestGeneration({ ...base, reprise_necessaire: true }, true, 1), true);
   assert.equal(canRequestGeneration({ ...base, reprise_necessaire: true }, true, 0), false);
-  assert.equal(canRequestGeneration(base, false, 0), true);
+  assert.equal(canRequestGeneration(base, false, 0), false);
+  assert.equal(canRequestGeneration({ ...base, offerte: true }, false, 0), true);
+  assert.equal(canRequestGeneration({ ...base, credite_le: 'today' }, false, 0), true);
 });

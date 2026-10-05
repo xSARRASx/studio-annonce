@@ -1,4 +1,5 @@
 "use client";
+import { appendPhotoRequest } from "../../../../shared/photo-request";
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useSearchParams } from "next/navigation";
@@ -12,6 +13,7 @@ import { PreviewWatermark } from "@/components/preview-watermark";
 import { Compare } from "../../demo/studio-parts";
 import { BriefAssistant } from "../../demo/brief-assistant";
 import { GenerationWait } from "@/components/generation-wait";
+import { CreditDialog } from "@/components/credit-dialog";
 
 type Bulle = { de: "ia" | "moi"; texte: string };
 
@@ -39,27 +41,25 @@ function Atelier() {
   const [erreur, setErreur] = useState("");
   const [infoTelechargement, setInfoTelechargement] = useState<{ offerte: boolean; dateLimite: string | null; reprise?: boolean } | null>(null);
   const [confirmationReprise, setConfirmationReprise] = useState(false);
+  const [creditDialog, setCreditDialog] = useState(false);
   const [video, setVideo] = useState<VideoCreee | null>(null);
   const [videoErreur, setVideoErreur] = useState("");
   const [horloge, setHorloge] = useState(() => Date.now());
   const dialogue = useRef<HTMLDialogElement>(null);
   const retourFocus = useRef<HTMLElement | null>(null);
   const actionEnCours = useRef(false);
+  const draftWrites = useRef(Promise.resolve());
 
 
   useEffect(() => {
     if (!id) return;
     let annule = false;
-    api<Photo>(`/photos/${id}`).then(async (p) => {
+    api<Photo>(`/photos/${id}`).then((p) => {
       if (annule) return;
       setErreur("");
       poser(p, p.versions.at(-1) || null);
-      try { setDemande(p.demande_brouillon || sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) || ""); }
+      try { setDemande(sessionStorage.getItem(`studio:${compte.id}:photo:${id}:draft`) ?? p.demande_brouillon ?? ""); }
       catch { setDemande(p.demande_brouillon ?? ""); }
-      if (!p.analyse && retoucheDisponible && !p.limites?.photo.bloque) {
-        setOccupe("analyse");
-        p = await api<Photo>(`/photos/${id}/analyser`, { method: "POST" });
-      }
       if (annule) return;
       poser(p, p.versions.at(-1) || null);
       const a = p.analyse;
@@ -123,15 +123,18 @@ function Atelier() {
   function poser(p: Photo, v: Version | null) { setPhoto(p); setCourante(v); setVoirAvant(false); }
 
   async function essai(texte: string) {
-    if (!photo || actionEnCours.current || occupe || repriseNecessaire || creationBloquee || !retoucheDisponible || texte.length > 4000) return;
+    if (!photo || actionEnCours.current || occupe || repriseNecessaire || creationBloquee || creditManquant || !retoucheDisponible || texte.length > 4000) return;
     actionEnCours.current = true;
     setErreur(""); setOccupe("essai");
     const versionsAvant = photo.versions.length;
     if (texte) setBulles((b) => [...b, { de: "moi", texte }]);
     try {
+      await draftWrites.current;
       await api(`/photos/${photo.id}/demande`, { method: "PATCH", body: JSON.stringify({ demande: texte }) });
       const p = await api<Photo>(`/photos/${photo.id}/essai`, { method: "POST", body: JSON.stringify({ demande: texte, depuis_version_id: courante?.id || null }) });
       poser(p, p.versions.at(-1) || null);
+      setDemande(p.demande_brouillon || "");
+      try { sessionStorage.removeItem(`studio:${compte.id}:photo:${id}:draft`); } catch {}
       const restants = p.essais_restants;
       window.dispatchEvent(new Event("studio:credits-updated"));
       setBulles((b) => [...b, { de: "ia", texte: `Votre version est prête. ${restants ? `Il vous reste ${restants} génération${restants > 1 ? "s" : ""} sur cette photo.` : gratuit ? "Vous pouvez ajouter gratuitement une correction." : "Une correction supplémentaire coûte 1 crédit."}` }]);
@@ -170,6 +173,10 @@ function Atelier() {
 
   async function telecharger(event: MouseEvent<HTMLButtonElement>) {
     if (!photo || !courante || actionEnCours.current || occupe) return;
+    if (!gratuit && !photo.offerte && !photo.credite_le && compte.solde < 1) {
+      setCreditDialog(true);
+      return;
+    }
     retourFocus.current = event.currentTarget;
     actionEnCours.current = true;
     setErreur(""); setOccupe("hd");
@@ -249,9 +256,21 @@ function Atelier() {
   const finPeriode = dateLisible(photo?.reprise_jusqu_au || null);
   const limites = photo?.limites || compte.limites;
   const creationBloquee = !!limites?.photo.bloque;
+  const creditManquant = !!photo && !gratuit && !photo.offerte && !photo.credite_le && compte.solde < 1;
   const filigrane = !!courante && (photo?.filigrane ?? (!photo?.offerte && !photo?.credite_le));
   const original = photo?.original || photo?.vignette;
   const image = !courante ? original : courante.apercu;
+
+  useEffect(() => {
+    if (!photo || photo.id !== id || occupe) return;
+    const original = photo.demande_brouillon || "";
+    if (demande === original || demande.length > 4000) return;
+    try { sessionStorage.setItem(`studio:${compte.id}:photo:${id}:draft`, demande); } catch { /* Serveur ci-dessous. */ }
+    const timer = window.setTimeout(() => {
+      draftWrites.current = draftWrites.current.catch(() => {}).then(() => api(`/photos/${id}/demande`, { method: "PATCH", body: JSON.stringify({ demande }) })).then(() => { window.dispatchEvent(new Event("studio:drafts-updated")); }).catch(() => setErreur("La demande reste sur cet appareil. Enregistrez le brouillon avant de changer d’appareil."));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [photo, id, occupe, demande, compte.id]);
 
   async function saveDraft() {
     if (!photo || occupe) return;
@@ -281,20 +300,21 @@ function Atelier() {
           </div>}
         </div>
       </section><aside className="edit-controls">
-        <p className="section-kicker">VOTRE PROCHAINE IDÉE</p><h2>Qu’est-ce qu’on change ?</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
+        <p className="section-kicker">VOTRE DEMANDE À VÉRIFIER</p><h2>Relisez, puis lancez la retouche.</h2><p className="editor-description">Décrivez simplement le résultat que vous imaginez.</p>
         {photo && <div className="connected-photo-tags"><Pastille>{photo.essais_restants} génération{photo.essais_restants > 1 ? "s" : ""} restante{photo.essais_restants > 1 ? "s" : ""}</Pastille>{photo.offerte && !photo.credite_le && <Pastille ton="accent">Photo offerte</Pastille>}</div>}
         <p className="demo-help">Première génération + 1 correction incluse. {gratuit ? "Vos corrections supplémentaires sont gratuites." : "Chaque correction supplémentaire coûte 1 crédit."}</p>
         <CreationLimits limites={limites} compact/>
-        <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) void essai(demande.trim()); else void saveDraft(); }}>
+        <form className="draft-form" onSubmit={event => { event.preventDefault(); if (retoucheDisponible) { if (creditManquant) setCreditDialog(true); else void essai(demande.trim()); } else void saveDraft(); }}>
           <label htmlFor="photo-request">Votre demande</label><textarea id="photo-request" maxLength={4000} value={demande} disabled={!!occupe || repriseNecessaire || creationBloquee} onChange={event => setDemande(event.target.value)} placeholder="Un salon plus lumineux, une déco plus chaleureuse…" rows={5}/>
-          {!repriseNecessaire && !creationBloquee && <BriefAssistant kind="photo" request={demande} onUse={setDemande}/>}
+          {!repriseNecessaire && !creationBloquee && <BriefAssistant storageKey={`studio:${compte.id}:photo:${id}:assistant`} kind="photo" request={demande} onUse={setDemande}/>}
           {demande.length > 4000 && <p className="st-error" role="alert">Raccourcissez votre demande à 4 000 caractères maximum. Votre texte est conservé.</p>}
-          <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || creationBloquee || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Lancer la retouche" : "Enregistrer ma demande"}<ArrowRight size={17}/></button>
-          {retoucheDisponible && <button className="text-action" type="button" disabled={!photo || !!occupe || !demande.trim()} onClick={() => void saveDraft()}>Enregistrer pour plus tard</button>}
+          <button className="button dark" type="submit" disabled={!photo || !!occupe || repriseNecessaire || creationBloquee || !demande.trim() || demande.length > 4000}>{occupe === "essai" ? "Retouche en cours…" : retoucheDisponible ? "Créer ma photo retouchée" : "Enregistrer le brouillon"}<ArrowRight size={17}/></button>
+          {retoucheDisponible && <button className="text-action" type="button" disabled={!photo || !!occupe || !demande.trim()} onClick={() => void saveDraft()}>Enregistrer le brouillon</button>}
         </form>
-        {!repriseNecessaire && !creationBloquee && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => setDemande(idea)}>{idea}<Plus size={14}/></button>)}</div>}
+        {creditManquant && !repriseNecessaire && <div className="generation-state" role="status"><Info size={18}/><p><strong>Solde photo à zéro</strong>La création d’une nouvelle retouche attend au moins 1 crédit photo. Vous pouvez enregistrer votre demande en brouillon ; votre première photo offerte et les corrections déjà incluses restent disponibles.</p></div>}
+        {!repriseNecessaire && !creationBloquee && <div className="request-ideas" aria-label="Idées de retouche">{["Plus de lumière", "Retirer le désordre", "Changer toute la décoration"].map(idea => <button key={idea} disabled={!!occupe} onClick={() => { const next = appendPhotoRequest(demande, idea); if(next===demande && demande.length + idea.length + 2 > 4000) setErreur("Votre brief est déjà très long. Raccourcissez-le avant d’ajouter cette précision ; aucun texte n’a été effacé."); else setDemande(next); }}>{idea}<Plus size={14}/></button>)}</div>}
         {!retoucheDisponible && <div className="generation-state"><Info size={18}/><p><strong>Retouche momentanément indisponible</strong>Préparez votre demande. Aucun crédit n’est consommé.</p></div>}
-        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Générations disponibles utilisées"}</strong>{gratuit ? "Ajoutez gratuitement une correction, utilisable pendant 7 jours." : "1 crédit débloque une seule correction, utilisable pendant 7 jours."} Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>{gratuit ? "Ajouter 1 correction gratuite" : "Ajouter 1 correction · 1 crédit"}</Bouton></div></div>}
+        {photo && repriseNecessaire && <div className="generation-state"><Info size={18}/><div><p><strong>{periodeExpiree ? "Période de retouche terminée" : "Générations disponibles utilisées"}</strong>{gratuit ? "Ajoutez gratuitement une correction, utilisable pendant 7 jours." : "1 crédit débloque une seule correction, utilisable pendant 7 jours."} Vos versions restent disponibles.</p><Bouton onClick={event => { retourFocus.current = event.currentTarget; if (!gratuit && compte.solde < 1) setCreditDialog(true); else setConfirmationReprise(true); }} disabled={!!occupe || !retoucheDisponible}>{gratuit ? "Ajouter 1 correction gratuite" : "Ajouter 1 correction · 1 crédit"}</Bouton></div></div>}
         {finPeriode && !repriseNecessaire && <p className="demo-help">Générations restantes utilisables jusqu’au {finPeriode}.</p>}
         <Message texte={erreur}/>
         {bulles.length > 0 && <p className="connected-photo-feedback" role="status">{bulles.at(-1)?.texte}</p>}
@@ -317,6 +337,7 @@ function Atelier() {
         {videoErreur && <p role="alert">{videoErreur}</p>}
       </section>}
       {suivante && <div className="batch-next"><span>Photo {lot.indexOf(id) + 1} sur {lot.length} · votre sélection</span><Link className="button dark" href={`/app/photo/?id=${suivante}&lot=${encodeURIComponent(lot.join(","))}`}>Passer à la photo suivante <ArrowRight size={17}/></Link></div>}
+      <CreditDialog open={creditDialog} onClose={() => setCreditDialog(false)} paiementDisponible={!!compte.paiement_photo_disponible}/>
       {dialogueOuvert && <dialog ref={dialogue} onCancel={(event) => { event.preventDefault(); fermerDialogue(); }}
         aria-labelledby="download-info-title" aria-describedby="download-info-copy"
         className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-7 text-fg shadow-2xl backdrop:bg-black/65 sm:p-9">

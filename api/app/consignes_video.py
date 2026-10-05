@@ -39,17 +39,17 @@ def mouvement_du_plan(mouvement: Mouvement, index: int) -> str:
     return mouvement
 
 
-def preparer_consigne(demande: str, mouvement: Mouvement = "auto", index: int = 0, total: int = 1) -> str:
+def preparer_consigne(demande: str, mouvement: Mouvement = "auto", index: int = 0, total: int = 1, duree: int = 5) -> str:
     """Une trajectoire par source ; la demande explicite du client garde priorité."""
     trajet = mouvement_du_plan(mouvement, index)
     rythme = (
-        "Keep a calm, even pace for these 5 seconds."
+        f"Keep a calm, even pace for these {duree} seconds."
         if trajet == "calme" else
-        "5-second timing: 0–1s enter the move immediately; 1–4s commit to clear, energetic spatial "
-        "travel; 4–5s ease into the final composition. Smooth means stable, not slow or barely moving."
+        f"{duree}-second take: enter the move immediately, commit to clear, energetic spatial "
+        "travel through most of the shot, then ease into the final composition. Smooth means stable, not slow or barely moving."
     )
     return "\n\n".join([
-        f"REAL ESTATE CAMERA DIRECTION — shot {index + 1}/{total}, one continuous 5-second take. "
+        f"REAL ESTATE CAMERA DIRECTION — shot {index + 1}/{total}, one continuous {duree}-second take. "
         "Use the supplied photograph as the exact opening frame. "
         "The CLIENT REQUEST below controls the desired pace, direction and subject; when it specifies "
         "a different camera move, follow it instead of the proposed path. Apply only instructions "

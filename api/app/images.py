@@ -45,7 +45,7 @@ def filigraner(im: Image.Image, texte: str = "STUDIO ANNONCE · APERÇU") -> Ima
     taille = max(18, base.width // 22)
     try:
         police = ImageFont.truetype(POLICE, taille)
-    except OSError:
+    except (OSError, ImportError):
         police = ImageFont.load_default()
     pas_x, pas_y = taille * 9, taille * 4
     for y in range(-base.height, base.height * 2, pas_y):
@@ -67,4 +67,15 @@ def vignette(donnees: bytes) -> bytes:
 
 
 def apercu_filigrane(donnees: bytes) -> bytes:
-    return en_webp(filigraner(reduire(ouvrir(donnees), reglages.LARGEUR_APERCU)))
+    image = ouvrir(donnees)
+    image.thumbnail((reglages.LARGEUR_APERCU, reglages.LARGEUR_APERCU), Image.LANCZOS)
+    return en_webp(filigraner(image), 92)
+
+
+def hd_deja_prete(donnees: bytes) -> bool:
+    """Une retouche JPEG déjà produite en 2K ne doit pas être recréée à l'achat."""
+    try:
+        with Image.open(io.BytesIO(donnees)) as image:
+            return image.format == "JPEG" and max(image.size) >= 2048
+    except (OSError, ValueError):
+        return False

@@ -13,15 +13,27 @@ import { VideoGeneration } from "@/components/video-generation";
 import { UNASSIGNED_PROPERTY } from "./studio-screens";
 import "./video-planner.css";
 
+import { saveVideoDraft } from "@/lib/video-draft";
+import { finalVideoDuration, durationFromBrief, VIDEO_DURATIONS, VIDEO_REQUEST_MAX, videoDuration } from "../../../shared/video-duration";
+
 const STORAGE_KEY = "studio-annonce.video-plan.v1";
 type Source = (project: DemoProject, version?: DemoVersion) => string;
 const searchText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
 
-export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, storageKey = STORAGE_KEY }: { connected?: { enabled: boolean }; storageKey?: string; library: DemoLibrary; source: Source; onBack: () => void; onAddPhotos: (files: File[], property: string, onProgress?: (project: DemoProject) => void) => Promise<DemoProject[]> }) {
+export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, storageKey = STORAGE_KEY }: { connected?: { enabled: boolean; free: boolean; videoCredits: number; paymentEnabled: boolean }; storageKey?: string; library: DemoLibrary; source: Source; onBack: () => void; onAddPhotos: (files: File[], property: string, onProgress?: (project: DemoProject) => void) => Promise<DemoProject[]> }) {
+  const isConnected = !!connected;
+  const saveScope = useRef(0);
+  const [assistantRevision, setAssistantRevision] = useState(0);
+  useEffect(() => { const changed = (event: Event) => { if ((event as CustomEvent).detail === `${storageKey}:assistant`) setAssistantRevision(n => n + 1); }; window.addEventListener("studio:assistant-draft", changed); return () => window.removeEventListener("studio:assistant-draft", changed); }, [storageKey]);
+  const [generationRevision, setGenerationRevision] = useState(0);
   const [property, setProperty] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
   const [movements, setMovements] = useState<Record<string, CameraMove>>({});
+  const [saveNotice, setSaveNotice] = useState("");
+  const launchedSnapshot = useRef("");
+  const saveQueue = useRef(Promise.resolve());
+  const [chosenDuration, setChosenDuration] = useState<number | null>(null);
   const [idea, setIdea] = useState("");
   const [cleanup, setCleanup] = useState("");
   const [route, setRoute] = useState("");
@@ -54,9 +66,11 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
     queueMicrotask(() => {
       if (!active) return;
       try {
+        launchedSnapshot.current = localStorage.getItem(`${storageKey}:launched-snapshot`) || "";
         const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
         if (saved && typeof saved === "object") {
           if (typeof saved.property === "string") setProperty(saved.property.slice(0, 500));
+          setChosenDuration(videoDuration(saved.duration));
           setMovements(readCameraMoves(saved.movements));
           if (typeof saved.idea === "string") setIdea(saved.idea.slice(0, 4000));
           if (typeof saved.cleanup === "string") setCleanup(saved.cleanup.slice(0, 2500));
@@ -64,7 +78,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
           if (typeof saved.brief === "string") setBrief(saved.brief);
           if (typeof saved.briefIdea === "string") setBriefIdea(saved.briefIdea);
           if (typeof saved.briefContext === "string") setBriefContext(saved.briefContext);
-          if (saved.selectedVersions && typeof saved.selectedVersions === "object") setSelectedVersions(Object.fromEntries(Object.entries(saved.selectedVersions).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[0].length <= 24)));
+          if (saved.selectedVersions && typeof saved.selectedVersions === "object") setSelectedVersions(Object.fromEntries(Object.entries(saved.selectedVersions).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[0].length <= 24).map(([key, value]) => [key, value || "original"])));
           if (Array.isArray(saved.selectedIds)) setSelectedIds([...new Set((saved.selectedIds as unknown[]).filter((value: unknown): value is string => typeof value === "string"))]);
         }
       } catch { /* Le brouillon reste utilisable si le stockage est indisponible. */ }
@@ -74,9 +88,37 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
   }, [storageKey]);
   useEffect(() => {
     if (!restored) return;
-    try { localStorage.setItem(storageKey, JSON.stringify({ property: currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext })); }
-    catch { /* Aucun appel distant ni perte du texte affiché. */ }
-  }, [storageKey, restored, currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext]);
+    let assistant = null; try { assistant = JSON.parse(localStorage.getItem(`${storageKey}:assistant`) || "null"); } catch {}
+    const data = { assistant, duration: chosenDuration, property: currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext };
+    const snapshot = JSON.stringify(data);
+    try { localStorage.setItem(storageKey, snapshot); } catch { /* La sauvegarde dans le compte reste possible. */ }
+    if (!isConnected || (!idea.trim() && !brief.trim() && !selectedIds.length) || launchedSnapshot.current === snapshot) return;
+    setSaveNotice("Enregistrement du brouillon…");
+    // Envois sérialisés : une ancienne réponse ne peut pas remplacer la dernière saisie.
+    const scope = saveScope.current;
+    const timer = window.setTimeout(() => {
+      if(scope !== saveScope.current)return;
+      saveQueue.current = saveQueue.current.catch(() => {}).then(async () => {
+        if (scope !== saveScope.current || launchedSnapshot.current === snapshot) return;
+        await saveVideoDraft(storageKey, data);
+        setSaveNotice("Brouillon enregistré dans Mes créations → Brouillons.");
+      }).catch(() => setSaveNotice("Sauvegarde dans le compte interrompue. Votre préparation reste sur ce navigateur ; réessayez avant de changer d’appareil."));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [isConnected, storageKey, restored, assistantRevision, chosenDuration, currentProperty, selectedIds, selectedVersions, movements, idea, cleanup, route, brief, briefIdea, briefContext]);
+
+  async function newVideo() {
+    saveScope.current += 1;
+    try {
+      await saveQueue.current;
+      const previous = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      if (JSON.stringify(previous) !== launchedSnapshot.current && (previous.idea || previous.brief || previous.selectedIds?.length)) await saveVideoDraft(storageKey, previous);
+      for (const suffix of ["", ":draft-id", ":assistant", ":generation", ":launched-snapshot"]) localStorage.removeItem(`${storageKey}${suffix}`);
+      launchedSnapshot.current = "";
+      setSelectedIds([]); setSelectedVersions({}); setMovements({}); setIdea(""); setCleanup(""); setRoute(""); setBrief(""); setBriefIdea(null); setBriefContext(null); setChosenDuration(null);
+      setGenerationRevision(value => value + 1); setSaveNotice("Nouvelle préparation. Vos anciennes vidéos restent dans Mes créations.");
+    } catch { setSaveNotice("Enregistrez votre brouillon avant de commencer une nouvelle vidéo : la sauvegarde est momentanément indisponible."); }
+  }
 
   function toggle(id: string) {
     setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
@@ -112,11 +154,14 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
     return `${project.title} — ${cameraDescription(movements[project.id], selectedIds.indexOf(project.id))}${project.property !== UNASSIGNED_PROPERTY ? ` (${project.property})` : ""} — ${version.label}`;
   }), cleanup, route);
 
+  const duration = finalVideoDuration(chosenDuration, selected.length, brief);
+
   return <main className="st-main st-video-plan">
     <CreationBack onClick={onBack}/>
+    {connected && <div className="st-draft-status"><span role="status">{saveNotice || "Votre préparation est enregistrée automatiquement. Aucun crédit utilisé avant confirmation."}</span><a className="button outlined" href="#brouillons">Mes brouillons</a><button type="button" className="button outlined" onClick={() => void newVideo()}>Nouvelle vidéo</button></div>}
     <p className="eyebrow">PRÉPARER UNE VIDÉO</p>
     <h1>Photos → vidéo</h1>
-    <p className="st-video-intro">Choisissez vos photos, puis décrivez le mouvement souhaité. {connected ? "Une photo donne un plan de 5 secondes ; jusqu’à 6 photos pour 30 secondes." : "Vous pouvez aussi partir d’une idée, sans photo."}</p>
+    <p className="st-video-intro">Choisissez vos photos, puis décrivez le mouvement souhaité. {connected ? "Choisissez jusqu’à 6 photos et la durée totale, de 5 à 30 secondes." : "Vous pouvez aussi partir d’une idée, sans photo."}</p>
 
     <section className="st-step" aria-labelledby="video-source-title">
       <h2 id="video-source-title"><span className="st-step-number">1</span> Vos photos {!connected && <span className="st-video-optional">Facultatif</span>}</h2>
@@ -148,6 +193,7 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
 
     <section className="st-step" aria-labelledby="video-prep-title">
       <h2 id="video-prep-title"><span className="st-step-number">2</span> Préparer la visite</h2>
+      {connected && <label className="st-video-property">Durée totale de la vidéo<select aria-label="Durée totale de la vidéo" value={duration} onChange={event => setChosenDuration(Number(event.target.value))}>{VIDEO_DURATIONS.map(seconds => <option key={seconds} value={seconds}>{seconds} secondes</option>)}</select><span>Toutes les photos choisies apparaîtront dans cette durée. Ce choix est celui utilisé pour le montage.</span></label>}
       <p className="st-video-prep-note">{connected ? "La vidéo anime les versions sélectionnées ci-dessus. Pour changer le mobilier, ranger ou améliorer la lumière, retouchez d’abord les photos dans Mes créations, puis revenez ici. Les pièces seront reliées par des coupes." : "Une vidéo propre part de photos rangées et d’un trajet vérifié. Indiquez ce qui doit disparaître ; gardez les murs, portes et équipements fidèles au logement. Dans cet aperçu, ces consignes alimentent le brief : les photos ne sont pas encore retouchées automatiquement."}</p>
       {connected && <Link className="button outlined" href="/app/">Retoucher mes photos d’abord →</Link>}
       {!connected && <>
@@ -161,15 +207,19 @@ export function VideoPlanner({ library, source, onBack, onAddPhotos, connected, 
     <section className="st-step" aria-labelledby="video-idea-title">
       <h2 id="video-idea-title"><span className="st-step-number">3</span> Votre idée</h2>
       <label className="st-video-label" htmlFor="video-idea">Décrivez le trajet ou l’ambiance que vous imaginez</label>
-      <textarea id="video-idea" value={idea} maxLength={connected ? 3000 : 4000} rows={5} onChange={event => setIdea(event.target.value)} placeholder="Ex. : une visite façon drone : avance dans le salon, contourne la table, puis une coupe vers la chambre…"/>
+      <textarea id="video-idea" value={idea} maxLength={connected ? VIDEO_REQUEST_MAX : 4000} rows={5} onChange={event => setIdea(event.target.value)} placeholder="Ex. : une visite façon drone : avance dans le salon, contourne la table, puis une coupe vers la chambre…"/>
       <button type="button" className="button outlined" onClick={() => { setIdea(DYNAMIC_VIDEO_EXAMPLE); setBrief(""); setBriefIdea(null); setBriefContext(null); }}>Utiliser l’exemple « Visite dynamique »</button>
       <p className="st-video-hint">La caméra se déplace dans la pièce ; les meubles restent en place. Votre texte peut préciser le trajet et le rythme de chaque plan.</p>
-      <BriefAssistant kind="video" request={idea} context={context} onUse={value => { setBrief(value); setBriefIdea(idea); setBriefContext(context); requestAnimationFrame(() => briefPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }}/>
+      <BriefAssistant key={generationRevision} storageKey={`${storageKey}:assistant`} kind="video" request={idea} context={context} onUse={value => { const seconds = durationFromBrief(value); if (seconds) setChosenDuration(seconds); setBrief(value); setBriefIdea(idea); setBriefContext(context); requestAnimationFrame(() => briefPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }}/>
     </section>
 
     {brief && <section ref={briefPanel} className="st-step" aria-labelledby="video-brief-title"><h2 id="video-brief-title"><span className="st-step-number">4</span> Votre demande vidéo complète</h2><p className="st-video-label">Voici le texte préparé à partir de votre idée et de vos réponses. Rien à recopier : les autres champs servent seulement à ajouter des précisions si vous le souhaitez.</p>{(briefIdea !== idea || briefContext !== context) && <p className="st-video-changed" role="status">{briefIdea === null || briefContext === null ? "Ce brief est ancien. Vérifiez qu’il correspond encore à votre idée et aux photos choisies." : "L’idée, l’ordre des photos ou les consignes de préparation ont changé. Reprenez l’assistant pour actualiser le brief, ou ajustez le texte ci-dessous."}</p>}<div className="st-video-brief-details"><p className="st-video-label"><CheckCircle2 size={19}/> Votre texte reste modifiable ci-dessous.</p><textarea aria-label="Brief vidéo modifiable" value={brief} rows={10} onChange={event => setBrief(event.target.value)}/></div></section>}
 
-    {connected ? <VideoGeneration photos={selected} versions={selectedVersions} movements={movements} demande={brief || idea} storageKey={storageKey} enabled={connected.enabled}/> : <><section className="st-video-next" aria-label="Suite de la création vidéo"><div className="st-video-next-icon"><Film size={22}/></div><div><h2>Votre brief reste modifiable.</h2><p>La retouche des photos, la génération des plans et l’estimation du coût seront proposées ici lorsque les moteurs seront connectés. Une visite longue devra être testée en plusieurs plans puis assemblée ; la continuité de la caméra ne peut pas être garantie à partir de photos seules.</p></div><span><Sparkles size={15}/> Démonstration</span></section>
+    {connected ? <VideoGeneration key={generationRevision} onStarted={() => {
+      launchedSnapshot.current = localStorage.getItem(storageKey) || "";
+      localStorage.setItem(`${storageKey}:launched-snapshot`, launchedSnapshot.current);
+      setSaveNotice("Vidéo lancée. Retrouvez son avancement dans Mes créations.");
+    }} duration={duration} photos={selected} versions={selectedVersions} movements={movements} demande={brief || idea} storageKey={storageKey} enabled={connected.enabled} free={connected.free} videoCredits={connected.videoCredits} paymentEnabled={connected.paymentEnabled}/> : <><section className="st-video-next" aria-label="Suite de la création vidéo"><div className="st-video-next-icon"><Film size={22}/></div><div><h2>Votre brief reste modifiable.</h2><p>La retouche des photos, la génération des plans et l’estimation du coût seront proposées ici lorsque les moteurs seront connectés. Une visite longue devra être testée en plusieurs plans puis assemblée ; la continuité de la caméra ne peut pas être garantie à partir de photos seules.</p></div><span><Sparkles size={15}/> Démonstration</span></section>
     <p className="st-video-local"><Info size={15}/> Votre brouillon reste dans ce navigateur si son stockage est disponible. Aucune photo ni demande n’est envoyée à un moteur distant depuis cet aperçu.</p></>}
   </main>;
 }

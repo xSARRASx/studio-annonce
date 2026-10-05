@@ -1,3 +1,4 @@
+import { ConnectedDrafts } from './ConnectedDrafts';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -11,10 +12,11 @@ const message = (error: unknown) => error instanceof Error ? error.message : 'Ce
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export function ConnectedLibraryContent() {
   const { api, account, health, refresh } = useAccount();
+  const [draftsOpen,setDraftsOpen]=useState(false);
   const [properties, setProperties] = useState<Property[]>([]); const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(''); const [oldest, setOldest] = useState(false); const [archives, setArchives] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]); const [notice, setNotice] = useState('');
-  const params = useLocalSearchParams<{ selection?: string }>();
+  const params = useLocalSearchParams<{ selection?: string; brouillons?: string }>();
   const selectionLoaded = useRef('');
   const [revision, setRevision] = useState(0); const [action, setAction] = useState<CreationAction | null>(null); const [feedback, setFeedback] = useState('');
   const [archiving, setArchiving] = useState(false);
@@ -30,8 +32,10 @@ export function ConnectedLibraryContent() {
   const selected = chosen.flatMap(id => { const photo = photos.find(item => item.id === id && !item.archivee); return photo ? [photo] : []; });
   async function archivePhoto(restore: boolean, id: string) {
     if (!id || archiving) return; setArchiving(true);
-    try { await api.json(`/photos/${id}/${restore ? 'restaurer' : 'archiver'}`, { method: 'POST' }); setChosen(current => current.filter(item => item !== id)); await load(); setFeedback(restore ? 'Photo restaurée.' : 'Photo archivée. Vous pouvez la restaurer dans les archives.'); }
-    catch (error) { setNotice(message(error)); } finally { setArchiving(false); }
+    setProperties(current => current.map(property => ({ ...property, photos: property.photos.map(photo => photo.id === id ? { ...photo, archivee: !restore } : photo) })));
+    setFeedback(restore ? 'Restauration en cours…' : 'Archivage en cours…');
+    try { await api.json(`/photos/${id}/${restore ? 'restaurer' : 'archiver'}`, { method: 'POST' }); setChosen(current => current.filter(item => item !== id)); setFeedback(restore ? 'Photo restaurée.' : 'Photo archivée. Vous pouvez la restaurer dans les archives.'); void load(); }
+    catch (error) { setFeedback(`L’action n’a pas abouti : ${message(error)}`); void load(); } finally { setArchiving(false); }
   }
   async function batch() {
     if (active.current || !selected.length || !prompt.trim() || prompt.length > 4000 || !health?.retouche_disponible || account?.limites?.photo.bloque) return;
@@ -62,7 +66,8 @@ export function ConnectedLibraryContent() {
     try { await Promise.all([worker(), worker()]); await load(); await refresh(); }
     finally { active.current = false; setRunning(false); }
   }
-  return <>
+  if(draftsOpen || params.brouillons==='1')return <><Button secondary title="← Mes créations" onPress={()=>{setDraftsOpen(false);router.setParams({brouillons:undefined});}}/><Text style={s.title}>Brouillons</Text><ConnectedDrafts/></>;
+  return <><Button secondary title="Brouillons · reprendre une préparation" onPress={()=>setDraftsOpen(true)}/>
     <Button title={account?.gratuit_illimite ? 'Retoucher de nouvelles photos' : account?.photo_offerte_disponible ? 'Préparer ma photo offerte' : 'Ajouter des photos'} onPress={() => router.navigate('/nouvelle')}/>
     <Button secondary title="Préparer une vidéo" onPress={() => router.navigate('/visite')}/>
     <View style={s.card}><TextInput accessibilityLabel="Retrouver une création" value={search} onChangeText={setSearch} placeholder="Une pièce ou un logement…" style={s.input}/><View style={s.row}><Button secondary title={oldest ? 'Les plus anciennes' : 'Les plus récentes'} onPress={() => setOldest(value => !value)}/><Button secondary title={archives ? 'Voir mes photos actives' : 'Voir mes archives'} onPress={() => setArchives(value => !value)}/></View></View>
@@ -83,7 +88,7 @@ export function ConnectedLibraryContent() {
 
     <Button secondary title="Actualiser mes créations" onPress={() => { void load(); void refresh(); }}/>
     <ConnectedCreationExtras revision={revision} onChange={() => { setRevision(value => value + 1); void load(); }}/>
-    {action && <ConnectedCreationConfirmation key={action.id} item={action} onClose={() => setAction(null)} onDone={() => { setChosen(current => current.filter(id => id !== action.id)); setFeedback(action.action === 'archiver' ? 'Photo archivée. Retrouvez-la dans vos archives.' : 'Photo déplacée dans la corbeille.'); setAction(null); setRevision(value => value + 1); void load(); }}/>}<ConnectedCreationFeedback text={feedback} onClose={() => setFeedback('')}/>
+    {action && <ConnectedCreationConfirmation key={action.id} item={action} onClose={() => setAction(null)} onStart={() => { setProperties(current => current.map(property => ({ ...property, photos: property.photos.flatMap(photo => photo.id !== action.id ? [photo] : action.action === 'archiver' ? [{ ...photo, archivee: true }] : []) }))); setFeedback(action.action === 'archiver' ? 'Archivage en cours…' : 'Déplacement vers la corbeille en cours…'); setAction(null); }} onDone={() => { setChosen(current => current.filter(id => id !== action.id)); setFeedback(action.action === 'archiver' ? 'Photo archivée. Retrouvez-la dans vos archives.' : 'Photo déplacée dans la corbeille.'); setRevision(value => value + 1); void load(); }} onError={error => { setFeedback(`L’action n’a pas abouti : ${error}`); void load(); }}/>}<ConnectedCreationFeedback text={feedback} onClose={() => setFeedback('')}/>
   </>;
 }
 const s = StyleSheet.create({

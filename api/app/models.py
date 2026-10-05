@@ -242,3 +242,14 @@ class ReservationCreation(Base):
     periode: Mapped[int] = mapped_column(Integer)
     statut: Mapped[str] = mapped_column(String(16), default="en_cours")
     expire_le: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Brouillon(Base):
+    """Préparation non facturée, privée au compte ; aucune génération implicite."""
+    __tablename__ = "brouillons"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), index=True)
+    nature: Mapped[str] = mapped_column(String(10))
+    donnees: Mapped[dict] = mapped_column(JSON)
+    modifie_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+    video_id: Mapped[str | None] = mapped_column(String(24), nullable=True)

@@ -7,9 +7,9 @@ import "../aide/public-pages.css";
 
 export const metadata: Metadata = {
   title: "Tarifs retouche photo immobilière et vidéo | Studio Annonce",
-  description: "Comparez les packs photo de 9,99 € à 59,99 € et les tarifs vidéo prévus. Les achats restent fermés pendant la phase pilote.",
+  description: "Photo dès 9,99 € le pack. Crédits vidéo dès 8,97 € les 5 secondes, packs dégressifs jusqu’à 120 secondes. Achats fermés pendant la phase pilote.",
   alternates: { canonical: "/tarifs/" },
-  openGraph: { title: "Tarifs photo et vidéo | Studio Annonce", description: "Packs sans abonnement, de 10 à 100 crédits photo. Achats fermés pendant la phase pilote.", url: "/tarifs/", locale: "fr_FR", type: "website" },
+  openGraph: { title: "Tarifs photo et vidéo | Studio Annonce", description: "Crédits photo et packs vidéo de 5 à 120 secondes, sans abonnement. Achats fermés pendant la phase pilote.", url: "/tarifs/", locale: "fr_FR", type: "website" },
 };
 
 const packs = [
@@ -19,10 +19,15 @@ const packs = [
   { credits: 100, price: "59,99", unit: "0,60", label: "Meilleur tarif", description: "100 photos · 40 % moins cher par photo." },
 ];
 const videoPacks = [
-  { credits: 1, seconds: 5, price: "6,99", unit: "6,99", label: "Un premier essai", saving: "Tarif à l’unité" },
-  { credits: 2, seconds: 10, price: "12,99", unit: "6,50", label: "Essentiel", saving: "7 % de moins qu’à l’unité" },
-  { credits: 4, seconds: 20, price: "21,99", unit: "5,50", label: "Visite courte", saving: "21 % de moins qu’à l’unité" },
-  { credits: 6, seconds: 30, price: "29,99", unit: "5,00", label: "Meilleur tarif", saving: "28 % de moins qu’à l’unité" },
+  { credits: 1, seconds: 5, price: "8,97", unit: "8,97", label: "Un premier essai", saving: "Tarif à l’unité" },
+  { credits: 2, seconds: 10, price: "16,97", unit: "8,49", label: "Essentiel", saving: "5 % de moins qu’à l’unité" },
+  { credits: 3, seconds: 15, price: "24,97", unit: "8,32", label: "Visite express", saving: "7 % de moins qu’à l’unité" },
+  { credits: 4, seconds: 20, price: "32,97", unit: "8,24", label: "Visite courte", saving: "8 % de moins qu’à l’unité" },
+  { credits: 5, seconds: 25, price: "40,97", unit: "8,19", label: "Visite complète", saving: "9 % de moins qu’à l’unité" },
+  { credits: 6, seconds: 30, price: "47,97", unit: "8,00", label: "Meilleur tarif", saving: "11 % de moins qu’à l’unité" },
+  { credits: 12, seconds: 60, price: "92,97", unit: "7,75", label: "Plusieurs visites", saving: "14 % de moins qu’à l’unité" },
+  { credits: 18, seconds: 90, price: "134,97", unit: "7,50", label: "Pour plusieurs annonces", saving: "16 % de moins qu’à l’unité" },
+  { credits: 24, seconds: 120, price: "174,97", unit: "7,29", label: "Meilleur prix par seconde", saving: "19 % de moins qu’à l’unité" },
 ];
 
 export default function PublicPricing() {
@@ -34,7 +39,7 @@ export default function PublicPricing() {
           <div><span className="public-eyebrow">PHOTOS ET VIDÉOS · SANS ABONNEMENT</span><h1 id="tariffs-title">Vos créations,<br /><em>au prix clair.</em></h1><p>Voici les tarifs prévus pour la retouche photo immobilière et les vidéos. Les packs sont séparés et cumulables ; leurs achats restent fermés pendant la phase pilote.</p></div>
           <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span><Link className="tariffs-offer-link" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link></div></aside>
         </section>
-        <nav className="tariffs-shortcuts" aria-label="Voir les tarifs par création"><a href="#packs-photo"><span>PHOTOS</span><strong>10 photos dès 9,99 €</strong><small>La première est offerte · 1 crédit par photo gardée</small><ArrowRight size={19} aria-hidden="true" /></a><a href="#packs-video"><span>VIDÉOS</span><strong>5 s dès 6,99 € · 30 s à 29,99 €</strong><small>1 crédit par essai de 5 secondes · tarif dégressif</small><ArrowRight size={19} aria-hidden="true" /></a></nav>
+        <nav className="tariffs-shortcuts" aria-label="Voir les tarifs par création"><a href="#packs-photo"><span>PHOTOS</span><strong>10 photos dès 9,99 €</strong><small>La première est offerte · 1 crédit par photo gardée</small><ArrowRight size={19} aria-hidden="true" /></a><a href="#packs-video"><span>VIDÉOS</span><strong>5 s à 8,97 € · packs jusqu’à 120 s</strong><small>Crédits utilisables en plusieurs vidéos · tarif dégressif</small><ArrowRight size={19} aria-hidden="true" /></a></nav>
         <section id="packs-photo" className="tariffs-packs" aria-label="Packs de crédits photo">
           {packs.map(pack => <article className={`tariffs-pack${pack.credits === 50 ? " tariffs-pack-featured" : ""}`} key={pack.credits}>
             <span className="tariffs-pack-label">{pack.label}</span>
@@ -47,12 +52,12 @@ export default function PublicPricing() {
         </section>
         <p className="tariffs-availability">Packs photo sans abonnement. Leur achat ouvrira avec la retouche IA.</p>
         <section id="packs-video" className="tariffs-video" aria-labelledby="video-price-title">
-          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Une visite de 5 à 30 secondes.<br /><em>Le prix baisse avec la durée.</em></h2><p>1 crédit vidéo finance un essai de 5 secondes en 720p. Avec 6 crédits, vous pouvez demander une vidéo continue de 30 secondes, ou plusieurs essais plus courts. Chaque nouvelle génération utilise à nouveau les crédits correspondant à sa durée. Vos crédits photo restent intacts.</p></div>
-          <div className="tariffs-packs">{videoPacks.map(pack => <article className={`tariffs-pack${pack.seconds === 30 ? " tariffs-pack-featured" : ""}`} key={pack.seconds}>
-            <span className="tariffs-pack-label">{pack.label}</span><h2>{pack.seconds} <span>secondes</span></h2>
+          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Une visite de 5 à 30 secondes.<br /><em>Des packs jusqu’à 120 secondes.</em></h2><p>1 crédit vidéo finance un essai de 5 secondes en 720p. Les crédits achetés restent dans votre solde : avec un pack de 30 secondes, une vidéo de 10 secondes utilise 2 crédits sur 6 et les 4 autres restent disponibles. Vous pouvez aussi répartir un pack de 120 secondes entre plusieurs vidéos. Chaque vidéo terminée dure au maximum 30 secondes ; un nouvel essai consomme à nouveau les crédits correspondant à sa durée. Vos crédits photo restent intacts.</p></div>
+          <div className="tariffs-packs tariffs-three-packs">{videoPacks.map(pack => <article className={`tariffs-pack${pack.seconds === 30 ? " tariffs-pack-featured" : ""}`} key={pack.seconds}>
+            <span className="tariffs-pack-label">{pack.label}</span><h2>{pack.seconds} <span>secondes de crédits</span></h2>
             <p className="tariffs-pack-description">{pack.credits} crédit{pack.credits > 1 ? "s" : ""} vidéo · {pack.saving}.</p>
             <div className="tariffs-amount">{pack.price}<span>€</span></div><p className="tariffs-unit">{pack.unit} € les 5 secondes</p>
-            <div className="tariffs-pack-line"><Clock3 size={15} aria-hidden="true" /><span>Un clip continu ou plusieurs essais</span></div>
+            <div className="tariffs-pack-line"><Clock3 size={15} aria-hidden="true" /><span>À utiliser en vidéos de 5 à 30 s</span></div>
           </article>)}</div>
           <p className="tariffs-availability">Avant chaque essai, le nombre de crédits sera confirmé. Un essai terminé pourra être prévisualisé et téléchargé sans second débit ; un nouvel essai sera facturé. En cas d’échec technique, les crédits réservés seront rendus. Les achats vidéo restent fermés pendant la phase pilote.</p>
         </section>

@@ -43,3 +43,23 @@ class MontageTest(unittest.TestCase):
                     lecteur.close()
             subprocess.run([exe, "-nostdin", "-v", "error", "-i", str(resultat), "-f", "null", "-"],
                 check=True, timeout=30, capture_output=True)
+
+    def test_six_photos_vingt_secondes_et_ordre_complet(self):
+        exe=imageio_ffmpeg.get_ffmpeg_exe()
+        with tempfile.TemporaryDirectory() as directory:
+            clips=[]
+            for index,color in enumerate(('red','green','blue','white','yellow','magenta')):
+                p=Path(directory)/f'{index}.mp4'
+                subprocess.run([exe,'-v','error','-f','lavfi','-i',f'color=c={color}:s=96x64:r=24:d=5','-c:v','libx264','-pix_fmt','yuv420p',str(p)],check=True,capture_output=True)
+                clips.append(p.read_bytes())
+            out=Path(directory)/'20s.mp4';out.write_bytes(assembler(clips,20))
+            reader=imageio_ffmpeg.read_frames(str(out));meta=next(reader)
+            self.assertAlmostEqual(meta['duration'],20,delta=.03)
+            count=0; sampled=[]
+            for frame in reader:
+                if count%80==40:sampled.append(tuple(frame[(360*1280+640)*3:(360*1280+640)*3+3]))
+                count+=1
+            self.assertEqual(count,480)
+            self.assertEqual(len(sampled),6)
+            self.assertTrue(sampled[0][0]>200 and sampled[1][1]>100 and sampled[2][2]>200)
+            self.assertTrue(min(sampled[3])>200 and sampled[4][2]<30 and sampled[5][1]<30)

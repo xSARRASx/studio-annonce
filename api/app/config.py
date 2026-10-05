@@ -52,12 +52,12 @@ class Reglages(BaseSettings):
     FOURNISSEUR_IMAGE: str = "openai"
     MODELE_OPENAI_IMAGE: str = "gpt-image-2.5-sunburst"
     MODELE_OPENAI_ANALYSE: str = "gpt-5.4-mini"
-    QUALITE_OPENAI_APERCU: str = "medium"
+    QUALITE_OPENAI_APERCU: str = "high"
     QUALITE_OPENAI_HD: str = "high"
     MODELE_ANALYSE: str = "gemini-3.5-flash"
     MODELE_APERCU: str = "gemini-3.1-flash-image"
     MODELE_HD: str = "gemini-3-pro-image"
-    LARGEUR_APERCU: int = 720
+    LARGEUR_APERCU: int = 2048
     LARGEUR_VIGNETTE: int = 320
     LARGEUR_ENVOI_IA: int = 2048
 

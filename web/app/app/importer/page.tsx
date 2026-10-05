@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Images, Link2 } from "lucide-react";
-import { api, type Logement } from "@/lib/api";
+import { api, type Logement, type Photo } from "@/lib/api";
 import { envoyerPhoto } from "@/lib/photo-upload";
 import { useStudioAccount } from "@/components/studio-account";
 import "./importer.css";
 
-type Choix = { file: File; preview: string; selected: boolean };
+type Choix = { file?: File; jeton?: string; cle?: string; preview: string; selected: boolean };
 
 function lienValide(value: string) {
   if (!value.trim()) return true;
@@ -28,6 +28,8 @@ function plateforme(value: string): "Airbnb" | "Booking.com" | null {
 export default function ImporterAnnonce() {
   const router = useRouter();
   const { compte } = useStudioAccount();
+  const [searching, setSearching] = useState(false);
+  const [sourceMessage, setSourceMessage] = useState("");
   const [nom, setNom] = useState("");
   const [lien, setLien] = useState("");
   const [photos, setPhotos] = useState<Choix[]>([]);
@@ -59,6 +61,18 @@ export default function ImporterAnnonce() {
   }
 
 
+  async function rechercherPhotos() {
+    if (searching || occupe || !plateforme(lien)) return;
+    setSearching(true); setErreur(""); setSourceMessage("");
+    try {
+      const result = await api<{ titre: string; message: string; photos: { preview: string; jeton: string }[] }>("/annonces/photos", { method: "POST", body: JSON.stringify({ url: lien.trim() }) });
+      if (!nom.trim()) setNom(result.titre);
+      setPhotos(previous => [...previous.filter(photo => photo.file), ...result.photos.map(photo => ({ ...photo, cle: crypto.randomUUID(), selected: true }))].slice(0, 40));
+      setSourceMessage(`${result.photos.length} photos trouvées. ${result.message}`);
+    } catch (cause) { setErreur((cause as Error).message); }
+    finally { setSearching(false); }
+  }
+
   async function enregistrerLien() {
     if (occupe || !lien.trim() || !lienValide(lien)) return;
     setOccupe(true); setErreur("");
@@ -78,7 +92,8 @@ export default function ImporterAnnonce() {
         setLogementCree(home);
       }
       for (let i = 0; i < retenues.length; i++) {
-        const photo = await envoyerPhoto(retenues[i].file, home.id);
+        const choice = retenues[i];
+        const photo = choice.file ? await envoyerPhoto(choice.file, home.id) : await api<Photo>("/annonces/importer", { method: "POST", body: JSON.stringify({ logement_id: home.id, jeton_photo: choice.jeton, cle_import: choice.cle }) });
         imported.current.push(photo.id);
         setEnvoi({ fait: i + 1, total: retenues.length });
         setPhotos(previous => previous.filter(choice => choice !== retenues[i]));
@@ -101,12 +116,12 @@ export default function ImporterAnnonce() {
 
   return <main className="batch-page">
     <button className="batch-back" onClick={() => router.push("/app/#nouvelle")}><ArrowLeft size={16}/> Retour à la création</button>
-    <div className="batch-heading"><span className="eyebrow">VOTRE ANNONCE</span><h1>Rassemblez les photos de votre logement.</h1><p>Collez le lien de votre annonce pour la retrouver, puis ajoutez les photos que vous souhaitez améliorer.</p></div>
+    <div className="batch-heading"><span className="eyebrow">VOTRE ANNONCE</span><h1>Rassemblez les photos de votre logement.</h1><p>Collez votre lien Airbnb ou Booking pour rechercher les photos accessibles, puis choisissez celles que vous souhaitez améliorer.</p></div>
     <div className="batch-card">
       <label className="batch-label">Nom du logement<input value={nom} onChange={event => setNom(event.target.value)} maxLength={120} placeholder="Ex. : Appartement du centre" disabled={occupe}/></label>
       <label className="batch-label"><span><Link2 size={16}/> Lien Airbnb ou Booking <small>facultatif</small></span><input type="url" inputMode="url" value={lien} onChange={event => setLien(event.target.value)} maxLength={1000} placeholder="https://www.airbnb.fr/rooms/… ou https://www.booking.com/hotel/…" disabled={occupe || !!logementCree}/></label>
       {!lienValide(lien) && <p className="batch-error" role="alert">Collez un lien HTTPS valide.</p>}
-      {lien.trim() && lienValide(lien) && <div className="batch-source" role="status"><strong>{plateforme(lien) ? `Annonce ${plateforme(lien)} reconnue` : "Lien d’annonce reconnu"}</strong><p>Ce lien sera conservé avec votre logement. Pour l’instant, les photos ne peuvent pas être récupérées automatiquement depuis cette page : choisissez les originaux que vous possédez, ou glissez-les ici.</p></div>}
+      {lien.trim() && lienValide(lien) && <div className="batch-source" role="status"><strong>{plateforme(lien) ? `Annonce ${plateforme(lien)} reconnue` : "Lien d’annonce reconnu"}</strong><p>{sourceMessage || "Recherchez les photos publiques de votre annonce, puis sélectionnez celles à ajouter. Vous pouvez aussi utiliser vos fichiers originaux."}</p>{plateforme(lien) && <button type="button" className="button dark" disabled={occupe || searching} onClick={() => void rechercherPhotos()}>{searching ? "Recherche des photos…" : "Récupérer les photos de l’annonce"}<Images size={17}/></button>}</div>}
       {!lien.trim() && <p className="batch-note">Vous pouvez aussi commencer directement avec les photos de votre appareil.</p>}
       <div className={`batch-picker ${glisse ? "batch-picker-drag" : ""}`} role="group" aria-label="Ajouter les photos de l’annonce" tabIndex={0}
         onDragOver={event => { event.preventDefault(); if (!occupe) setGlisse(true); }}

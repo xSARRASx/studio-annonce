@@ -40,7 +40,7 @@ test('Le brief affiche chaque carte cochée avec le texte libre exact', () => {
 
 test('Les questions de base restent présentes, quelle que soit la demande', () => {
   const expected = {
-    photo: ['photo-preservation', 'photo-mood', 'photo-framing'],
+    photo: ['photo-room', 'photo-goal', 'photo-preservation', 'photo-exposure', 'photo-objects', 'photo-furniture', 'photo-walls', 'photo-floor', 'photo-mood', 'photo-framing'],
     video: ['video-camera', 'video-duration', 'video-format', 'video-mood', 'video-fidelity'],
     image: ['image-subject', 'image-mood', 'image-style', 'image-format'],
   };
@@ -48,7 +48,7 @@ test('Les questions de base restent présentes, quelle que soit la demande', () 
     for (const request of ['', 'Tout changer', 'Drone, jardin, piscine, décoration, lumière et rangement']) {
       const questions = buildQuestions(kind, request);
       assert.deepEqual(questions.filter(item => item.core).map(item => item.id), ids);
-      assert.ok(questions.length <= 8);
+      assert.ok(questions.length <= (kind === 'photo' ? 13 : 8));
       assert.equal(new Set(questions.map(item => item.id)).size, questions.length);
       assert.ok(questions.every(item => item.options.length === 4));
     }
@@ -191,4 +191,22 @@ test('Un texte normal, un brief inconnu ou incomplet restent rigoureusement inta
   assert.equal(recoverBriefSource('video', brief), brief);
   const incomplete = brief.slice(0, brief.lastIndexOf('\n\n'));
   assert.equal(recoverBriefSource('photo', incomplete), incomplete);
+});
+
+import { durationFromBrief, finalVideoDuration } from '../../shared/video-duration.ts';
+test('La durée de 20 secondes reste prioritaire avec six photos et survit au brief', () => {
+  const brief = buildBrief('video', 'Une visite', buildQuestions('video', 'Une visite'), {'video-duration': {choices:['20 secondes'],detail:''}});
+  assert.equal(durationFromBrief(brief),20);
+  assert.equal(finalVideoDuration(null,6,brief),20);
+  assert.equal(finalVideoDuration(10,6,brief),10);
+  assert.equal(finalVideoDuration(undefined,6),30);
+});
+
+import { appendPhotoRequest } from '../../shared/photo-request.ts';
+test('Les idées de retouche ajoutent sans supprimer ni tronquer le brief', () => {
+  const original = '  Garder le parquet.\nEt les fenêtres !  ';
+  const next=appendPhotoRequest(original,'Plus de lumière');
+  assert.equal(next, original+'\n\nPlus de lumière');
+  assert.equal(appendPhotoRequest(next,'Plus de lumière'),next);
+  assert.equal(appendPhotoRequest(original,'Une longue précision',10),original);
 });

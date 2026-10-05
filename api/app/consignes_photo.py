@@ -12,6 +12,7 @@ Conserve la structure et les proportions de la pièce : murs, hauteur, volumes, 
 
 CHANGEMENTS SELON LA DEMANDE
 Pour une simple mise en valeur, conserve le mobilier, les revêtements et la décoration ; améliore la lumière, la balance des blancs et la présentation demandée. Un lit fait, un rangement ou le retrait d'objets doivent rester plausibles et localisés.
+Ajouter quelques accessoires ou de la décoration ne signifie pas remplacer les meubles existants : garde leur forme, couleur, place et nombre. Ne transforme pas toute la pièce pour satisfaire une petite demande. Si un meuble précis doit changer, limite la modification à ce meuble et conserve le reste à l'identique.
 Pour une demande de décoration ou de rénovation virtuelle, applique réellement les changements demandés : remplacer quelques meubles ou l'ensemble du mobilier, repeindre les murs, modifier les couleurs et matériaux, remplacer un revêtement de sol par du parquet ou du carrelage. Les finitions peuvent changer ; la structure sous ces finitions et les équipements fixes restent identiques. Ne réduis pas une transformation complète demandée à quelques objets déplacés. Tout élément non concerné reste fidèle à la source.
 
 POINT DE VUE

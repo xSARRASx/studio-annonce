@@ -67,7 +67,7 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
     setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: { ...readBriefAnswer(previous.answers[current.id]), detail } } }));
   }
   function toggleChoice(label: string) {
-    setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: toggleBriefChoice(readBriefAnswer(previous.answers[current.id]), label) } }));
+    setDraft(previous => ({ ...previous, answers: { ...previous.answers, [current.id]: current.id === 'video-duration' ? { choices: [label], detail: readBriefAnswer(previous.answers[current.id]).detail } : toggleBriefChoice(readBriefAnswer(previous.answers[current.id]), label) } }));
   }
   function advance() {
     Keyboard.dismiss();
@@ -108,7 +108,7 @@ function AssistantSession({ kind, request, context = '', onUse, storageKey }: As
             {missing !== -1 ? <Pressable accessibilityRole="button" onPress={() => setDraft(previous => ({ ...previous, step: missing }))} style={styles.primary}><Text style={styles.primaryText}>Compléter les réponses →</Text></Pressable> : <Pressable accessibilityRole="button" aria-disabled={tooLong || sourceChanged} accessibilityState={{ disabled: tooLong || sourceChanged }} disabled={tooLong || sourceChanged} onPress={apply} style={[styles.primary, (tooLong || sourceChanged) && { opacity: .4 }]}><Text style={styles.primaryText}>{editedPreparedText ? 'Remplacer par cette demande' : kind === 'photo' ? 'Utiliser cette demande' : 'Utiliser cette description'} ✓</Text></Pressable>}
             <Pressable accessibilityRole="button" onPress={() => { setDraft(previous => ({ ...previous, answers: {}, step: 0 })); setEditing(false); }} style={styles.back}><Text style={styles.link}>Recommencer les réponses</Text></Pressable>
           </> : <>
-            <Text style={styles.small}>Plusieurs choix possibles. Recliquez pour retirer un choix.</Text>
+            <Text style={styles.small}>{current.id === 'video-duration' ? 'Choisissez une seule durée totale.' : 'Plusieurs choix possibles. Recliquez pour retirer un choix.'}</Text>
             <View style={styles.options}>{current.options.map(option => {
               const selected = answer?.choices.includes(option.label) || false;
               return <Pressable key={option.label} accessibilityRole="checkbox" accessibilityLabel={option.label} aria-checked={selected} accessibilityState={{ checked: selected }} onPress={() => toggleChoice(option.label)} style={[styles.option, selected && styles.optionSelected]}><View style={styles.optionTop}><Text style={styles.optionSymbol}>{selected ? '✓' : '□'}</Text><Text style={[styles.optionTag, selected && { color: '#607146' }]}>{selected ? 'Choisi' : 'Choisir'}</Text></View><Text style={styles.optionTitle}>{option.label}</Text><Text style={styles.optionDetail}>{option.detail}</Text></Pressable>;

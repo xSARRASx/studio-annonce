@@ -58,7 +58,7 @@ async def retoucher_avec_mesure(image_jpeg: bytes, consigne: str, hd: bool = Fal
         "model": reglages.MODELE_OPENAI_IMAGE,
         "prompt": REGLE_RETOUCHE + consigne,
         "quality": reglages.QUALITE_OPENAI_HD if hd else reglages.QUALITE_OPENAI_APERCU,
-        "size": _taille_sortie(image_jpeg, 2048 if hd else 1024),
+        "size": _taille_sortie(image_jpeg, 2048),
         "output_format": "jpeg",
         "output_compression": "92",
     }
