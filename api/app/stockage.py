@@ -69,14 +69,10 @@ def lire(cle: str) -> bytes:
 
 
 def url_publique(cle: str) -> str:
-    """Nom historique : adresse temporaire signée, y compris pour les aperçus S3."""
+    """Adresse temporaire du site : le navigateur n'accède jamais directement au stockage privé."""
     if not cle:
         return ""
-    if utilise_s3():
-        return _s3().generate_presigned_url("get_object", Params={"Bucket": reglages.S3_BUCKET, "Key": _cle_s3(cle)}, ExpiresIn=DELAI_LIEN_LOCAL)
-    expiration = int(time.time()) + DELAI_LIEN_LOCAL
-    signature = signer_lien_local(cle, expiration)
-    return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}?expiration={expiration}&signature={signature}"
+    return _url_fichier_signe(cle, DELAI_LIEN_LOCAL)
 
 
 def signer_lien_local(cle: str, expiration: int) -> str:
@@ -86,14 +82,35 @@ def signer_lien_local(cle: str, expiration: int) -> str:
 
 def url_privee(cle: str) -> str:
     """À appeler seulement après contrôle du compte et du droit au fichier propre."""
-    if utilise_s3():
-        return _s3().generate_presigned_url("get_object", Params={"Bucket": reglages.S3_BUCKET, "Key": _cle_s3(cle)}, ExpiresIn=300)
-    expiration = int(time.time()) + 300
+    return _url_fichier_signe(cle, 300)
+
+
+def _url_fichier_signe(cle: str, duree: int) -> str:
+    if not cle:
+        return ""
+    _cle_s3(cle)  # refuse les chemins ambigus avant de signer un lien
+    expiration = int(time.time()) + duree
     return f"{reglages.URL_PUBLIQUE_API}/fichiers/{cle}?expiration={expiration}&signature={signer_lien_local(cle, expiration)}"
 
 
+def lien_signe_valide(cle: str, expiration: int, signature: str) -> bool:
+    try:
+        _cle_s3(cle)
+    except (ValueError, RuntimeError):
+        return False
+    return expiration >= int(time.time()) and hmac.compare_digest(signer_lien_local(cle, expiration), signature)
+
+
+def ouvrir_flux_s3(cle: str, plage: str | None = None):
+    """Ouvre un objet privé pour l'envoi progressif, sans charger une vidéo entière en mémoire."""
+    arguments = {"Bucket": reglages.S3_BUCKET, "Key": _cle_s3(cle)}
+    if plage:
+        arguments["Range"] = plage
+    return _s3().get_object(**arguments)
+
+
 def chemin_local_signe(cle: str, expiration: int, signature: str) -> Path | None:
-    if expiration < int(time.time()) or not hmac.compare_digest(signer_lien_local(cle, expiration), signature):
+    if not lien_signe_valide(cle, expiration, signature):
         return None
     chemin = (DOSSIER_LOCAL / cle).resolve()
     if not chemin.is_relative_to(DOSSIER_LOCAL.resolve()):

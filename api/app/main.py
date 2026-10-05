@@ -1,7 +1,10 @@
 """Le cerveau de Studio Annonce. Lancer : uvicorn app.main:app --reload"""
-from fastapi import FastAPI, Header, HTTPException, Query, Depends
+import re
+
+from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import FastAPI, Header, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from . import acces_ia, higgsfield_video, mail, stockage, paiements as service_paiement
 from .config import reglages
@@ -35,12 +38,45 @@ async def donnees_privees(request, call_next):
 if not stockage.utilise_s3():
     stockage.DOSSIER_LOCAL.mkdir(exist_ok=True)
 
-    @app.get("/fichiers/{cle:path}", include_in_schema=False)
-    def fichier_local(cle: str, expiration: int = Query(...), signature: str = Query(...)):
+
+@app.get("/fichiers/{cle:path}", include_in_schema=False)
+def fichier_prive(cle: str, request: Request, expiration: int = Query(...), signature: str = Query(...)):
+    if not stockage.lien_signe_valide(cle, expiration, signature):
+        raise HTTPException(404, "Fichier introuvable.")
+    if not stockage.utilise_s3():
         chemin = stockage.chemin_local_signe(cle, expiration, signature)
         if not chemin or not chemin.is_file():
             raise HTTPException(404, "Fichier introuvable.")
         return FileResponse(chemin)
+    plage = request.headers.get("range")
+    if plage and not re.fullmatch(r"bytes=(?:\d+-\d*|-\d+)", plage):
+        raise HTTPException(416, "Plage de fichier invalide.")
+    try:
+        objet = stockage.ouvrir_flux_s3(cle, plage)
+    except ClientError as erreur:
+        statut = erreur.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if statut in (404, 416):
+            raise HTTPException(statut, "Fichier introuvable." if statut == 404 else "Plage de fichier invalide.") from erreur
+        raise HTTPException(503, "Stockage temporairement indisponible.") from erreur
+    except BotoCoreError as erreur:
+        raise HTTPException(503, "Stockage temporairement indisponible.") from erreur
+    corps = objet["Body"]
+
+    def morceaux():
+        try:
+            for morceau in corps.iter_chunks(chunk_size=64 * 1024):
+                if morceau:
+                    yield morceau
+        finally:
+            corps.close()
+
+    entetes = {"Accept-Ranges": "bytes"}
+    if objet.get("ContentLength") is not None:
+        entetes["Content-Length"] = str(objet["ContentLength"])
+    if objet.get("ContentRange"):
+        entetes["Content-Range"] = objet["ContentRange"]
+    return StreamingResponse(morceaux(), status_code=206 if plage else 200,
+                             media_type=objet.get("ContentType") or "application/octet-stream", headers=entetes)
 
 
 @app.get("/sante")
