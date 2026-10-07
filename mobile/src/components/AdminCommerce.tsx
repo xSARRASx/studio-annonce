@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View
 import { useFocusEffect } from 'expo-router';
 import { useAccount } from './AccountConnection';
 import { Button, colors } from './Studio';
+import { TrackingExports } from './TrackingExports';
 
 type Cost = { id: string; fournisseur: string; reference: string; montant_centimes: number; compte: string; date: string; annule: boolean };
 type Commerce = { encaissements_bruts_centimes: number; remboursements_centimes: number; ca_total_centimes: number; retouches_creees: number; videos_creees: number; note_couts: string;
@@ -51,7 +52,7 @@ export function AdminCommerce() {
     finally { lock.current = false; setBusy(false); }
   }
   return <View style={s.card}><Text style={s.title}>Administration · Ventes et créations</Text><Text style={s.body}>Les ventes, remboursements, créations et frais, communs au site et à l’application.</Text><Button secondary title={open ? 'Réduire le tableau' : 'Voir le tableau administrateur'} onPress={() => setOpen(v => !v)}/>
-    {open && <>{!data && !error && <ActivityIndicator color={colors.ink}/>} {!!error && <Text accessibilityRole="alert" style={s.body}>{error}</Text>}
+    {open && <><TrackingExports />{!data && !error && <ActivityIndicator color={colors.ink}/>} {!!error && <Text accessibilityRole="alert" style={s.body}>{error}</Text>}
       {data && <><View style={s.metrics}>{[['Encaissements bruts', euro(data.encaissements_bruts_centimes)], ['Remboursements', euro(data.remboursements_centimes)], ['Chiffre d’affaires net', euro(data.ca_total_centimes)], ['Retouches créées', String(data.retouches_creees)], ['Vidéos lancées', String(data.videos_creees)], ['Frais réels saisis', data.frais.montant_centimes != null ? euro(data.frais.montant_centimes) : 'À renseigner'], ['Marge provisoire', data.frais.marge_provisoire_centimes != null ? euro(data.frais.marge_provisoire_centimes) : 'À rapprocher']].map(([label, value]) => <View style={s.metric} key={label}><Text style={s.small}>{label}</Text><Text style={s.title}>{value}</Text></View>)}</View>
       <Text style={s.small}>{data.note_couts}</Text><Button title="Ajouter des frais réels" secondary onPress={() => { setError(''); setForm(true); }}/>
       <Text style={s.title}>Activité par compte</Text>{data.par_compte.map(c => <View style={s.row} key={c.id}><Text style={s.title}>{c.nom || c.email}</Text><Text style={s.small}>{c.email}</Text><Text style={s.body}>{c.retouches_creees} retouche(s) · {c.videos_creees} vidéo(s)</Text><Text style={s.body}>Ventes photo : {euro(c.ca_photo_centimes)} · vidéo : {euro(c.ca_video_centimes)}</Text><Text style={s.small}>Remboursements : {euro(c.remboursements_centimes)} · Frais saisis : {c.frais_centimes != null ? euro(c.frais_centimes) : 'À rapprocher'}</Text></View>)}

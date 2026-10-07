@@ -1,3 +1,4 @@
+import { observeApi, observeDownload, observeGenerationFailure } from '../../../shared/tracking.ts';
 /** Account operations always use the server balance and limits. No local debit. */
 export type Limit = { utilisees: number; limite: number; restantes: number; bloque: boolean };
 export type Limits = { proprietaire?: boolean; photo: Limit; video: Limit; support_url: string; support_telephone: string; support_email?: string };
@@ -46,12 +47,21 @@ export function createAccountApi(base: string, getToken: () => string | null, on
       if (message === 'There was an error parsing the body') message = 'L’envoi de cette photo est incomplet. Les photos déjà ajoutées sont conservées. Réessayez avec les fichiers restants.';
       throw new ApiError(result.status, message);
     }
+    if ((options.method || 'GET') === 'POST') try { observeDownload(path, result, 'app'); } catch { /* Optional web measurement. */ }
     return result;
   }
   async function json<T>(path: string, options?: RequestInit): Promise<T> {
-    const result = await response(path, options);
+    let result: Response;
+    try { result = await response(path, options); }
+    catch (error) {
+      if (typeof document !== 'undefined') try { observeGenerationFailure(path, crypto.randomUUID(), options?.body, error instanceof ApiError ? error.status : 0, 'app'); } catch { /* Keep the original error. */ }
+      throw error;
+    }
     if (!result.headers.get('content-type')?.includes('application/json')) throw new ApiError(502, 'La réponse du service est interrompue. Vos données déjà enregistrées sont conservées.');
-    try { return await result.json(); } catch { throw new ApiError(502, 'La réponse du service est incomplète. Réessayez dans un instant.'); }
+    let data: T;
+    try { data = await result.json(); } catch { throw new ApiError(502, 'La réponse du service est incomplète. Réessayez dans un instant.'); }
+    try { observeApi(path, options?.method || 'GET', data, options?.body, { base: endpoint, token: getToken, support: 'app', transport }); } catch { /* Never block the user's request. */ }
+    return data;
   }
   return { response, json };
 }

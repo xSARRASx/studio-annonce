@@ -202,6 +202,30 @@ class FraisFournisseur(Base):
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
 
 
+class AttributionPublicitaire(Base):
+    """Clic consenti, séparé de l'identité, des crédits et de Stripe."""
+    __tablename__ = "attributions_publicitaires"
+    compte_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"), primary_key=True)
+    identifiant: Mapped[str] = mapped_column(String(250))
+    type: Mapped[str] = mapped_column(String(10))
+    date_clic: Mapped[datetime] = mapped_column(DateTime)
+    date_consentement: Mapped[datetime] = mapped_column(DateTime)
+
+
+class ConversionPublicitaire(Base):
+    """Attribution figée et accusé d'envoi. Aucune mutation du paiement."""
+    __tablename__ = "conversions_publicitaires"
+    achat_id: Mapped[str] = mapped_column(ForeignKey("achats_credits.id"), primary_key=True)
+    identifiant: Mapped[str] = mapped_column(String(250), default="")
+    type: Mapped[str] = mapped_column(String(10), default="")
+    date_clic: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    date_consentement: Mapped[datetime] = mapped_column(DateTime)
+    ticket: Mapped[str] = mapped_column(String(24), default="")
+    reserve_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    envoye_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    valeur_centimes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class ReprisePhoto(Base):
     """Une nouvelle période payée ; ni les versions ni les essais historiques ne sont effacés."""
     __tablename__ = "reprises_photos"

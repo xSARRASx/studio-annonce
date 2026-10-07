@@ -1,16 +1,81 @@
+from datetime import datetime, timedelta
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
-from .. import acces_ia, credits, credits_video, justificatifs, limites
+from .. import acces_ia, credits, credits_video, justificatifs, limites, publicite
 from ..config import reglages
 from ..db import session
-from ..models import AchatCredits, Compte, Logement, Photo, MouvementCredit, MouvementCreditVideo, maintenant
+from ..models import (AchatCredits, AttributionPublicitaire, Compte, ConversionPublicitaire, Logement,
+                      Photo, MouvementCredit, MouvementCreditVideo, maintenant)
 from ..paiements import PACKS_PHOTO, PACKS_VIDEO, photo_disponible, video_disponible
 from .auth import compte_courant
 
 routeur = APIRouter(prefix="/compte", tags=["compte"])
+
+
+class AccordPublicitaire(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    consentement: Literal[True]
+    date_consentement: datetime
+
+
+class ClicPublicitaire(AccordPublicitaire):
+    identifiant: str = Field(pattern=r"^[A-Za-z0-9_-]{1,250}$")
+    type: Literal["gclid", "gbraid", "wbraid"]
+    date_clic: datetime
+    achat_id: str | None = Field(default=None, max_length=24)
+
+
+class ConfirmationConversion(AccordPublicitaire):
+    ticket: str = Field(min_length=1, max_length=24)
+
+
+@routeur.post("/publicite")
+def attribution(d: ClicPublicitaire, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    consent = publicite.verifier_consentement(d)
+    clic = publicite.date_utc(d.date_clic)
+    if not maintenant() - timedelta(days=90) <= clic <= maintenant() + timedelta(minutes=5):
+        raise HTTPException(422, "Ce clic publicitaire a expiré.")
+    publicite.verrou(s, compte)
+    if compte.role != "client":
+        s.rollback(); return {"enregistre": False}
+    attr = s.get(AttributionPublicitaire, compte.id) or AttributionPublicitaire(compte_id=compte.id)
+    attr.identifiant, attr.type, attr.date_clic, attr.date_consentement = d.identifiant, d.type, clic, consent
+    s.add(attr); s.flush()
+    if d.achat_id:
+        achat = publicite.commande(s, compte, d.achat_id)
+        publicite.suivi(s, compte, achat, consent)
+    s.commit(); return {"enregistre": True}
+
+
+@routeur.post("/publicite/revoquer")
+def revoquer_publicite(compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    publicite.verrou(s, compte)
+    s.execute(delete(AttributionPublicitaire).where(AttributionPublicitaire.compte_id == compte.id))
+    achats_ids = select(AchatCredits.id).where(AchatCredits.compte_id == compte.id)
+    s.execute(update(ConversionPublicitaire).where(ConversionPublicitaire.achat_id.in_(achats_ids))
+              .values(identifiant="", type="", date_clic=None))
+    s.commit(); return {"revoque": True}
+
+
+@routeur.post("/achats/{achat_id}/conversion")
+def conversion_achat(achat_id: str, d: AccordPublicitaire, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    return publicite.reserver_conversion(s, compte, achat_id, publicite.verifier_consentement(d))
+
+
+@routeur.post("/achats/{achat_id}/conversion/confirmer")
+def confirmer_conversion(achat_id: str, d: ConfirmationConversion, compte: Compte = Depends(compte_courant), s: Session = Depends(session)):
+    publicite.verifier_consentement(d); publicite.verrou(s, compte)
+    achat = publicite.commande(s, compte, achat_id)
+    suivi = s.get(ConversionPublicitaire, achat.id)
+    if not suivi or suivi.ticket != d.ticket or achat.statut != "paye":
+        raise HTTPException(409, "Cette conversion ne peut pas être confirmée.")
+    suivi.envoye_le = suivi.envoye_le or maintenant()
+    s.commit(); return {"confirme": True}
 
 
 @routeur.get("/achats")

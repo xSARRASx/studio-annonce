@@ -347,6 +347,7 @@ function AccountContent() {
       const checkout = await api.json<{ url?: string; statut?: string }>('/paiements/checkout', { method: 'POST', body: JSON.stringify({ articles, cle_demande: request.current.key }) });
       if (checkout.statut === 'paye') { request.current = null; await refresh(); setNotice('Votre achat est confirmé.'); return; }
       if (!checkout.url || new URL(checkout.url).origin !== 'https://checkout.stripe.com') throw new Error('Le paiement sécurisé n’est pas disponible.');
+      if (Platform.OS === 'web') await new Promise(resolve => setTimeout(resolve, 200));
       await Linking.openURL(checkout.url); setNotice('Après le paiement, revenez ici et actualisez votre solde.');
     } catch (error) { setNotice(message(error)); } finally { setBusy(false); }
   }

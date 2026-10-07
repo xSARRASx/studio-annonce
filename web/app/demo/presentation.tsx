@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { demoInteraction } from '../../../shared/tracking';
 import { ArrowRight, Monitor, Play, Smartphone } from "lucide-react";
 import "./presentation.css";
 
@@ -83,6 +84,7 @@ export function Presentation() {
               controls={started}
               autoPlay={started}
               playsInline
+              onPlay={() => demoInteraction('film')}
               preload="none"
               aria-label={film.label}
             >Votre navigateur ne peut pas lire cette vidéo.</video>

@@ -2,13 +2,14 @@
 from datetime import date, datetime, time, timedelta
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from .. import credits, frais, limites
+from .. import credits, frais, limites, publicite
 from ..db import session
 from ..models import (AchatCredits, CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin,
                       FraisFournisseur, Logement, Photo, QuotaCreation, Version, Video, maintenant)
@@ -22,6 +23,32 @@ def administrateur(compte: Compte = Depends(compte_complet)) -> Compte:
     if compte.role not in ("proprietaire", "admin"):
         raise HTTPException(403, "Cet espace est réservé aux administrateurs.")
     return compte
+
+
+@routeur.get("/exports/{nature}")
+def donnees_export(nature: Literal["ventes", "remboursements"], requete: Request,
+                   mois: str = Query(pattern=r"^\d{4}-\d{2}$"),
+                   acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
+    # An authenticated business export is a studio feature, not a third-party
+    # advertising request. Keep its download path separate from ad collection.
+    return export_publicitaire("ventes_avec_gclid" if nature == "ventes" else nature, requete, mois, acteur, s)
+
+
+@routeur.get("/publicite/{nature}")
+@routeur.get("/publicite/{nature}.csv")
+def export_publicitaire(nature: Literal["ventes_avec_gclid", "remboursements"],
+                        requete: Request,
+                        mois: str = Query(pattern=r"^\d{4}-\d{2}$"),
+                        acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
+    if not acteur or acteur.role not in ("proprietaire", "admin") or acteur.statut != "actif":
+        raise HTTPException(403, "Cet export est réservé aux administrateurs.")
+    contenu = publicite.ventes_csv(s, mois) if nature == "ventes_avec_gclid" else publicite.remboursements_csv(s, mois)
+    if not requete.url.path.endswith(".csv"):
+        # Browsers fetch the data as JSON before creating a local CSV. Some
+        # download handlers consume attachment responses before fetch can read them.
+        return JSONResponse({"nom": f"{nature}-{mois}.csv", "contenu": contenu}, headers={"Cache-Control": "no-store"})
+    return Response(contenu, media_type="text/csv; charset=utf-8", headers={
+        "Content-Disposition": f'attachment; filename="{nature}-{mois}.csv"', "Cache-Control": "no-store"})
 
 
 def utc(value):

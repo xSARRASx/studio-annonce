@@ -53,10 +53,12 @@ class MotDePasseCompte(unittest.IsolatedAsyncioTestCase):
         confirmation = await self.client.post("/auth/inscription/verifier", json={"email": email, "code": code})
         self.assertEqual(confirmation.status_code, 200, confirmation.text)
         self.assertTrue(confirmation.json()["profil_complet"])
+        self.assertTrue(confirmation.json()["nouveau_compte"])
         self.assertEqual((await self.client.post("/auth/inscription/verifier", json={"email": email, "code": code})).status_code, 400)
         self.assertEqual((await self.client.post("/auth/connexion", json={"email": email, "mot_de_passe": "erreur"})).status_code, 401)
         connexion = await self.client.post("/auth/connexion", json={"email": email, "mot_de_passe": secret})
         self.assertEqual(connexion.status_code, 200)
+        self.assertNotIn("nouveau_compte", connexion.json())
         self.assertEqual((await self.client.post("/auth/code", json={"email": email})).json(), {"ok": True})
         self.assertEqual((await self.client.post("/auth/inscription", json=payload)).status_code, 409)
         with self.sessions() as s:

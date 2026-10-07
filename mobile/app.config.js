@@ -1,4 +1,5 @@
-// Réglage de publication : EXPO_BASE_URL="/studio-annonce/mobile" quand l'aperçu web vit dans un sous-dossier (GitHub Pages).
+// Publication web : EXPO_BASE_URL="/mobile" sur studioannonce.fr,
+// ou "/studio-annonce/mobile" pour l'aperçu GitHub Pages.
 module.exports = ({ config }) => ({
   ...config,
   web: { ...config.web, output: "static" },

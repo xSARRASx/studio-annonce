@@ -88,6 +88,8 @@ export default function AccountPage({ billing = false, credits = false }: { bill
       if (resultat.statut === "paye") { setCompte(await api<Compte>("/compte")); setMessage("Cet achat a déjà été ajouté à votre compte."); demande.current = null; return; }
       const url = new URL(resultat.url || "");
       if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") throw new Error("Le paiement ne peut pas être ouvert pour le moment.");
+      // Bound the optional measurement delay before opening Stripe.
+      await new Promise(resolve => window.setTimeout(resolve, 200));
       window.location.assign(url.href);
     } catch (e) {
       if (e instanceof ErreurApi && e.statut === 409) demande.current = null;

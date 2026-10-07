@@ -143,8 +143,9 @@ def confirmer_inscription(v: VerificationCode, s: Session = Depends(session)):
     if not compte or compte.statut != "actif" or not compte.mot_de_passe_hash:
         s.commit()
         raise HTTPException(400, "Code incorrect ou expiré.")
+    nouveau = compte.email_verifie_le is None
     compte.email_verifie_le = maintenant()
-    return _session(s, compte)
+    return {**_session(s, compte), "nouveau_compte": nouveau}
 
 
 @routeur.post("/connexion")

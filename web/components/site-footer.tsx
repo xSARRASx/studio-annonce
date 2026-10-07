@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookiePreferencesLink } from './cookie-info-link';
 import "./site-footer.css";
 
 const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -47,6 +48,7 @@ export function SiteFooter() {
           <Link href="/mentions-legales/">Mentions légales</Link>
           <Link href="/confidentialite/">Confidentialité</Link>
           <Link href="/cookies/">Cookies et stockage local</Link>
+          <CookiePreferencesLink />
           <Link href="/conditions-utilisation/">Conditions d’utilisation</Link>
           <Link href="/conditions-vente/">Conditions de vente</Link>
         </nav>

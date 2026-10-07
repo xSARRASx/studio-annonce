@@ -40,6 +40,21 @@ def lire_session(identifiant: str):
         raise HTTPException(502, "Le justificatif ne peut pas être ouvert pour le moment. Réessayez ; votre achat reste enregistré.") from erreur
 
 
+def lire_objet(ressource: str, parametres: dict):
+    """Deux listes en lecture seule pour les exports, sans modifier le SDK du paiement."""
+    if ressource not in ("refunds", "checkout/sessions") or not reglages.STRIPE_SECRET_KEY:
+        raise HTTPException(503, "Le rapprochement Stripe est momentanément indisponible.")
+    try:
+        with httpx.Client(timeout=httpx.Timeout(8, connect=3), follow_redirects=False) as client:
+            reponse = client.get(f"https://api.stripe.com/v1/{ressource}", auth=(reglages.STRIPE_SECRET_KEY, ""), params=parametres)
+            reponse.raise_for_status(); objet = reponse.json()
+        if not isinstance(objet, dict) or not isinstance(objet.get("data"), list):
+            raise ValueError("Réponse invalide")
+        return objet
+    except (httpx.HTTPError, ValueError) as erreur:
+        raise HTTPException(502, "Stripe n’a pas répondu au rapprochement. Aucun paiement n’a été modifié.") from erreur
+
+
 def documents(achat: AchatCredits):
     vide = {"achat_id": achat.id, "documents": []}
     if not achat.credite_le or achat.statut not in ("paye", "rembourse", "conteste"):

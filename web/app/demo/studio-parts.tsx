@@ -1,4 +1,5 @@
 "use client";
+import { demoInteraction } from '../../../shared/tracking';
 
 import Image from "next/image";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -18,7 +19,7 @@ export function Compare({ result = asset("salon-apres.webp"), before = asset("sa
     {watermarked && <PreviewWatermark from={split}/>}
     <span className="photo-label before-label">Avant</span><span className="photo-label after-label">Après <Sparkles size={12}/></span>
     <div className="compare-divider" style={{ left: `${split}%` }}><span><ChevronRight size={15} style={{ transform: "rotate(180deg)" }}/><ChevronRight size={15}/></span></div>
-    <input aria-label={label} aria-valuetext={`${split} % de la photo originale`} className="compare-range" type="range" min="0" max="100" value={split} onChange={event => setSplit(Number(event.target.value))}/>
+    <input aria-label={label} aria-valuetext={`${split} % de la photo originale`} className="compare-range" type="range" min="0" max="100" value={split} onChange={event => { setSplit(Number(event.target.value)); demoInteraction('comparateur'); }}/>
   </div>;
 }
 

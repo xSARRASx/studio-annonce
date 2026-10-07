@@ -1,3 +1,4 @@
+import { observeApi, observeDownload, observeGenerationFailure } from '../../shared/tracking';
 // Le seul endroit qui parle au cerveau. Jeton gardé dans le navigateur, jamais de clé ici.
 // Le site public sert l'API sur le même domaine. Une compilation de production
 // sans variable d'environnement ne doit jamais pointer vers l'ordinateur du visiteur.
@@ -36,23 +37,41 @@ async function reponseApi(chemin: string, options: RequestInit = {}): Promise<Re
 }
 
 export async function api<T = unknown>(chemin: string, options: RequestInit = {}): Promise<T> {
-  const rep = await reponseApi(chemin, options);
+  let rep: Response;
+  try { rep = await reponseApi(chemin, options); }
+  catch (error) {
+    if (typeof window !== 'undefined' && options.method === 'POST') try {
+      observeGenerationFailure(chemin, crypto.randomUUID(), options.body, error instanceof ErreurApi ? error.statut : 0, 'site');
+    } catch { /* No measurement failure can mask a service error. */ }
+    throw error;
+  }
   const type = rep.headers.get("content-type") || "";
   if (!type.includes("application/json")) throw new ErreurApi(502, "Le serveur n’a pas renvoyé de réponse complète. Vous pouvez reprendre cette action.");
-  try { return await rep.json() as T; }
+  let data: T;
+  try { data = await rep.json() as T; }
   catch { throw new ErreurApi(502, "La réponse du serveur a été interrompue. Vous pouvez reprendre cette action."); }
+  try { observeApi(chemin, options.method || 'GET', data, options.body, { base: API, token: jeton, support: 'site' }); } catch { /* Optional measurement never changes the API result. */ }
+  return data;
 }
 
 export async function telechargerPhoto(chemin: string): Promise<{
   fichier: Blob; creditConsomme: boolean; premierePhotoOfferte: boolean; repriseJusquAu: string | null;
 }> {
   const rep = await reponseApi(chemin, { method: "POST" });
+  try { observeDownload(chemin, rep, 'site'); } catch { /* Optional measurement. */ }
   return {
     fichier: await rep.blob(),
     creditConsomme: rep.headers.get("X-Photo-Credit-Consomme") === "1",
     premierePhotoOfferte: rep.headers.get("X-Photo-Offerte") === "1",
     repriseJusquAu: rep.headers.get("X-Photo-Reprise-Jusqu-Au") || null,
   };
+}
+
+export async function exportPublicitaire(nature: 'ventes_avec_gclid' | 'remboursements', mois: string): Promise<Blob> {
+  if (!/^\d{4}-\d{2}$/.test(mois)) throw new Error('Choisissez un mois.');
+  const fichier = await api<{ nom: string; contenu: string }>(`/admin/exports/${nature === 'ventes_avec_gclid' ? 'ventes' : nature}?mois=${encodeURIComponent(mois)}`);
+  if (fichier.nom !== `${nature}-${mois}.csv` || typeof fichier.contenu !== 'string' || !fichier.contenu.trim()) throw new Error('Le fichier n’a pas été reçu complètement. Réessayez.');
+  return new Blob([fichier.contenu], { type: 'text/csv;charset=utf-8' });
 }
 
 export type Version = { id: string; numero: number; consigne: string; depuis: string | null; apercu: string; hd: boolean; cree_le: string };

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { StudioProvider, colors } from '../components/Studio';
 import { AccountConnection } from '../components/AccountConnection';
+import { TrackingWeb } from '../components/TrackingWeb';
 
 const navigationItems = [
   { name: 'index', title: 'Mes créations' },
@@ -42,7 +43,7 @@ export default function Layout() {
     <Tabs.Screen name="facturation" options={{ title: 'Facturation' }}/>
     <Tabs.Screen name="compte" options={{ href: null }}/>
     <Tabs.Screen name="exemples" options={{ href: null }}/><Tabs.Screen name="local" options={{ href: null }}/>
-    <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></AccountConnection></StudioProvider>;
+    <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs><TrackingWeb /></AccountConnection></StudioProvider>;
 }
 
 const styles = StyleSheet.create({

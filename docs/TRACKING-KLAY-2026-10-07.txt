@@ -1,0 +1,185 @@
+STUDIO ANNONCE — INTÉGRATION POUR ARTHUR / KLAY
+7 octobre 2026
+
+SITE : https://studioannonce.fr/
+GTM : GTM-53FSBGMS
+GA4 : G-GFDHPVY7M5
+GOOGLE ADS : AW-18495907587
+
+INTÉGRATION CÔTÉ SITE
+
+Le contrat des événements de StudioAnnonce_DataLayer.zip et du guide v3
+du 6 octobre est adapté au site actuel Next exporté et à l'application Expo Web.
+Un seul chargement GTM ; aucun gtag Analytics ou Ads installé séparément.
+L'ancien accord cookies v1 ne vaut pas accord pour ce suivi.
+
+Consentement : mode BASIC, explicitement validé par Martin.
+Aucun script Google, cookie publicitaire ni ping Google avant acceptation.
+Quatre signaux Consent Mode v2 refusés par défaut, puis accordés à l'acceptation.
+« Tout accepter » / « Tout refuser », de même importance visuelle.
+« Gérer mes cookies » permet de changer son choix sur le site et Expo Web.
+Retirer l'accord supprime les identifiants accessibles, révoque l'attribution
+dans le compte et recharge la page pour arrêter les scripts déjà exécutés.
+Choix version 2 : 180 jours. Identifiant de clic : 90 jours maximum.
+Le même clic n'est pas prolongé à chaque actualisation. Purge serveur quotidienne.
+Les pages /cookies/ et /confidentialite/ décrivent les finalités.
+Le conteneur de production n'est pas chargé sur localhost ou un autre domaine.
+
+ÉVÉNEMENTS DATA LAYER
+
+page_view_spa
+  Navigation interne réelle ; page_path, page_location et page_referrer sans
+  paramètres de requête ni fragments libres. support : site ou app.
+  La balise de configuration GA4 doit assurer la première page vue.
+  Ne pas doubler ce signal avec le suivi automatique des changements d'historique.
+
+demo_interaction
+  Première interaction par élément et session sur les pages publiques.
+  element : comparateur / film / parcours / filtre. variante facultative.
+  Les manipulations dans le studio connecté ou la démo locale sont exclues.
+
+inscription_code_envoye
+  Après réponse positive à la demande de code d'une inscription.
+  Un renvoi du code n'ajoute pas un autre événement dans la même session.
+
+compte_cree
+  Après vérification réussie de l'email d'un NOUVEAU compte.
+  methode : email ; support ; value : 0 ; currency : EUR.
+  Une connexion, un mot de passe oublié ou un retour d'un client n'est pas
+  une création de compte. L'API renvoie nouveau_compte=true uniquement ici.
+
+login
+  Connexion email / mot de passe d'un compte existant ; method : email ; support.
+  Signal secondaire, pas une nouvelle inscription.
+
+photo_importee
+  Envoi réellement confirmé par l'API, avec nb_photos=1 et format de l'image.
+  Chaque fichier du lot a sa confirmation ; répéter le même envoi ne le recompte
+  pas. Aucun événement à la simple sélection d'un fichier ni dans la démo locale.
+  premiere_importation n'est pas deviné : ce champ facultatif est omis.
+
+generation_terminee
+  Résultat IA réel confirmé, ou erreur du moteur.
+  generation_id stable pour le résultat ; outil : retouche ou photos_video ;
+  reussie ; correction ; support.
+  Les vidéos en attente/en cours ne déclenchent pas cet événement.
+  Réouvrir un ancien résultat terminé ne le recompte pas.
+  Une erreur de solde, un refus de validation ou un quota atteint n'est pas
+  traité comme un échec de génération IA.
+  Une erreur de retouche sans version produite possède un UUID de tentative.
+  Les préparations de brief sans génération ne sont pas comptées comme résultats.
+
+telechargement_hd
+  Premier téléchargement effectivement acquis, confirmé par les en-têtes API.
+  photo_id ; type_telechargement : offerte ou credit ; outil : retouche ; support.
+  Aucun revenu associé. Re-télécharger la même photo ne recompte pas.
+
+begin_checkout
+  Session Stripe créée, juste avant ouverture du paiement sécurisé.
+  commande_id = identifiant de commande interne ; value = montant TTC du panier,
+  calculé avec le catalogue du serveur ; currency : EUR ; pack ; type_pack ;
+  nb_credits ; items (item_id, quantity) ; support.
+  200 ms maximum avant redirection ; l'échec du suivi ne bloque jamais Stripe.
+
+pack_achete
+  Achat réel confirmé en base par le paiement existant, et crédits attribués.
+  transaction_id = même commande_id que begin_checkout.
+  value ET montant_ttc : montant réellement payé en euros ; currency : EUR.
+  valeur_base : ca_ttc ; pack ; type_pack ; nb_credits ; premier_achat ; items ;
+  support ; user_data facultatif.
+  Une commande test, en attente, remboursée ou d'un autre compte est exclue.
+  Réservation côté serveur, garde de session et accusé empêchent les doublons.
+  Le paramètre ?achat= de l'URL seul ne suffit JAMAIS à valider un achat.
+  Le retour Stripe reste /app/compte/?achat=... et les webhooks sont conservés.
+
+Les créations des administrateurs et du propriétaire sont exclues du suivi
+commercial ; leurs générations restent gratuites dans le produit.
+
+CONVERSIONS AMÉLIORÉES — NE PAS ENVOYER L'EMAIL À GA4
+
+Pour compte_cree et pack_achete uniquement, un email normalisé peut se trouver
+dans user_data.email_address, après accord. Le tag Google Ads doit appliquer
+le hachage pris en charge par Google, avec ad_user_data=granted.
+Les événements suivants remettent user_data à null pour éviter la propagation.
+Pas d'adresse, pays, téléphone ou nom inventé. Pas d'email en paramètre GA4.
+Photos, prompts, codes, mots de passe, clés API et jetons restent exclus.
+Configurer explicitement les paramètres GA4 ; ne pas envoyer tout le dataLayer.
+
+VALEUR DES ACHATS : CHIFFRE D'AFFAIRES TTC
+
+La formule TVA 20 % et frais Stripe Hong Kong 5,9 % + 0,26 € du guide n'est pas
+appliquée sans confirmation de la fiscalité et du contrat Stripe effectif.
+La valeur envoyée est donc le TTC réel, pas une marge estimée.
+Les frais fournisseurs réels ont leur registre séparé dans l'administration.
+Adapter les objectifs et rapports Google à valeur_base=ca_ttc ; ne pas nommer
+cette valeur « bénéfice » ou « montant net ».
+
+EXPORTS ADMINISTRATEUR
+
+https://studioannonce.fr/app/admin/ — partie « Exports pour le suivi publicitaire ».
+Choisir un mois AAAA-MM ; fichiers disponibles aussi dans l'administration
+de l'application. Téléchargement authentifié ; aucune URL publique de données.
+Les boutons vérifient le nom et le contenu avant de préparer le CSV local.
+Transport interne : GET /api/admin/exports/ventes ou /remboursements,
+avec mois=AAAA-MM. Ces routes ne collectent aucun événement publicitaire.
+
+ventes_avec_gclid-AAAA-MM.csv
+  commande_id,gclid,date_heure_paiement,valeur_eur,devise
+  Paiements réels crédités durant ce mois, attribution gclid consentie et valide.
+  Référence de commande identique au transaction_id du navigateur.
+  Dates ISO 8601 UTC ; montants TTC en EUR avec point décimal.
+  gbraid et wbraid sont capturés pour le navigateur, pas forcés en gclid dans
+  cet export. Aucun email dans le CSV.
+
+remboursements-AAAA-MM.csv
+  transaction_id,date_remboursement,montant_eur,motif
+  Lecture Stripe GET uniquement : date et montant réels, paiements rapprochés
+  de la commande interne, aucun remboursement déclenché par l'export.
+  remboursement_total : préparer une RETRACTION, montant = valeur TTC originale.
+  valeur_apres_remboursement_partiel : préparer une RESTATEMENT, montant = TTC
+  restant après tous les remboursements confirmés jusqu'à la fin du mois.
+  Exemple : achat 9,99 €, remboursement partiel 2 € => valeur corrigée 7,99 €.
+  Ne pas traiter 7,99 € comme le montant du remboursement.
+  Pagination trop volumineuse : erreur explicite plutôt qu'export incomplet.
+
+Klay doit convertir ces colonnes dans son modèle d'import Google Ads, choisir
+le nom exact de l'action de conversion et utiliser les références de commande
+pour le rapprochement/dédoublonnage. Il n'y a pas d'envoi automatique à Google
+Ads ou par email. Ne pas additionner deux fois ventes navigateur et imports.
+
+À TERMINER DANS LE CONTENEUR PAR KLAY
+
+Lors du contrôle du 7 octobre, la ressource publiée de GTM-53FSBGMS était
+version 1 avec tags=[], predicates=[] et rules=[]. Elle ne contenait ni les
+balises GA4/Ads ni les déclencheurs des événements ci-dessus.
+Le chargement de GTM seul ne prouve donc pas une réception par Google.
+
+1. Configurer/publier GA4 G-GFDHPVY7M5 et Ads AW-18495907587 dans ce conteneur.
+2. Poser les déclencheurs et les labels exacts de conversion Ads.
+   compte_cree peut être l'objectif d'inscription ; value=0.
+   pack_achete porte le montant TTC réel de l'achat.
+3. Dans GA4, mapper pack_achete vers purchase avec transaction_id/value/currency
+   et items, une seule fois. Éviter un deuxième signal de revenu.
+4. Exclure user_data/email des paramètres GA4 et vérifier le hachage Ads.
+5. Respecter le mode basic : aucune autre injection Google avant accord.
+6. Contrôler GTM Preview/Tag Assistant, DebugView et les diagnostics Ads ;
+   tester accord/refus, vraie nouvelle inscription, premier HD et commande réelle.
+   Un achat réel supplémentaire n'a pas été exécuté dans cette livraison.
+7. Configurer les durées de cookies des balises, et les conversions/imports pour
+   éviter la double comptabilisation et les corrections de remboursement erronées.
+
+APPLICATION
+
+Le site et Expo Web (/mobile/) utilisent le même contrat et le même accord.
+Les bundles iOS/Android compilent ; ce document ne prétend pas qu'une nouvelle
+application native signée est publiée. GTM navigateur ne s'exécute pas dans les
+bundles natifs ; aucune bibliothèque Analytics/Ads native n'a été ajoutée.
+Les exports peuvent rapprocher un paiement fait via l'application si le compte
+avait déjà une attribution web consentie encore valide.
+
+PAIEMENTS ET DONNÉES
+
+Fichiers Stripe, clés et configuration du père conservés et contrôlés par
+empreinte avant/après. Pas de modification du webhook, des packs, de la création
+de session ou de l'URL de retour. Tables de suivi ajoutées à part ; aucun débit
+de crédit par ces routes. Originaux, créations, comptes et commandes préservés.

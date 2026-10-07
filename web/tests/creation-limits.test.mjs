@@ -57,6 +57,6 @@ test('Le filigrane de comparaison reste une couche visuelle limitée à la zone 
   const html = renderToStaticMarkup(createElement(PreviewWatermark, { from: 44 }));
   assert.match(html, /clip-path:inset\(0 0 0 44%\)/);
   assert.match(html, /aria-hidden="true"/);
-  assert.equal((html.match(/STUDIO ANNONCE/g) || []).length, 20);
+  assert.equal((html.match(/STUDIO ANNONCE/g) || []).length, 12); // Intensité intermédiaire approuvée.
   assert.doesNotMatch(html, /<img|<canvas|src=/);
 });
