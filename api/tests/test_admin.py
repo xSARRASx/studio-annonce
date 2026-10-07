@@ -2,6 +2,7 @@
 import asyncio
 import tempfile
 import unittest
+from datetime import timedelta
 from unittest.mock import patch
 
 import httpx
@@ -11,8 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app import limites
 from app.db import Base, session
-from app.models import (CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin, QuotaCreation,
-                        Logement, MouvementCredit, Photo, maintenant)
+from app.models import (AchatCredits, CodeConnexion, Compte, ConnexionCompte, FraisFournisseur, Jeton, JournalAdmin, QuotaCreation,
+                        Logement, MouvementCredit, Photo, Version, Video, maintenant)
 from app.routes import admin, auth, compte
 from scripts.initialiser_admin import initialiser
 
@@ -50,13 +51,100 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_anonyme_et_client_refuses_sur_tous_les_endpoints(self):
         for authorization, expected in [("", 401), ("Bearer client", 403)]:
-            for path in ["/admin/vue-ensemble", "/admin/comptes", "/admin/journal", "/admin/alertes", "/admin/comptes/owner"]:
+            for path in ["/admin/vue-ensemble", "/admin/activite-commerciale", "/admin/comptes", "/admin/journal", "/admin/alertes", "/admin/comptes/owner"]:
                 r = await self.client.get(path, headers={"Authorization": authorization})
                 self.assertEqual(r.status_code, expected, r.text)
             for method, path, data in [("POST", "/admin/comptes", {"prenom": "Test", "nom": "Client", "email": "new@example.com"}),
                                       ("PATCH", "/admin/comptes/owner", {"prenom": "Test", "nom": "Client", "revision": 0}),
                                       ("POST", "/admin/comptes/owner/actions", {"action": "suspendre", "revision": 0, "confirmation_email": "owner@example.com"})]:
                 self.assertEqual((await self.client.request(method, path, headers={"Authorization": authorization}, json=data)).status_code, expected)
+
+    async def test_activite_commerciale_ne_compte_que_les_achats_reels_credites(self):
+        with self.sessions() as s:
+            s.add(Logement(id="maison", compte_id="client", nom="Maison"))
+            s.flush()
+            s.add(Photo(id="photo-test", logement_id="maison", cle_originale="prive/original.jpg"))
+            s.flush()
+            s.add(Version(id="version-test", photo_id="photo-test", numero=1, consigne="Lumière", cle_apercu="a", cle_pleine="p"))
+            s.add(Video(id="video-test", logement_id="maison", statut="prete", plan={}, requetes={}))
+            for ident, nature, montant, reel, statut, credite in [
+                ("photo-payee", "photo", 999, 1, "paye", maintenant()),
+                ("video-payee", "video", 1697, 1, "paye", maintenant()),
+                ("photo-remboursee", "photo", 999, 1, "rembourse", maintenant()),
+                ("essai-stripe", "video", 9999, 0, "paye", maintenant()),
+                ("en-attente", "photo", 5999, 1, "en_attente", None),
+            ]:
+                s.add(AchatCredits(id=ident, compte_id="client", cle_demande=ident, pack_id="pack", nature=nature,
+                                   credits=2, montant_centimes=montant, reel=reel, statut=statut, credite_le=credite))
+            s.commit()
+        r = await self.client.get("/admin/activite-commerciale")
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertEqual((data["ca_photo_centimes"], data["ca_video_centimes"], data["ca_total_centimes"]), (999, 1697, 2696))
+        self.assertEqual((data["encaissements_bruts_centimes"], data["remboursements_centimes"], data["achats_rembourses"]), (3695, 999, 1))
+        self.assertEqual((data["achats_payes"], data["photos_importees"], data["retouches_creees"], data["videos_creees"]), (2, 1, 1, 1))
+        self.assertIsNone(data["cout_fournisseur"])
+        self.assertIsNone(data["benefice"])
+        self.assertEqual(len(data["ventes_recentes"]), 3)
+        self.assertEqual({operation["statut"] for operation in data["ventes_recentes"]}, {"paye", "rembourse"})
+
+    async def test_vue_ensemble_distingue_connexions_et_comptes(self):
+        with self.sessions() as s:
+            s.add_all([ConnexionCompte(compte_id="owner"), ConnexionCompte(compte_id="client"),
+                       ConnexionCompte(compte_id="client"), ConnexionCompte(compte_id="client",
+                       cree_le=maintenant() - timedelta(days=20))])
+            s.commit()
+        r = await self.client.get("/admin/vue-ensemble")
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertEqual(sum(jour["nombre"] for jour in data["connexions"]), 3)
+        self.assertEqual([(ligne["email"], ligne["nombre"]) for ligne in data["connexions_par_compte"]],
+                         [("client@example.com", 2), ("owner@example.com", 1)])
+
+    async def test_frais_reels_marge_partielle_doublon_et_registres_intacts(self):
+        donnees = {"fournisseur": "Higgsfield", "reference": "  facture-01 ", "nature": "video",
+                   "montant_centimes": 196, "date": "2026-01-05", "compte_id": "client"}
+        premiere = await self.client.post("/admin/frais", json=donnees)
+        self.assertEqual(premiere.status_code, 201, premiere.text)
+        seconde = await self.client.post("/admin/frais", json=donnees)
+        self.assertEqual(seconde.json()["id"], premiere.json()["id"])
+        self.assertTrue(seconde.json()["deja_enregistre"])
+        self.assertEqual((await self.client.post("/admin/frais", json={**donnees, "montant_centimes": 200})).status_code, 409)
+        tableau = (await self.client.get("/admin/activite-commerciale")).json()
+        self.assertEqual((tableau["cout_fournisseur"], tableau["frais"]["nombre"], tableau["frais"]["marge_provisoire_centimes"]), (196, 1, -196))
+        self.assertIsNone(tableau["benefice"])
+        self.assertEqual(tableau["par_compte"][0]["frais_centimes"], 196)
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(func.count()).select_from(FraisFournisseur)), 1)
+            self.assertEqual(s.scalar(select(func.count()).select_from(JournalAdmin)), 1)
+            self.assertEqual(s.scalar(select(func.count()).select_from(AchatCredits)), 0)
+            self.assertEqual(s.scalar(select(func.count()).select_from(MouvementCredit)), 0)
+
+    async def test_frais_permissions_et_validations(self):
+        donnees = {"fournisseur": "OpenAI", "reference": "facture-02", "nature": "photo",
+                   "montant_centimes": 100, "date": "2026-01-05"}
+        for jeton, statut in [("", 401), ("Bearer client", 403)]:
+            self.assertEqual((await self.client.post("/admin/frais", json=donnees, headers={"Authorization": jeton})).status_code, statut)
+            self.assertEqual((await self.client.post("/admin/frais/absent/annuler", headers={"Authorization": jeton})).status_code, statut)
+        for champs in ({"montant_centimes": 0}, {"montant_centimes": -1}, {"montant_centimes": 1.5},
+                       {"reference": " "}, {"date": "2999-01-01"}, {"devise": "usd"}):
+            with self.subTest(champs=champs):
+                self.assertEqual((await self.client.post("/admin/frais", json={**donnees, **champs})).status_code, 422)
+        self.assertEqual((await self.client.post("/admin/frais", json={**donnees, "compte_id": "absent"})).status_code, 404)
+        self.assertEqual((await self.client.post("/admin/frais", json=donnees, headers={"Authorization": "Bearer admin"})).status_code, 201)
+
+    async def test_annuler_saisie_frais_ne_supprime_pas_la_trace(self):
+        donnees = {"fournisseur": "Stripe", "reference": "frais-01", "nature": "autre",
+                   "montant_centimes": 50, "date": "2026-01-05"}
+        ident = (await self.client.post("/admin/frais", json=donnees)).json()["id"]
+        for _ in range(2):
+            self.assertEqual((await self.client.post(f"/admin/frais/{ident}/annuler")).status_code, 200)
+        tableau = (await self.client.get("/admin/activite-commerciale")).json()
+        self.assertIsNone(tableau["cout_fournisseur"])
+        self.assertTrue(tableau["frais"]["lignes"][0]["annule"])
+        with self.sessions() as s:
+            self.assertEqual(s.scalar(select(func.count()).select_from(FraisFournisseur)), 1)
+            self.assertEqual(s.scalar(select(func.count()).select_from(JournalAdmin)), 2)
 
     async def test_creation_client_email_normalise_aucun_envoi_ni_role_injecte(self):
         data = {"prenom": "  Marie ", "nom": " Test ", "email": "NEW@EXAMPLE.COM"}
@@ -118,6 +206,8 @@ class AdminTest(unittest.IsolatedAsyncioTestCase):
             s.flush()
             s.add_all([QuotaCreation(compte_id=f"alerte-{i:02}", nature="photo", utilisees=30) for i in range(21)])
             s.add(QuotaCreation(compte_id="client", nature="video", utilisees=10))
+            s.add(QuotaCreation(compte_id="admin", nature="photo", utilisees=30))
+            s.add(QuotaCreation(compte_id="owner", nature="video", utilisees=10))
             s.add(QuotaCreation(compte_id="second", nature="photo", utilisees=30))
             s.get(Compte, "second").statut = "supprime"; s.commit()
         one = (await self.client.get("/admin/alertes?page=1")).json()

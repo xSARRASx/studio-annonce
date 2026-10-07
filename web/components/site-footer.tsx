@@ -29,24 +29,15 @@ export function SiteFooter() {
         <nav aria-label="Utiliser Studio Annonce">
           <h2>À vos côtés</h2>
           <Link href="/aide/">Questions fréquentes</Link>
-          <Link href="/connexion/">Ouvrir mon compte</Link>
-          <Link href="/mobile-preview/">Aperçu mobile</Link>
+          <Link href="/se-connecter/">Ouvrir mon compte</Link>
+          <a href="/mobile/">Ouvrir l’application mobile</a>
           <a href="mailto:contact@studioannonce.fr">Nous contacter</a>
         </nav>
 
         <div className="site-footer-app" aria-labelledby="site-footer-app-title">
           <h2 id="site-footer-app-title">À emporter partout</h2>
-          <p>Application mobile · Bientôt disponible</p>
-          <div className="site-footer-stores" aria-label="Application mobile bientôt disponible">
-            <span className="site-footer-store-badge">
-              <Image src={`${base}/platforms/apple.svg`} alt="" width={26} height={26} />
-              <span><small>Bientôt sur</small><strong>App Store</strong></span>
-            </span>
-            <span className="site-footer-store-badge">
-              <Image src={`${base}/platforms/google-play.svg`} alt="" width={26} height={26} />
-              <span><small>Bientôt sur</small><strong>Google Play</strong></span>
-            </span>
-          </div>
+          <p>Retrouvez votre studio et vos créations sur votre téléphone, depuis le navigateur.</p>
+          <a className="site-footer-mobile-link" href="/mobile/">Ouvrir l’application mobile →</a>
         </div>
       </div>
 
@@ -57,6 +48,7 @@ export function SiteFooter() {
           <Link href="/confidentialite/">Confidentialité</Link>
           <Link href="/cookies/">Cookies et stockage local</Link>
           <Link href="/conditions-utilisation/">Conditions d’utilisation</Link>
+          <Link href="/conditions-vente/">Conditions de vente</Link>
         </nav>
       </div>
       <p className="site-footer-editor">Un service édité par MA INDUSTRY COMPANY LIMITED</p>

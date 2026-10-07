@@ -147,7 +147,7 @@ export function VideoFrames({ library, busy, active, onCancel, onCreate }: {
     {videoFile && <section className="vf-step"><div className="vf-step-title"><span>2</span><div><h2>Quel résultat voulez-vous ?</h2><p>Écrivez librement, puis demandez un peu d’aide si vous le souhaitez.</p></div></div>
       <label className="vf-request">Votre demande<textarea value={request} onChange={event => setRequest(event.target.value)} maxLength={20000} rows={4} placeholder="Ex. : rends les images plus lumineuses, enlève les objets qui traînent et garde un rendu naturel pour Airbnb…"/></label>
       <BriefAssistant kind="photo" request={request} onUse={setRequest}/>
-      <p className="vf-request-note">Votre demande sera enregistrée avec chaque photo choisie. La retouche automatique reste à connecter.</p>
+      <p className="vf-request-note">Votre demande est conservée avec chaque photo choisie. Retrouvez ensuite ces photos dans Mes créations pour préparer leur retouche.</p>
     </section>}
 
     {frames.length > 0 && <section className="vf-step"><div className="vf-step-title"><span>3</span><div><h2>Gardez les bonnes photos</h2><p>Cliquez sur une image pour la sélectionner ou l’enlever.</p></div><strong className="vf-selection-count">{selected.length} / {frames.length}</strong></div>

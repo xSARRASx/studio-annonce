@@ -107,7 +107,7 @@ for alias, canonical in {'/demo/tarifs/': '/tarifs/', '/demo/aide/': '/aide/', '
 studio_demo = Page(ROOT / 'demo/index.html')
 check(any('noindex' in value for value in studio_demo.meta('robots')), 'Studio demonstration route must not be indexed')
 check(not any(a.get('rel') == 'canonical' and a.get('href') == ORIGIN + '/' for a in studio_demo.attrs('link')), 'Studio demonstration must not claim the public homepage canonical')
-for private in [ROOT / 'connexion/index.html', ROOT / 'mobile-preview/index.html', *(ROOT / 'app').glob('**/index.html')]:
+for private in [*(ROOT / name / 'index.html' for name in ('connexion', 'inscription', 'se-connecter', 'mot-de-passe-oublie')), ROOT / 'mobile-preview/index.html', *(ROOT / 'app').glob('**/index.html')]:
     page = Page(private)
     check(any('noindex' in value for value in page.meta('robots')), f'Private or preview route without noindex: {private.relative_to(ROOT)}')
 robots = (ROOT / 'robots.txt').read_text()

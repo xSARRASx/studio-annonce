@@ -20,8 +20,8 @@ export function CreditDialog({ open, onClose, paiementDisponible, nature = "phot
     <span className="credit-dialog-icon"><Wallet size={23}/></span>
     <h2 id="credit-dialog-title">Ajouter des crédits {nature}</h2>
     <p>Votre solde {nature} est à zéro. Consultez les packs pour poursuivre vos créations. Votre demande en cours reste enregistrée.</p>
-    {!paiementDisponible && <p className="credit-dialog-note">Les achats ne sont pas encore ouverts : vous pouvez voir les tarifs, mais aucun paiement ne sera demandé pour le moment.</p>}
+    {!paiementDisponible && <p className="credit-dialog-note">Le paiement est momentanément indisponible. Vous pouvez consulter les packs ; votre préparation reste enregistrée.</p>}
     <div className="credit-dialog-actions"><button type="button" onClick={onClose}>Plus tard</button>
-      <Link href="/app/facturation/" onClick={onClose}>Voir les packs de crédits <ArrowRight size={16}/></Link></div>
+      <Link href="/app/credits/" onClick={onClose}>Voir les packs de crédits <ArrowRight size={16}/></Link></div>
   </dialog>;
 }

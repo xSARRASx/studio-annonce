@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from .config import reglages
 from .models import Compte, QuotaCreation, ReservationCreation, maintenant
+from .acces_ia import gratuit_proprietaire
 
 
 def plafond(nature: str) -> int:
@@ -32,7 +33,8 @@ def _quota(s: Session, compte_id: str, nature: str) -> QuotaCreation:
 
 def vue(s: Session, compte_id: str) -> dict:
     compte = s.get(Compte, compte_id)
-    resultat = {"proprietaire": bool(compte and compte.role == "proprietaire"), "support_url": reglages.SUPPORT_URL, "support_telephone": reglages.SUPPORT_TELEPHONE,
+    offert = gratuit_proprietaire(compte)
+    resultat = {"proprietaire": offert, "support_url": reglages.SUPPORT_URL, "support_telephone": reglages.SUPPORT_TELEPHONE,
                 "support_email": reglages.SUPPORT_EMAIL}
     for nature in ("photo", "video"):
         q = s.get(QuotaCreation, (compte_id, nature))
@@ -44,7 +46,7 @@ def vue(s: Session, compte_id: str) -> dict:
         limite = plafond(nature)
         resultat[nature] = {"utilisees": utilisees, "en_cours": en_cours, "limite": limite,
                             "restantes": max(0, limite - utilisees - en_cours),
-                            "bloque": utilisees + en_cours >= limite}
+                            "bloque": not offert and utilisees + en_cours >= limite}
     return resultat
 
 
@@ -56,6 +58,8 @@ def verifier(s: Session, compte_id: str, nature: str) -> None:
 
 def reserver(s: Session, compte_id: str, nature: str, jeton: str) -> None:
     verifier(s, compte_id, nature)
+    if gratuit_proprietaire(s.get(Compte, compte_id)):
+        return
     q = _quota(s, compte_id, nature)
     s.add(ReservationCreation(jeton=jeton, compte_id=compte_id, nature=nature, periode=q.periode,
                               statut="en_cours", expire_le=maintenant() + timedelta(minutes=10)))

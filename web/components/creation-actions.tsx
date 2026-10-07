@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Archive, Trash2, Undo2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Modal } from "@/app/demo/studio-parts";
@@ -36,7 +37,7 @@ export function CreationConfirmation({ item, onClose, onStart, onDone, onError }
 export function CreationNotice({ text, onClose }: { text: string; onClose: () => void }) {
   return text ? <div className="creation-toast" role="status"><span>{text}</span><button type="button" aria-label="Fermer le message" onClick={onClose}><X size={18}/></button></div> : null;
 }
-type Item = { id: string; nature: "photos" | "videos"; titre: string; logement: string; vignette: string; duree?: number; url?: string; en_cours: boolean; statut?: string };
+type Item = { id: string; nature: "photos" | "videos"; titre: string; logement: string; vignette: string; duree?: number; url?: string; en_cours: boolean; statut?: string; photos_sources?: { id: string; titre: string; vignette: string; retouchee: boolean }[] };
 export function CreationExtras({ revision, onChange, onNotice }: { revision: number; onChange: () => void; onNotice: (message: string) => void }) {
   const [trash, setTrash] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -62,6 +63,7 @@ export function CreationExtras({ revision, onChange, onNotice }: { revision: num
     {loading ? <p role="status">Chargement…</p> : !items.length ? <p>{trash ? "La corbeille est vide." : "Vos vidéos apparaîtront ici après leur création."}</p> : <div className="creation-video-grid">{items.map(item => <article key={`${item.nature}-${item.id}`}>
       {!trash && item.url ? <video controls playsInline preload="none" poster={item.vignette} src={item.url}/> : item.vignette ? <img src={item.vignette} alt=""/> : null}
       <strong>{item.titre}</strong><small>{item.nature === "photos" ? item.logement : `${item.duree || 5} secondes · ${item.en_cours ? "En cours" : item.statut === "echec" ? "À vérifier" : "Terminée"}`}</small>
+      {!trash && item.nature === "videos" && !!item.photos_sources?.length && <details className="creation-video-sources"><summary>Voir les photos de cette vidéo · {item.photos_sources.length}</summary><div>{item.photos_sources.map(source => <Link key={source.id} href={`/app/photo/?id=${source.id}`}><img src={source.vignette} alt=""/><span>{source.titre}<small>{source.retouchee ? "Retouche disponible" : "Retoucher cette photo"}</small></span></Link>)}</div></details>}
       {trash ? <button type="button" className="button outlined" disabled={!!busy} onClick={() => void restore(item)}><Undo2 size={16}/> {busy === item.id ? "Restauration…" : "Restaurer"}</button> : <button type="button" className="text-action creation-delete" disabled={item.en_cours} onClick={() => setConfirmation({ ...item, action: "supprimer" })}><Trash2 size={16}/> Supprimer la vidéo</button>}
       {item.en_cours && <small>La suppression sera disponible une fois la création terminée.</small>}
     </article>)}</div>}

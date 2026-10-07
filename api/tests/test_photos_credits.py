@@ -15,12 +15,37 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
 from app import credits, limites
+from app.consignes_photo import CONSIGNE_AUTOMATIQUE
 from app.db import Base, session
 from app.models import Compte, Jeton, Logement, MouvementCredit, OperationPhoto, Photo, QuotaCreation, ReprisePhoto, Version
 from app.routes import photos
 
 
 class ContratPhoto(unittest.IsolatedAsyncioTestCase):
+    async def test_administrateur_cree_sans_credit_ni_plafond_client(self):
+        with self.sessions() as s:
+            compte = s.get(Compte, "a")
+            compte.role = "admin"
+            s.query(MouvementCredit).filter(MouvementCredit.compte_id == "a").delete()
+            s.get(Photo, "p").essais = photos.reglages.ESSAIS_MAX_PAR_PHOTO
+            s.add(QuotaCreation(compte_id="a", nature="photo", utilisees=limites.plafond("photo")))
+            s.commit()
+        with patch.object(photos.reglages, "IA_PUBLIQUE", False), patch.object(photos.reglages, "ESSAIS_MAX_PAR_JOUR", 0):
+            vue = (await self.client.get("/photos/p")).json()
+            self.assertFalse(vue["reprise_necessaire"])
+            self.assertFalse(vue["filigrane"])
+            self.assertFalse(vue["limites"]["photo"]["bloque"])
+            resultat = await self.client.post("/photos/p/essai", json={"demande": ""})
+            self.assertEqual(resultat.status_code, 200, resultat.text)
+            self.assertFalse(resultat.json()["reprise_necessaire"])
+            self.assertEqual(self.balance(), 0)
+
+    async def test_retouche_automatique_sans_demande_evite_reformulation(self):
+        resultat = await self.client.post("/photos/p/essai", json={"demande": ""})
+        self.assertEqual(resultat.status_code, 200, resultat.text)
+        photos.vision.reformuler_demande.assert_not_awaited()
+        self.assertEqual(photos.retouche.retoucher.await_args.args[1], CONSIGNE_AUTOMATIQUE)
+
     async def test_import_json_repris_sans_doublon_ni_debit(self):
         donnees = {"image": base64.b64encode(self.hd).decode(), "cle_import": str(uuid.uuid4()), "demande": "Plus de lumière"}
         premier = await self.client.post("/photos/la/import", json=donnees)
@@ -186,6 +211,19 @@ class ContratPhoto(unittest.IsolatedAsyncioTestCase):
         with self.sessions() as s:
             version = s.get(Version, "v")
             self.assertEqual(version.cle_hd, version.cle_pleine)
+
+    async def test_version_hd_deja_acquise_s_affiche_en_hd_sans_ouvrir_l_apercu_prive(self):
+        with self.sessions() as s:
+            s.get(Version, "v").cle_hd = "v1-hd"
+            s.commit()
+        with patch.object(photos.stockage, "url_privee", side_effect=lambda cle: f"/prive/{cle}"):
+            avant_achat = (await self.client.get("/photos/p")).json()
+            self.assertEqual(avant_achat["versions"][0]["apercu"], "/test/a")
+            with self.sessions() as s:
+                s.get(Photo, "p").credite_le = self.instant
+                s.commit()
+            apres_achat = (await self.client.get("/photos/p")).json()
+            self.assertEqual(apres_achat["versions"][0]["apercu"], "/prive/v1-hd")
 
     async def test_retouche_pilote_reservee_au_proprietaire(self):
         self.update_photo(analyse=None)

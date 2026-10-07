@@ -7,13 +7,14 @@ import type { DemoProject } from "@/app/demo/library";
 import { cameraDescription, cameraMove, type CameraMove } from "../../shared/video-direction";
 import { saveVideoDraft } from "@/lib/video-draft";
 import { VIDEO_REQUEST_MAX } from "../../shared/video-duration";
+import { videoCreditsRequired, type VideoEditing, type VideoQuality } from "../../shared/video-options";
 import { GenerationWait } from "./generation-wait";
 import { CreditDialog } from "./credit-dialog";
 
 const pending = (video: VideoCreee | null) => !!video && ["preparation", "en_attente", "clips", "montage"].includes(video.statut);
 
-export function VideoGeneration({ photos, demande, storageKey, enabled, free, videoCredits, paymentEnabled, versions, movements, duration, onStarted }: {
-  duration: number; onStarted?: (id: string) => void; photos: DemoProject[]; demande: string; storageKey: string; enabled: boolean; free: boolean; videoCredits: number; paymentEnabled: boolean; versions: Record<string, string>; movements: Record<string, CameraMove>;
+export function VideoGeneration({ photos, demande, agencement, passages, quality, editing, storageKey, enabled, free, videoCredits, paymentEnabled, versions, movements, duration, onStarted }: {
+  duration: number; quality: VideoQuality; editing: VideoEditing; passages: string[]; onStarted?: (id: string) => void; photos: DemoProject[]; demande: string; agencement: string; storageKey: string; enabled: boolean; free: boolean; videoCredits: number; paymentEnabled: boolean; versions: Record<string, string>; movements: Record<string, CameraMove>;
 }) {
   const [video, setVideo] = useState<VideoCreee | null>(null);
   const [completedBefore, setCompletedBefore] = useState(false);
@@ -27,10 +28,12 @@ export function VideoGeneration({ photos, demande, storageKey, enabled, free, vi
     const version = photo.versions.find(item => item.id === (versions[photo.id] || photo.selected)) || photo.versions[0];
     return { mouvement: cameraMove(movements[photo.id]), photo_id: photo.id, version_id: version.id === "original" ? "" : version.id };
   });
-  const signature = JSON.stringify({ photos: sources, demande: demande.trim(), duree: duration });
+  const signature = JSON.stringify({ photos: sources, demande: demande.trim(), agencement: agencement.trim(), liaisons: passages, montage: editing, qualite: quality, duree: duration });
   const sameProperty = new Set(photos.map(photo => photo.property)).size <= 1;
-  const cost = duration / 5;
-  const readyToConfirm = enabled && photos.length > 0 && photos.length <= 6 && sameProperty && demande.trim().length >= 3 && demande.trim().length <= VIDEO_REQUEST_MAX && !starting && !pending(video) && !completedBefore;
+  const cost = videoCreditsRequired(duration, quality);
+  const maxPhotos = Math.min(6, duration / 5 * 2);
+  const routeReady = editing !== "continue" || photos.length <= 1 || (passages.length === photos.length - 1 && passages.every(value => value !== "coupe"));
+  const readyToConfirm = enabled && routeReady && photos.length > 0 && photos.length <= maxPhotos && sameProperty && demande.trim().length >= 3 && demande.trim().length <= VIDEO_REQUEST_MAX && !starting && !pending(video) && !completedBefore;
   const canStart = readyToConfirm && (free || videoCredits >= cost);
 
   useEffect(() => {
@@ -96,11 +99,11 @@ export function VideoGeneration({ photos, demande, storageKey, enabled, free, vi
         draftId = existingId; // Le POST idempotent retrouve la confirmation déjà reçue.
       }
       let result: VideoCreee;
-      try { result = await api<VideoCreee>("/videos/visites", { method: "POST", body: JSON.stringify({ photos: sources, demande: demande.trim(), duree: duration, brouillon_id: draftId, cle_demande: intent.cle }) }); }
+      try { result = await api<VideoCreee>("/videos/visites", { method: "POST", body: JSON.stringify({ photos: sources, demande: demande.trim(), agencement: agencement.trim(), liaisons: passages, montage: editing, qualite: quality, duree: duration, brouillon_id: draftId, cle_demande: intent.cle }) }); }
       catch (cause) {
         if ((cause as ErreurApi).statut !== 0) throw cause;
         // Le même jeton de confirmation retrouve le projet si la réponse a été perdue.
-        result = await api<VideoCreee>("/videos/visites", { method: "POST", body: JSON.stringify({ photos: sources, demande: demande.trim(), duree: duration, brouillon_id: draftId, cle_demande: intent.cle }) });
+        result = await api<VideoCreee>("/videos/visites", { method: "POST", body: JSON.stringify({ photos: sources, demande: demande.trim(), agencement: agencement.trim(), liaisons: passages, montage: editing, qualite: quality, duree: duration, brouillon_id: draftId, cle_demande: intent.cle }) });
       }
       setVideo(result); save(result.id); onStarted?.(result.id);
       window.dispatchEvent(new Event("studio:credits-updated"));
@@ -118,14 +121,23 @@ export function VideoGeneration({ photos, demande, storageKey, enabled, free, vi
   return <section className="st-video-generation" aria-labelledby="video-confirm-title">
     <h2 id="video-confirm-title">Relire, puis lancer.</h2>
     {completedBefore && <p>Cette préparation a déjà été lancée. Retrouvez son résultat dans Mes créations, ou utilisez « Nouvelle vidéo » en haut pour repartir de zéro.</p>}
-    <p>{photos.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""} · ${duration} secondes prévues · 720p` : "Choisissez au moins une photo pour créer votre vidéo."} Toutes vos photos sont conservées. La durée est répartie entre les plans. Les plans sont assemblés dans votre ordre, avec une coupe entre les pièces.</p>
+    <p>{photos.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""} · ${duration} secondes prévues · ${quality} · ${editing === "continue" ? "visite fluide demandée" : "plans avec raccords"}` : "Choisissez au moins une photo pour créer votre vidéo."} Vos photos sources sont conservées. Le moteur suit votre ordre et l’agencement indiqué. Une visite sans coupure ne peut pas être garantie à partir de photos ; aucun passage absent ne doit être inventé.</p>
     {!!demande.trim() && <details className="st-video-final-prompt"><summary>Relire ma demande et les mouvements</summary><p>{demande}</p><ol>{photos.map((photo, index) => <li key={photo.id}><strong>{photo.title}</strong> : {cameraDescription(movements[photo.id], index)}</li>)}</ol></details>}
     {!sameProperty && <p role="alert">Choisissez les photos d’un seul logement pour cette vidéo.</p>}
-    {photos.length > 6 && <p role="alert">Gardez jusqu’à 6 photos pour une vidéo de 30 secondes au maximum.</p>}
+    {photos.length > maxPhotos && <p role="alert">Pour {duration} secondes, gardez au plus {maxPhotos} photos.</p>}
+    {!routeReady && <p role="alert">Pour demander une visite fluide, indiquez le vrai passage entre chaque paire de photos dans « Ajouter le trajet réel du logement ». Sinon, choisissez « Plans avec raccords ».</p>}
     {demande.trim().length > VIDEO_REQUEST_MAX && <p role="alert">Raccourcissez votre demande à 6 000 caractères maximum avant de lancer.</p>}
-    {enabled ? <><p className="st-video-hint">{free ? "Création offerte sur votre compte propriétaire." : `Cette vidéo de ${duration} secondes utilise ${cost} crédit${cost > 1 ? "s" : ""} vidéo. Solde actuel : ${videoCredits} crédit${videoCredits > 1 ? "s" : ""}, soit ${videoCredits * 5} secondes. Le reste demeure disponible pour d’autres vidéos.`} Jusqu’à 5 projets par logement sur 24 heures. La génération démarre seulement lorsque vous confirmez ci-dessous.</p>{!free && videoCredits < cost && <p role="alert">Votre solde ne suffit pas pour cette durée. Choisissez une vidéo plus courte ou consultez les packs.</p>}<div className="connected-next-buttons"><button type="button" className="button dark" disabled={!restored || !readyToConfirm} onClick={() => free || videoCredits >= cost ? void start() : setCreditDialog(true)}>{starting ? "Confirmation…" : `Confirmer et créer ${photos.length ? `ma vidéo de ${duration} s` : "ma vidéo"}`} <ArrowRight size={17}/></button><Link href="/app/" className="button outlined">Continuer mes retouches</Link></div></> : <p className="st-video-hint">Vous pouvez conserver cette préparation. La création vidéo n’est pas encore ouverte sur ce compte ; aucun crédit n’est utilisé.</p>}
+    <div className="st-video-quote" aria-label="Coût avant création">
+      <span>Coût de cette vidéo · {duration} s en {quality}</span>
+      <strong>{cost} crédit{cost > 1 ? "s" : ""} vidéo</strong>
+      {free
+        ? <p>Tarif client indiqué pour information. Sur votre compte administrateur, 0 crédit est débité.</p>
+        : <p>Solde actuel : {videoCredits} crédit{videoCredits > 1 ? "s" : ""}. {videoCredits >= cost ? `Après confirmation : ${videoCredits - cost} crédit${videoCredits - cost > 1 ? "s" : ""} disponible${videoCredits - cost > 1 ? "s" : ""}.` : `Il manque ${cost - videoCredits} crédit${cost - videoCredits > 1 ? "s" : ""}.`}</p>}
+      <p>Les crédits sont débités à la confirmation, avant la génération, et non au téléchargement. Si la création échoue, ils sont restitués.</p>
+    </div>
+    {enabled ? <><p className="st-video-hint">{free ? "Sur ce compte administrateur, les créations sont offertes." : "Jusqu’à 5 projets par logement sur 24 heures."} La génération démarre seulement lorsque vous confirmez ci-dessous.</p>{!free && videoCredits < cost && <p role="alert">Votre solde ne suffit pas pour cette qualité et cette durée. Choisissez 720p, une vidéo plus courte ou consultez les packs.</p>}<div className="connected-next-buttons"><button type="button" className="button dark" disabled={!restored || !readyToConfirm} onClick={() => free || videoCredits >= cost ? void start() : setCreditDialog(true)}>{starting ? "Confirmation…" : `Confirmer et créer ${photos.length ? `ma vidéo de ${duration} s` : "ma vidéo"}`} <ArrowRight size={17}/></button><Link href="/app/" className="button outlined">Continuer mes retouches</Link></div></> : <p className="st-video-hint" role="status">La création vidéo est momentanément indisponible. Votre préparation reste enregistrée ; aucun crédit n’est utilisé.</p>}
     <CreditDialog open={creditDialog} onClose={() => setCreditDialog(false)} paiementDisponible={paymentEnabled} nature="video"/>
-    {(starting || isPending) && <><GenerationWait type="video"/>{video && <p role="status">{video.plans_prets || 0} plan{(video.plans_prets || 0) > 1 ? "s" : ""} prêt{(video.plans_prets || 0) > 1 ? "s" : ""} sur {video.plans_total || photos.length}{video.statut === "montage" ? " · Assemblage de la vidéo" : ""}. Vous pouvez quitter cette page ou fermer le navigateur : la création continue. Retrouvez-la dans Mes créations.</p>}</>}
+    {(starting || isPending) && <><GenerationWait type="video"/>{video && <p role="status">{video.plans_prets || 0} génération{(video.plans_prets || 0) > 1 ? "s" : ""} prête{(video.plans_prets || 0) > 1 ? "s" : ""} sur {video.plans_total || 1}{video.statut === "montage" ? " · Préparation du fichier final" : ""}. Vous pouvez quitter cette page ou fermer le navigateur : la création continue. Retrouvez-la dans Mes créations.</p>}</>}
     {video?.statut === "prete" && video.url && <div className="st-video-created"><h3>Votre vidéo de {video.duree} secondes est prête.</h3><video controls playsInline preload="metadata" src={video.url} aria-label="Votre vidéo créée"/><a className="button dark" href={video.url} target="_blank" rel="noopener noreferrer"><Download size={17}/> Ouvrir et télécharger la vidéo</a></div>}
     {video?.statut === "echec" && <p role="alert">{video.erreur}</p>}
     {video?.statut === "echec" && !!video.clips?.length && <div className="st-video-surviving-clips">{video.clips.map((clip, index) => <a key={clip.photo_id} href={clip.url} target="_blank" rel="noopener noreferrer">Voir le plan {index + 1} déjà terminé →</a>)}</div>}

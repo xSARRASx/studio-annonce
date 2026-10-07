@@ -32,6 +32,7 @@ beforeEach(()=>{
   URL.createObjectURL=blob=>{const url=`blob:fixture-${urlsMade.length}`;urlsMade.push({url,blob});return url;};
   URL.revokeObjectURL=url=>urlsRevoked.push(url);
   globalThis.__libraryHookAdapter={
+    asset:real.asset,
     initialLibrary:real.initialLibrary,
     storageError:real.storageError,
     readLibrary:async()=>structuredClone(persisted),
@@ -143,4 +144,12 @@ test('Un aperçu impossible à créer n’annule pas une écriture : état sauve
   await act(async()=>{await current.refresh();});
   assert.equal(current.error,'');
   assert.equal(current.source(current.library.projects[0]),'blob:apercu-recupere');
+});
+
+test('Une ancienne visite d’exemple utilise la nouvelle vidéo sans modifier les créations',async()=>{
+  const old={...real.sampleProject('video'),versions:[{id:'tour',label:'Ancien exemple',src:real.asset('visite-guidee-demo.mp4')}]};
+  persisted.projects=[old];
+  await mount();
+  assert.equal(current.source(current.library.projects[0]),real.asset('visite-drone-exemple-2026-10-06.mp4'));
+  assert.equal(current.library.projects[0].versions[0].src,real.asset('visite-guidee-demo.mp4'));
 });

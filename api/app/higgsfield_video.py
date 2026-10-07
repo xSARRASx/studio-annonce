@@ -10,12 +10,13 @@ from .config import reglages
 API = "https://api.higgsfield.ai"
 MODELE = "bytedance/seedance-2.5/image-to-video"
 MODELE_KLING = "kling-video/v3.0/pro/image-to-video"
-MODELES = (MODELE, MODELE_KLING)
+MODELE_REFERENCE = "bytedance/seedance-2.5/reference-to-video"
+MODELES = (MODELE, MODELE_KLING, MODELE_REFERENCE)
 
 
 def parametres(image_url: str, demande: str, duree: int, modele: str = MODELE) -> dict:
     """Schémas des deux API vérifiés dans la documentation Higgsfield le 04/10/2026."""
-    if modele not in MODELES or duree not in (5, 10, 20, 30) or (modele == MODELE_KLING and duree > 15):
+    if modele not in (MODELE, MODELE_KLING) or duree not in (5, 10, 20, 30) or (modele == MODELE_KLING and duree > 15):
         raise ValueError("Modèle ou durée vidéo non proposé.")
     if not demande.strip() or len(demande) > 10000:
         raise ValueError("Consigne vidéo invalide.")
@@ -24,6 +25,20 @@ def parametres(image_url: str, demande: str, duree: int, modele: str = MODELE) -
     if modele == MODELE_KLING:
         return {**commun, "sound": "off", "multi_shots": False, "cfg_scale": 0.5}
     return {**commun, "resolution": "720p", "output_format": "mp4", "generate_audio": False}
+
+
+def parametres_references(image_urls: list[str], demande: str, duree: int, resolution: str = "720p") -> dict:
+    if not 1 <= len(image_urls) <= 6 or duree not in (5, 10, 15, 20, 25, 30):
+        raise ValueError("Nombre de photos ou durée vidéo invalide.")
+    if len(image_urls) > duree // 5 * 2:
+        raise ValueError("Choisissez au plus deux photos par tranche de cinq secondes.")
+    if not demande.strip() or len(demande) > 10000:
+        raise ValueError("Consigne vidéo invalide.")
+    if resolution not in ("720p", "1080p"):
+        raise ValueError("Qualité vidéo invalide.")
+    return {"image_urls": [_url_https(url) for url in image_urls], "prompt": demande.strip(),
+            "duration": duree, "resolution": resolution, "aspect_ratio": "16:9",
+            "output_format": "mp4", "generate_audio": False}
 
 
 def disponible() -> bool:
@@ -78,6 +93,14 @@ async def preparer_image(image_jpeg: bytes) -> str:
 async def soumettre(image_url: str, demande: str, duree: int, cle_idempotence: str, modele: str = MODELE) -> dict:
     """Répéter exactement cet appel avec la même clé ne crée pas un second clip."""
     corps = parametres(image_url, demande, duree, modele)
+    return await _soumettre_corps(corps, cle_idempotence, modele)
+
+
+async def soumettre_references(image_urls: list[str], demande: str, duree: int, cle_idempotence: str, resolution: str = "720p") -> dict:
+    return await _soumettre_corps(parametres_references(image_urls, demande, duree, resolution), cle_idempotence, MODELE_REFERENCE)
+
+
+async def _soumettre_corps(corps: dict, cle_idempotence: str, modele: str) -> dict:
     async with httpx.AsyncClient(timeout=35, follow_redirects=False) as client:
         reponse = await client.post(f"{API}/{modele}", headers={**_entetes(), "Idempotency-Key": cle_idempotence}, json=corps)
         reponse.raise_for_status()

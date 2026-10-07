@@ -1,0 +1,2 @@
+/** Proposition éditable : la demande vide déclenche aussi la retouche automatique côté serveur. */
+export const DEFAULT_PHOTO_REQUEST = "Mets cette photo en valeur pour une annonce Airbnb ou Booking : équilibre la lumière naturelle et les couleurs, redresse légèrement les verticales et conserve des détails nets et réalistes. Range seulement les objets manifestement gênants. Garde le cadrage, l'agencement, les meubles, les matériaux, les portes, les fenêtres et les équipements fidèles au logement réel. N'ajoute aucune pièce ni ouverture.";

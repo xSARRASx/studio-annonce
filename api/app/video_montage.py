@@ -6,12 +6,15 @@ import tempfile
 import imageio_ffmpeg
 
 
-def assembler(clips: list[bytes], duree: int | None = None) -> bytes:
+def assembler(clips: list[bytes], duree: int | None = None, resolution: str = "720p") -> bytes:
     if not 1 <= len(clips) <= 6 or any(not clip or len(clip) > 100 * 1024 * 1024 for clip in clips):
         raise ValueError("Choisissez de un à six clips pour le montage.")
     duree = duree if duree is not None else 5 * len(clips)
     if duree not in (5, 10, 15, 20, 25, 30):
         raise ValueError("Durée de montage non prise en charge.")
+    if resolution not in ("720p", "1080p"):
+        raise ValueError("Qualité de montage non prise en charge.")
+    largeur, hauteur = (1920, 1080) if resolution == "1080p" else (1280, 720)
     frames, reste = divmod(duree * 24, len(clips))
     executable = imageio_ffmpeg.get_ffmpeg_exe()
     with tempfile.TemporaryDirectory(prefix="studio-montage-") as temporaire:
@@ -34,8 +37,8 @@ def assembler(clips: list[bytes], duree: int | None = None) -> bytes:
             # Même canevas pour toutes les photos. Pas d'étirement ni de recadrage.
             subprocess.run([executable, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
                 "-i", str(source), "-frames:v", str(nb_frames), "-an", "-vf",
-                f"setpts={rythme}*(PTS-STARTPTS),scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,tpad=stop_mode=clone:stop_duration=0.1",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-threads", "1",
+                f"setpts={rythme}*(PTS-STARTPTS),scale={largeur}:{hauteur}:force_original_aspect_ratio=decrease,pad={largeur}:{hauteur}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,tpad=stop_mode=clone:stop_duration=0.1",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20" if resolution == "1080p" else "22", "-threads", "1",
                 "-pix_fmt", "yuv420p", str(destination)], check=True, timeout=120, capture_output=True)
         liste = dossier / "plans.txt"
         liste.write_text("".join(f"file 'plan-{index}.mp4'\n" for index in range(len(clips))))

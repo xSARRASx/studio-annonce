@@ -2,6 +2,10 @@
 
 Expo SDK 57, React Native et Expo Router. Cibles iOS et Android confirmées par Martin ; aperçu navigateur demandé en premier.
 
+## État actuel — 7 octobre 2026
+
+Connexion email/mot de passe, inscription et récupération séparées ; photo offerte et brief professionnel par défaut. Crédits et Facturation sont distincts, les justificatifs existants s’ouvrent sur demande. Les administrateurs disposent de créations gratuites et d’un tableau de ventes et frais dans Mon compte. Retouches, vidéos avec qualité/durée et brouillons utilisent la même API que le web. L’export navigateur `/mobile/` est publié. Les bundles iOS/Android compilent, mais cette livraison n’est pas un binaire natif signé ni une publication App Store/Google Play. EAS n’est pas connecté sur ce poste. Les sections anciennes ci-dessous ne décrivent pas l’état actuel.
+
 ## Lancer
 `npm ci`, puis `npm run web -- --localhost --port 8173` dans mobile.
 Démarrer également le site Next.js sur 3173 pour le cadre téléphone : http://127.0.0.1:3173/mobile-preview/.

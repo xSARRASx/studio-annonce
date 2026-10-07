@@ -1,10 +1,11 @@
 # Studio Annonce
 
-Studio photo immobilier web et mobile. [studioannonce.fr](https://studioannonce.fr/) présente le produit et donne accès au compte connecté ou aux exemples. L'API FastAPI répond sur [studioannonce.fr/api/sante](https://studioannonce.fr/api/sante). Au 4 octobre 2026, le compte propriétaire peut tester la retouche OpenAI et la vidéo Higgsfield sans débit client. La vente reste fermée : Martin a demandé de traiter les paiements à la fin.
+Studio photo immobilier web et mobile. [studioannonce.fr](https://studioannonce.fr/) présente le produit et donne accès au compte connecté ou aux exemples. L'API FastAPI répond sur [studioannonce.fr/api/sante](https://studioannonce.fr/api/sante). Au 7 octobre 2026, la retouche et la vidéo sont disponibles. Les paiements Stripe installés par Sébastien sont conservés. Les administrateurs actifs et le propriétaire créent gratuitement, sans quotas clients ; les dépenses fournisseur restent dues. Les clients disposent d’une photo offerte, puis doivent avoir des crédits photo ou vidéo pour créer.
 
 - [Démonstration publique](https://studioannonce.fr/demo/) et [aperçu mobile interactif](https://studioannonce.fr/mobile-preview/).
-- [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages, API, vérifications et fonctions encore indisponibles.
-- [Mouvements vidéo et prochain essai](docs/VIDEO-CAMERA-2026-10-04.md) : trajectoires dynamiques par photo, demande conservée et comparaison Kling à valider après recharge.
+- [Suivi actuel et vérifications du 7 octobre](docs/SUIVI-2026-10-07.md).
+- [État du déploiement N0C](deploiement/N0C-STATIQUE.md) : pages, API, vérifications actuelles et historique des livraisons.
+- [Mouvements vidéo et prochain essai](docs/VIDEO-CAMERA-2026-10-04.md) : trajectoires dynamiques par photo, demande conservée et historique des essais ; la version actuelle utilise une requête multi-photo Seedance pour les nouvelles vidéos.
 - [Archives, corbeille et ajout multiple](docs/CORBEILLE-ET-AJOUT-MULTIPLE-2026-10-04.md) : confirmations visibles, restauration des photos/vidéos et choix de plusieurs photos dès le premier écran.
 - [Corrections du 4 octobre](docs/CORRECTIONS-STUDIO-2026-10-04.md) : quota de stockage, imports repris sans doublon, retouches par lot, préparation vidéo de 5 à 30 secondes et archives.
 - [Contrôle retouche du 1er octobre](VERIFICATION-RETOUCHE-2026-10-01.md) : crédit API épuisé confirmé, consignes photo communes publiées et limites de l'abonnement ChatGPT.

@@ -54,11 +54,12 @@ test('an incomplete or HTML response is retryable and never mistaken for saved d
 test('offered and purchased photos download without a new credit even when generations are blocked', () => {
   const offered = { ...base, offerte: true, limites: { photo: { bloque: true } } };
   assert.equal(needsDownloadCredit(offered), false);
-  assert.match(downloadLabel(offered), /offerte/);
+  assert.match(downloadLabel(offered), /offerte sans filigrane/);
   const bought = { ...base, credite_le: 'today', limites: { photo: { bloque: true } } };
   assert.equal(needsDownloadCredit(bought), false);
   assert.match(downloadLabel(bought), /sans filigrane/);
   assert.equal(needsDownloadCredit(base), true);
+  assert.match(downloadLabel(base), /sans filigrane · 1 crédit/);
 });
 test('only unpaid generated previews get an overlay; original and free photo remain clean', () => {
   assert.equal(previewIsProtected(base, true), true);

@@ -1,5 +1,6 @@
 "use client";
 import { appendPhotoRequest } from "../../../shared/photo-request";
+import { DEFAULT_PHOTO_REQUEST } from "../../../shared/photo-default";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -51,8 +52,9 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
 }) {
   const [recherche, setRecherche] = useState("");
   const [ordre, setOrdre] = useState<"recent" | "ancien">("recent");
-  const logements = logementsDe(library, false);
-  const miennes = library.projects.filter(p => !p.sample);
+  const visibles = { ...library, projects: library.projects.filter(p => p.usageInitial !== "video" || p.versions.length > 1) };
+  const logements = logementsDe(visibles, false);
+  const miennes = visibles.projects.filter(p => !p.sample);
   const exemples = library.projects.filter(p => p.sample).sort((a, b) => b.updatedAt - a.updatedAt);
   const termes = recherche.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr");
   const groupes = logements.map(l => ({
@@ -61,7 +63,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
       .sort((a, b) => ordre === "recent" ? b.updatedAt - a.updatedAt : a.updatedAt - b.updatedAt),
   })).filter(g => g.photos.length);
   const ligne = (p: DemoProject) => <li key={p.id}><button className="st-row" onClick={() => onOpen(p)}>
-    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite/sejour.webp")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
+    <span className="st-thumb">{p.kind === "photo" ? <Image src={source(p)} alt="" fill unoptimized sizes="120px"/> : p.sample ? <Image src={asset("visite-drone-exemple-2026-10-06.jpg")} alt="" fill sizes="120px"/> : <video src={source(p)} muted preload="metadata"/>}{p.kind === "video" && <span className="st-thumb-tag"><Film size={12}/></span>}</span>
     <span className="st-row-main"><strong>{p.title}</strong><small>{p.kind === "video" ? "Vidéo" : "Photo"} · {p.versions.length} {p.versions.length > 1 ? "versions" : "version"} · {dateText(p.createdAt)}</small></span>
     <span className={`st-status ${isExpired(p, now) ? "late" : p.saved || p.editUntil ? "ok" : ""}`}>{statut(p, now)}</span>
     <ChevronRight size={20} className="st-chevron"/>
@@ -70,7 +72,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
   const vus = new Set(exemples.map(p => p.kind));
   const cartesExemples = [
     { kind: "photo" as const, image: "salon-deco-complete.webp", titre: "Le salon", type: "Photo", texte: "Une photo de salon retouchée 4 fois : plus de lumière, couleurs chaudes, nouvelle déco. Comparez les versions." },
-    { kind: "video" as const, image: "visite/sejour.webp", titre: "La visite", type: "Vidéo", texte: "Une maquette de visite montée à partir de photos fictives. Découvrez le rythme et les mouvements." },
+    { kind: "video" as const, image: "visite-drone-exemple-2026-10-06.jpg", titre: "La visite", type: "Vidéo", texte: "Une visite de 15 secondes générée à partir de trois images d’exemple. Découvrez les mouvements de caméra." },
   ];
   const partieExemples = <section className="st-examples" aria-labelledby="st-examples-title">
     <div className="st-examples-head"><h2 id="st-examples-title"><Sparkles size={17}/> Exemples</h2><p>Des parcours préparés, séparés de vos créations. Aucun crédit utilisé.</p></div>
@@ -82,7 +84,7 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
   </section>;
 
   if (!miennes.length) return <main className="st-main">
-    <section className="st-first">
+    {extraContent ? <section className="st-photo-empty-compact"><div><p className="section-kicker">PHOTOS À RETOUCHER</p><h1>Aucune photo dans votre bibliothèque</h1><p>Vos vidéos sont juste en dessous. Vous pouvez ajouter une photo quand vous le souhaitez.</p></div><button className="button dark" onClick={onCreate}><Plus size={18}/> Ajouter une photo</button></section> : <section className="st-first">
       <div className="st-first-art" aria-hidden="true">
         <div className="st-first-card st-c1"><Image src={asset("salon-avant.webp")} alt="" fill sizes="220px" unoptimized/></div>
         <div className="st-first-card st-c2"><Image src={asset("salon-apres.webp")} alt="" fill sizes="220px" unoptimized/></div>
@@ -90,13 +92,13 @@ export function PhotoList({ library, source, now, busy, onCreate, onAddPhoto, on
       </div>
       <div className="st-first-copy">
         <p className="section-kicker">VOTRE STUDIO EST PRÊT</p>
-        <h1>Votre première création commence ici.</h1>
-        <p>Une photo à retoucher, une image à imaginer ou une vidéo à préparer ? Choisissez, on vous accompagne.</p>
+        <h1>Vos photos commencent ici.</h1>
+        <p>Ajoutez une photo à retoucher ou créez une image. Vos vidéos sont rangées juste en dessous.</p>
         <div className="st-actions">
           <button className="button dark st-big" onClick={onCreate}><Plus size={18}/> Commencer une création</button>
         </div>
       </div>
-    </section>
+    </section>}
     {extraContent}
     {partieExemples}
   </main>;
@@ -127,7 +129,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
   const [choix, setChoix] = useState(initial && initial !== UNASSIGNED_PROPERTY ? logements.includes(initial) ? initial : "__nouveau" : "");
   const [nouveau, setNouveau] = useState(initial && !logements.includes(initial) ? initial : "");
   const [fichiers, setFichiers] = useState<File[]>([]);
-  const [demande, setDemande] = useState("");
+  const [demande, setDemande] = useState(DEFAULT_PHOTO_REQUEST);
   const [erreur, setErreur] = useState("");
   const [glisse, setGlisse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
@@ -169,7 +171,7 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
     try {
       await onCreate(fichiers, logement, demande.trim());
       if (draftKey) await photoPreparation(draftKey, { fichiers: [], demande: "", choix: "", nouveau: "" });
-      setFichiers([]); setDemande("");
+      setFichiers([]); setDemande(DEFAULT_PHOTO_REQUEST);
     }
     catch (cause) { setErreur(storageError(cause)); } finally { setEnvoi(false); }
   }
@@ -197,9 +199,11 @@ export function CreateView({ library, busy, initial, onCreate, onExample, onCanc
           <input ref={input} id="st-fichiers" type="file" multiple accept="image/jpeg,image/png,image/webp" hidden onChange={e => { recevoir(Array.from(e.target.files || [])); e.target.value = ""; }}/>
         </div>
       </fieldset>
-      <fieldset className="st-step"><legend><span>2</span> Ce que vous voulez changer <em>facultatif</em></legend>
+      <fieldset className="st-step"><legend><span>2</span> Retouche proposée <em>facultatif</em></legend>
         {fichiers.length > 1 && <p className="creation-small">Cette demande sera proposée pour toutes les photos. À l’étape suivante, choisissez de les retoucher ensemble ou une par une.</p>}
+        <p className="creation-small">La mise en valeur pour Airbnb et Booking est prête. Vous pouvez la modifier ou effacer le texte pour laisser le studio retoucher automatiquement.</p>
         <textarea id="st-demande" value={demande} onChange={e => setDemande(e.target.value)} maxLength={maxRequest} rows={3} placeholder="Ex. : plus de lumière, enlève le bazar sur la table…"/>
+        <button type="button" className="text-action" onClick={() => setDemande("")}>Effacer cette demande</button>
         <div className="st-ideas">{IDEES.map(i => <button type="button" key={i} onClick={() => setDemande(d => appendPhotoRequest(d, i, maxRequest))}><Plus size={13}/> {i}</button>)}</div>
         <BriefAssistant storageKey={draftKey ? `${draftKey}:assistant` : undefined} kind="photo" request={demande} onUse={setDemande}/>
         {demande.length > maxRequest && <p className="st-error" role="alert">Raccourcissez votre demande à {maxRequest.toLocaleString("fr-FR")} caractères maximum. Votre texte est conservé.</p>}

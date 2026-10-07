@@ -88,7 +88,8 @@ def sante(authorization: str = Header(default=""), s: Session = Depends(session)
             compte = s.get(Compte, jeton.compte_id)
     return {
         "ok": True,
-        "connexion_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
+        "connexion_disponible": True,
+        "inscription_disponible": mail.disponible() or reglages.CODE_DANS_LA_REPONSE,
         "retouche_disponible": acces_ia.autorise(compte),
         "video_disponible": bool(compte and higgsfield_video.disponible() and
                                  (acces_ia.gratuit_proprietaire(compte) or service_paiement.video_disponible())),

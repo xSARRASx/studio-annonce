@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from app import higgsfield_video
-from app.consignes_video import preparer_consigne
+from app.consignes_video import identifier_piece, preparer_consigne, preparer_visite_continue
 
 
 class DirectionCamera(unittest.TestCase):
@@ -27,6 +27,30 @@ class DirectionCamera(unittest.TestCase):
         self.assertIn("45–70 degree partial orbit", orbite)
         self.assertIn("Never complete a 360", orbite)
         self.assertIn("no digital zoom", orbite.lower())
+
+    def test_visite_multiphoto_decrit_chaque_mouvement(self):
+        demande = "Contourne la table, puis montre la chambre."
+        prompt = preparer_visite_continue(demande, ["traversee", "orbite", "calme"], 15)
+        self.assertIn("Reference image 1 — unidentified room — traversee: A lively indoor FPV-style", prompt)
+        self.assertIn("Reference image 2 — unidentified room — orbite: A decisive curved camera move", prompt)
+        self.assertIn("Reference image 3 — unidentified room — calme: An unhurried architectural", prompt)
+        self.assertIn("45–70 degree partial orbit", prompt)
+        self.assertTrue(prompt.endswith(demande))
+
+    def test_visite_respecte_identite_des_pieces_et_passages_prouves(self):
+        pieces = [identifier_piece({"piece": "Salon"}), identifier_piece({"piece": "Cuisine"}),
+                  identifier_piece({"piece": "Chambre"})]
+        prompt = preparer_visite_continue("Visite façon drone", ["traversee", "orbite", "calme"], 15,
+                                          pieces, "La porte à droite du salon mène à la cuisine. La chambre est au bout du couloir.")
+        self.assertIn("Reference image 1 — living room", prompt)
+        self.assertIn("Reference image 2 — kitchen", prompt)
+        self.assertIn("Reference image 3 — bedroom", prompt)
+        self.assertIn("La chambre est au bout du couloir", prompt)
+        self.assertIn("Never swap room identities", prompt)
+        self.assertIn("use a clean cinematic cut", prompt)
+        self.assertIn("never swap their destinations", prompt)
+        self.assertIn("A route marked uncertain or 'cut' overrides", prompt)
+        self.assertEqual(identifier_piece({"piece": "Pièce non identifiée"}), "unidentified room")
 
     def test_schemas_fournisseur_distincts_sans_parametres_inventes(self):
         args = ("https://files.example.test/photo.jpg", preparer_consigne("Visite dynamique"), 5)

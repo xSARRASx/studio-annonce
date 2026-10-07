@@ -89,7 +89,7 @@ export function ImagePlanner({ onBack, onPhoto, storageKey = STORAGE_KEY }: { st
 
     <aside className="ip-next" aria-label="À propos de la création d’images">
       <span className="ip-next-icon" aria-hidden="true"><Sparkles size={21}/></span>
-      <div><h2>Imaginez librement.</h2><p>Ces images seront des créations fictives. Vous avez déjà une photo du logement ? <button className="text-action" onClick={onPhoto}>Retoucher une photo</button></p><p className="ip-connection">La génération IA sera disponible ici une fois connectée. Pour le moment, vous préparez votre description.</p></div>
+      <div><h2>Imaginez librement.</h2><p>Une image imaginée de toutes pièces représente une scène fictive. Vous avez déjà une photo du logement ? <button className="text-action" onClick={onPhoto}>Retoucher une photo</button></p><p className="ip-connection">Cet outil prépare et conserve votre description ; il ne lance pas de génération d’image. Pour créer une version à partir d’une photo, utilisez « Retoucher une photo ».</p></div>
     </aside>
     <p className="ip-local"><Info size={14} aria-hidden="true"/> Le brouillon est conservé dans ce navigateur si son stockage est disponible. Aucune génération n’est lancée.</p>
   </main>;

@@ -9,7 +9,7 @@ export function photoProject(photo: Photo, logement: Logement): DemoProject {
   const created = Date.parse(photo.cree_le || logement.cree_le);
   return {
     id: photo.id, title: photo.analyse?.piece || `Photo ${photo.ordre + 1}`, property: logement.nom,
-    kind: "photo", sample: false, createdAt: created,
+    kind: "photo", sample: false, createdAt: created, usageInitial: photo.usage_initial || "photo",
     updatedAt: last ? Date.parse(last.cree_le) : created,
     versions, selected: photo.version_gardee || last?.id || "original",
     ...(photo.version_gardee ? { saved: photo.version_gardee } : {}),
@@ -27,7 +27,7 @@ export function summaryProjects(logements: Logement[]): DemoProject[] {
     const versions: DemoVersion[] = [{ id: "original", label: "Photo originale", src: photo.original || photo.vignette, note: "Original" },
       ...(photo.versions || []).map(version => ({ id: version.id, label: `Version ${version.numero}`, src: version.apercu, note: version.consigne }))];
     const last = photo.versions?.at(-1);
-    return { id: photo.id, title: photo.titre || `Photo ${index + 1}`, property: logement.nom, kind: "photo" as const, sample: false,
+    return { id: photo.id, title: photo.titre || `Photo ${index + 1}`, property: logement.nom, kind: "photo" as const, sample: false, usageInitial: photo.usage_initial || "photo",
       createdAt: created, updatedAt: last ? Date.parse(last.cree_le) : created, versions,
       selected: photo.version_gardee || last?.id || "original", draft: "" };
   }));

@@ -10,6 +10,23 @@ from app.video_montage import assembler
 
 
 class MontageTest(unittest.TestCase):
+    def test_full_hd_garde_les_dimensions_choisies(self):
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        with tempfile.TemporaryDirectory() as dossier:
+            source = Path(dossier) / "source.mp4"
+            subprocess.run([exe, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                "-f", "lavfi", "-i", "color=c=blue:s=96x64:r=24:d=5",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)],
+                check=True, timeout=15, capture_output=True)
+            resultat = Path(dossier) / "full-hd.mp4"
+            resultat.write_bytes(assembler([source.read_bytes()], 5, "1080p"))
+            lecteur = imageio_ffmpeg.read_frames(str(resultat))
+            try:
+                infos = next(lecteur)
+                self.assertEqual(infos["size"], (1920, 1080))
+                self.assertAlmostEqual(infos["duration"], 5, delta=.15)
+            finally:
+                lecteur.close()
     def test_deux_plans_dans_l_ordre_dix_secondes_et_decodables(self):
         exe = imageio_ffmpeg.get_ffmpeg_exe()
         with tempfile.TemporaryDirectory() as dossier:

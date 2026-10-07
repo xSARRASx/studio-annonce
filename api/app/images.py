@@ -9,7 +9,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from .config import reglages
 
-POLICE = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+POLICES = (
+    "/usr/share/fonts/urw-base35/NimbusSans-Bold.otf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Verdana Bold.ttf",
+)
 
 
 def ouvrir(donnees: bytes) -> Image.Image:
@@ -37,21 +41,32 @@ def en_webp(im: Image.Image, qualite: int = 82) -> bytes:
     return sortie.getvalue()
 
 
-def filigraner(im: Image.Image, texte: str = "STUDIO ANNONCE · APERÇU") -> Image.Image:
-    """Motif répété en diagonale, semi-transparent, sur la copie d'aperçu seulement."""
+def filigraner(im: Image.Image, texte: str = "STUDIO ANNONCE") -> Image.Image:
+    """Marquage lisible sans masquer les détails de l'aperçu ; la HD reste intacte."""
     base = im.convert("RGBA")
+    base = Image.alpha_composite(base, Image.new("RGBA", base.size, (29, 38, 30, 10)))
     calque = Image.new("RGBA", base.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(calque)
-    taille = max(18, base.width // 22)
-    try:
-        police = ImageFont.truetype(POLICE, taille)
-    except (OSError, ImportError):
-        police = ImageFont.load_default()
-    pas_x, pas_y = taille * 9, taille * 4
-    for y in range(-base.height, base.height * 2, pas_y):
-        for x in range(-base.width, base.width * 2, pas_x):
-            d.text((x, y), texte, font=police, fill=(255, 255, 255, 70))
-    calque = calque.rotate(30, resample=Image.BICUBIC, expand=False)
+    taille = max(20, min(46, base.width // 42))
+    police = None
+    for chemin in POLICES:
+        try:
+            police = ImageFont.truetype(chemin, taille)
+            break
+        except (OSError, ImportError):
+            continue
+    if police is None:
+        police = ImageFont.load_default(size=taille)
+    largeur_texte = d.textbbox((0, 0), texte, font=police)[2]
+    pas_x, pas_y = largeur_texte + taille * 3, round(taille * 5.5)
+    marge = max(base.width, base.height)
+    for numero, y in enumerate(range(-marge, base.height + marge, pas_y)):
+        decalage = pas_x // 2 if numero % 2 else 0
+        for x in range(-marge - pas_x, base.width + marge, pas_x):
+            d.text((x + decalage, y), texte, font=police,
+                   fill=(255, 255, 255, 120),
+                   stroke_width=max(1, taille // 32), stroke_fill=(24, 34, 24, 100))
+    calque = calque.rotate(25, resample=Image.Resampling.BICUBIC, expand=False)
     return Image.alpha_composite(base, calque).convert("RGB")
 
 

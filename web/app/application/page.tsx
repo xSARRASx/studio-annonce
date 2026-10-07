@@ -9,11 +9,11 @@ import "../public-contrast.css";
 
 export const metadata: Metadata = {
   title: "Application de retouche photo immobilière | Studio Annonce",
-  description: "Découvrez l’application Studio Annonce : préparez une retouche photo immobilière, classez vos logements et comparez les versions. Génération réservée au pilote.",
+  description: "Découvrez l’application Studio Annonce : retouchez vos photos immobilières, préparez une visite vidéo et retrouvez vos créations par logement.",
   alternates: { canonical: "/application/" },
   openGraph: {
     title: "L’application Studio Annonce pour vos photos immobilières",
-    description: "Photos, demandes de retouche et versions réunies par logement. Découvrez le parcours et l’état du pilote.",
+    description: "Photos, retouches et vidéos réunies par logement, sur le web et sur mobile.",
     url: "/application/", locale: "fr_FR", type: "website",
     images: ["/demo/exemples/salon-canape-rouille-apres.webp"],
   },
@@ -24,11 +24,11 @@ export default function ApplicationPage() {
     <PublicHeader current="application" />
     <main className="public-main">
       <header className="application-hero">
-        <span className="public-eyebrow">LE STUDIO, SUR LE WEB ET EN APERÇU MOBILE</span>
+        <span className="public-eyebrow">LE STUDIO, SUR LE WEB ET SUR MOBILE</span>
         <h1>Vos photos immobilières.<br /><em>Un studio pour les préparer.</em></h1>
         <p>Studio Annonce réunit vos logements, vos photos, vos demandes de retouche et les versions obtenues. L’application vous aide à formuler une idée précise, à garder l’original et à comparer les propositions avant d’utiliser une image dans une annonce.</p>
-        <div className="application-actions"><Link className="button dark" href="/exemples/">Voir les avant/après <ArrowRight size={17} aria-hidden="true" /></Link><Link className="button outlined" href="/connexion/?suite=photo">Préparer ma photo <ArrowRight size={17} aria-hidden="true" /></Link></div>
-        <p className="application-status">La génération automatique des retouches est actuellement réservée au pilote. Vous pouvez créer un compte et préparer une demande ; l’atelier indique si la génération est disponible pour votre compte. Les achats et la génération vidéo sont fermés.</p>
+        <div className="application-actions"><Link className="button dark" href="/exemples/">Voir les avant/après <ArrowRight size={17} aria-hidden="true" /></Link><Link className="button outlined" href="/inscription/?suite=photo">Préparer ma photo <ArrowRight size={17} aria-hidden="true" /></Link></div>
+        <p className="application-status">Ajoutez vos photos, relisez votre demande, puis confirmez chaque création dans votre espace. Le coût en crédits et la disponibilité du service s’affichent avant le lancement.</p>
       </header>
 
       <section className="application-section" aria-labelledby="application-steps-title">
@@ -45,15 +45,15 @@ export default function ApplicationPage() {
         <div className="application-function-grid">
           <article><h3>Mes créations</h3><p>Retrouvez vos photos par logement, vos demandes et l’historique des versions d’une photo. L’original reste disponible pour comparer ce qui a vraiment changé.</p></article>
           <article><h3>Aide à la création</h3><p>Décrivez librement votre projet ou choisissez plusieurs idées dans le questionnaire. Vous pouvez relire et modifier le brief avant de demander une retouche.</p></article>
-          <article><h3>Vidéo vers photos</h3><p>L’outil extrait des images d’une vidéo sur votre appareil. Vous choisissez les instants à garder. Leur retouche automatique reste à connecter.</p></article>
-          <article><h3>Photos vers vidéo</h3><p>Préparez une idée de visite à partir de photos. La génération vidéo n’est pas encore ouverte ; les exemples de vidéo visibles sur le site sont des aperçus de principe.</p></article>
+          <article><h3>Vidéo vers photos</h3><p>L’outil extrait des images d’une vidéo sur votre appareil. Vous choisissez les instants à garder, puis retrouvez les photos dans votre espace.</p></article>
+          <article><h3>Photos vers vidéo</h3><p>Choisissez les photos dans l’ordre de la visite, indiquez le trajet et le mouvement souhaités, puis relisez le coût en crédits avant de lancer la vidéo.</p></article>
         </div>
       </section>
 
       <section className="application-mobile" aria-labelledby="application-mobile-title">
         <Smartphone size={35} aria-hidden="true" />
-        <div><span className="public-eyebrow">APERÇU MOBILE</span><h2 id="application-mobile-title">Le studio dans votre poche.</h2><p>Essayez le parcours mobile interactif dans le navigateur. L’application native n’est pas encore publiée sur les stores.</p></div>
-        <Link className="button outlined" href="/mobile-preview/">Voir l’aperçu mobile <ArrowRight size={17} aria-hidden="true" /></Link>
+        <div><span className="public-eyebrow">APPLICATION MOBILE</span><h2 id="application-mobile-title">Le studio dans votre poche.</h2><p>Ouvrez l’application mobile dans le navigateur de votre téléphone et retrouvez le même compte, vos photos et vos vidéos.</p></div>
+        <a className="button outlined" href="/mobile/">Ouvrir l’application mobile <ArrowRight size={17} aria-hidden="true" /></a>
       </section>
 
       <section className="public-next"><div><span className="public-eyebrow">UNE QUESTION AVANT DE COMMENCER ?</span><h2>Comprendre les crédits et les retouches.</h2><p>L’aide explique la photo offerte, les versions, les sept jours d’ajustement et la disponibilité actuelle des outils.</p></div><Link className="button dark" href="/aide/">Consulter l’aide <ArrowRight size={17} aria-hidden="true" /></Link></section>

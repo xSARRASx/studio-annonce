@@ -8,7 +8,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://studioannonce.fr/api
 type Connection = {
   ready: boolean; account: Account | null; health: Health | null; error: string;
   api: ReturnType<typeof createAccountApi>; refresh: () => Promise<void>;
-  login: (email: string, code: string) => Promise<void>; logout: () => Promise<void>;
+  login: (email: string, secret: string, intention?: 'connexion' | 'inscription') => Promise<void>; logout: () => Promise<void>;
 };
 const ConnectionContext = createContext<Connection | null>(null);
 export function AccountConnection({ children }: { children: React.ReactNode }) {
@@ -54,8 +54,9 @@ export function AccountConnection({ children }: { children: React.ReactNode }) {
     const pending = requestAnimationFrame(() => { void refresh(); });
     return () => cancelAnimationFrame(pending);
   }, [route, ready, refresh]);
-  const login = async (email: string, code: string) => {
-    const loginSession = await api.json<{ jeton: string }>('/auth/verifier', { method: 'POST', body: JSON.stringify({ email, code }) });
+  const login = async (email: string, secret: string, intention: 'connexion' | 'inscription' = 'connexion') => {
+    const loginSession = await api.json<{ jeton: string }>(intention === 'inscription' ? '/auth/inscription/verifier' : '/auth/connexion',
+      { method: 'POST', body: JSON.stringify(intention === 'inscription' ? { email, code: secret } : { email, mot_de_passe: secret }) });
     await writeSession(loginSession.jeton); session.set(loginSession.jeton);
     await refresh();
   };

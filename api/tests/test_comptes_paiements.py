@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, session
 from app.migrations import migrer
-from app.models import AchatCredits, Compte, Jeton, MouvementCredit, MouvementCreditVideo, QuotaCreation, maintenant
+from app.models import AchatCredits, Compte, Jeton, Logement, Photo, MouvementCredit, MouvementCreditVideo, QuotaCreation, maintenant
 from app.routes import auth, compte, paiements, photos
 from app import paiements as catalogue
 
@@ -88,6 +88,24 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
     async def test_photo_et_achat_refuses_avant_profil(self):
         self.assertEqual((await self.client.post("/photos/p/essai", json={})).status_code,403)
         self.assertEqual((await self.client.post("/paiements/checkout", json={"pack_id":"p5", "cle_demande":str(uuid4())})).status_code,403)
+
+    async def test_historique_achats_prive_et_offre_masquee_seulement_apres_hd(self):
+        with self.sessions() as s:
+            s.add_all([AchatCredits(id="achat-a", compte_id="a", cle_demande=str(uuid4()), pack_id="photo10-999",
+                                    credits=10, montant_centimes=999, statut="paye"),
+                       AchatCredits(id="achat-b", compte_id="b", cle_demande=str(uuid4()), pack_id="video2-1697",
+                                    credits=2, montant_centimes=1697, nature="video", statut="paye")])
+            s.add(Logement(id="la", compte_id="a", nom="Test"))
+            s.add(Photo(id="pa", logement_id="la", cle_originale="source", offerte=1))
+            s.commit()
+        achats = await self.client.get("/compte/achats")
+        self.assertEqual(achats.status_code, 200)
+        self.assertEqual([item["id"] for item in achats.json()], ["achat-a"])
+        self.assertFalse((await self.client.get("/compte")).json()["photo_offerte_telechargee"])
+        with self.sessions() as s:
+            s.get(Photo, "pa").credite_le = maintenant()
+            s.commit()
+        self.assertTrue((await self.client.get("/compte")).json()["photo_offerte_telechargee"])
 
     async def test_checkout_prix_serveur_et_double_clic_meme_session(self):
         await self.profil()
@@ -258,6 +276,20 @@ class ParcoursComptePaiement(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((await self.client.post("/auth/verifier",json={"email":adresse,"code":r.json()["code_demo"]})).status_code,400)
         with self.sessions() as s:
             self.assertEqual(s.scalar(select(func.count(Compte.id))),2)
+
+    async def test_connexion_inconnue_ne_cree_pas_de_compte(self):
+        adresse = "nouveau@example.com"
+        with patch.object(auth, "email_disponible", return_value=False), patch.object(auth.reglages, "CODE_DANS_LA_REPONSE", True):
+            self.assertEqual((await self.client.post("/auth/code", json={"email": adresse})).json(), {"ok": True})
+            refus = await self.client.post("/auth/connexion", json={"email": adresse, "mot_de_passe": "inconnu-pour-le-test"})
+            self.assertEqual(refus.status_code, 401)
+            with self.sessions() as s:
+                self.assertIsNone(s.scalar(select(Compte).where(Compte.email == adresse)))
+            inscription = await self.client.post("/auth/inscription", json={"email": adresse, "mot_de_passe": "un-mot-de-passe-long", "prenom": "Marie", "nom": "Test"})
+            self.assertEqual(inscription.status_code, 200)
+            creation = await self.client.post("/auth/inscription/verifier", json={"email": adresse, "code": inscription.json()["code_demo"]})
+            self.assertEqual(creation.status_code, 200)
+            self.assertTrue(creation.json()["compte_id"])
 
     async def test_seul_paiement_confirme_remet_photo_a_zero_et_doublon_ne_reset_pas(self):
         with self.sessions() as s:

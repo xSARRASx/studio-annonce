@@ -7,9 +7,9 @@ import "../aide/public-pages.css";
 
 export const metadata: Metadata = {
   title: "Tarifs retouche photo immobilière et vidéo | Studio Annonce",
-  description: "Photo dès 9,99 € le pack. Crédits vidéo dès 8,97 € les 5 secondes, packs dégressifs jusqu’à 120 secondes. Achats fermés pendant la phase pilote.",
+  description: "Photo dès 9,99 € le pack. Crédits vidéo dès 8,97 € les 5 secondes, packs dégressifs jusqu’à 120 secondes.",
   alternates: { canonical: "/tarifs/" },
-  openGraph: { title: "Tarifs photo et vidéo | Studio Annonce", description: "Crédits photo et packs vidéo de 5 à 120 secondes, sans abonnement. Achats fermés pendant la phase pilote.", url: "/tarifs/", locale: "fr_FR", type: "website" },
+  openGraph: { title: "Tarifs photo et vidéo | Studio Annonce", description: "Crédits photo et packs vidéo de 5 à 120 secondes, sans abonnement.", url: "/tarifs/", locale: "fr_FR", type: "website" },
 };
 
 const packs = [
@@ -36,8 +36,8 @@ export default function PublicPricing() {
       <PublicHeader current="tarifs" />
       <main className="public-main">
         <section className="tariffs-heading" aria-labelledby="tariffs-title">
-          <div><span className="public-eyebrow">PHOTOS ET VIDÉOS · SANS ABONNEMENT</span><h1 id="tariffs-title">Vos créations,<br /><em>au prix clair.</em></h1><p>Voici les tarifs prévus pour la retouche photo immobilière et les vidéos. Les packs sont séparés et cumulables ; leurs achats restent fermés pendant la phase pilote.</p></div>
-          <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span><Link className="tariffs-offer-link" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link></div></aside>
+          <div><span className="public-eyebrow">PHOTOS ET VIDÉOS · SANS ABONNEMENT</span><h1 id="tariffs-title">Vos créations,<br /><em>au prix clair.</em></h1><p>Retrouvez les tarifs des packs photo et vidéo. Les crédits sont séparés et cumulables ; votre espace Facturation indique si le paiement est disponible au moment de l’achat.</p></div>
+          <aside className="tariffs-offer"><span className="tariffs-gift"><Gift size={25} aria-hidden="true" /></span><div><p>POUR VOTRE PREMIER ESSAI</p><strong>La première photo offerte.</strong><span>Après vérification de votre email.<br /> 1 génération + 1 correction, HD sans filigrane.</span><Link className="tariffs-offer-link" href="/inscription/?suite=photo">Préparer ma photo offerte <ArrowRight size={15} aria-hidden="true" /></Link></div></aside>
         </section>
         <nav className="tariffs-shortcuts" aria-label="Voir les tarifs par création"><a href="#packs-photo"><span>PHOTOS</span><strong>10 photos dès 9,99 €</strong><small>La première est offerte · 1 crédit par photo gardée</small><ArrowRight size={19} aria-hidden="true" /></a><a href="#packs-video"><span>VIDÉOS</span><strong>5 s à 8,97 € · packs jusqu’à 120 s</strong><small>Crédits utilisables en plusieurs vidéos · tarif dégressif</small><ArrowRight size={19} aria-hidden="true" /></a></nav>
         <section id="packs-photo" className="tariffs-packs" aria-label="Packs de crédits photo">
@@ -47,19 +47,19 @@ export default function PublicPricing() {
             <p className="tariffs-pack-description">{pack.description}</p>
             <div className="tariffs-amount">{pack.price}<span>€</span></div>
             <p className="tariffs-unit">{pack.unit} € par photo</p>
-            <div className="tariffs-pack-line"><Check size={15} aria-hidden="true" /><span>1 photo HD = 1 crédit</span></div>
+            <div className="tariffs-pack-line"><Check size={15} aria-hidden="true" /><span>HD nette et sans filigrane</span></div>
           </article>)}
         </section>
-        <p className="tariffs-availability">Packs photo sans abonnement. Leur achat ouvrira avec la retouche IA.</p>
+        <p className="tariffs-availability">1 crédit permet de garder une photo en HD. Le filigrane protège uniquement son aperçu avant acquisition : le fichier téléchargé est net et sans filigrane. Consultez votre solde et choisissez vos packs dans <Link href="/app/credits/">Crédits</Link>.</p>
         <section id="packs-video" className="tariffs-video" aria-labelledby="video-price-title">
-          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Une visite de 5 à 30 secondes.<br /><em>Des packs jusqu’à 120 secondes.</em></h2><p>1 crédit vidéo finance un essai de 5 secondes en 720p. Les crédits achetés restent dans votre solde : avec un pack de 30 secondes, une vidéo de 10 secondes utilise 2 crédits sur 6 et les 4 autres restent disponibles. Vous pouvez aussi répartir un pack de 120 secondes entre plusieurs vidéos. Chaque vidéo terminée dure au maximum 30 secondes ; un nouvel essai consomme à nouveau les crédits correspondant à sa durée. Vos crédits photo restent intacts.</p></div>
+          <div className="tariffs-video-heading"><span className="public-eyebrow">VIDÉOS : UN SOLDE SÉPARÉ</span><h2 id="video-price-title">Une visite de 5 à 30 secondes.<br /><em>Des packs jusqu’à 120 secondes.</em></h2><p>Choisissez la qualité avant de lancer : 1 crédit vidéo par 5 secondes en HD 720p, ou 2 crédits par 5 secondes en Full HD 1080p. Les crédits achetés restent dans votre solde : un pack de 30 secondes contient 6 crédits. Une vidéo de 10 secondes en 720p en utilise 2 ; en 1080p, elle en utilise 4. Les autres crédits restent disponibles pour d’autres vidéos. Chaque nouvel essai consomme des crédits selon sa durée et sa qualité. Vos crédits photo restent intacts.</p></div>
           <div className="tariffs-packs tariffs-three-packs">{videoPacks.map(pack => <article className={`tariffs-pack${pack.seconds === 30 ? " tariffs-pack-featured" : ""}`} key={pack.seconds}>
             <span className="tariffs-pack-label">{pack.label}</span><h2>{pack.seconds} <span>secondes de crédits</span></h2>
             <p className="tariffs-pack-description">{pack.credits} crédit{pack.credits > 1 ? "s" : ""} vidéo · {pack.saving}.</p>
-            <div className="tariffs-amount">{pack.price}<span>€</span></div><p className="tariffs-unit">{pack.unit} € les 5 secondes</p>
+            <div className="tariffs-amount">{pack.price}<span>€</span></div><p className="tariffs-unit">{pack.unit} € les 5 secondes en 720p</p>
             <div className="tariffs-pack-line"><Clock3 size={15} aria-hidden="true" /><span>À utiliser en vidéos de 5 à 30 s</span></div>
           </article>)}</div>
-          <p className="tariffs-availability">Avant chaque essai, le nombre de crédits sera confirmé. Un essai terminé pourra être prévisualisé et téléchargé sans second débit ; un nouvel essai sera facturé. En cas d’échec technique, les crédits réservés seront rendus. Les achats vidéo restent fermés pendant la phase pilote.</p>
+          <p className="tariffs-availability">Avant chaque essai, le nombre de crédits est confirmé. Une vidéo terminée peut être prévisualisée et téléchargée sans second débit ; un nouvel essai utilise de nouveaux crédits. En cas d’échec technique, les crédits réservés sont restitués. <Link href="/app/credits/">Voir les packs vidéo dans Crédits</Link>.</p>
         </section>
         <section className="tariffs-included" aria-labelledby="included-title"><h2 id="included-title">Ce qui est inclus avec une photo payante</h2><div><span><ImagePlus size={20} aria-hidden="true" /><strong>1 correction incluse</strong><small>Après la première génération</small></span><span><Download size={20} aria-hidden="true" /><strong>Téléchargement HD</strong><small>Votre version choisie</small></span><span><Clock3 size={20} aria-hidden="true" /><strong>7 jours pour ajuster</strong><small>Avec la correction restante</small></span><span><History size={20} aria-hidden="true" /><strong>Historique des versions</strong><small>Pour revoir les propositions</small></span></div></section>
         <section className="tariffs-timeline" aria-labelledby="timeline-title">
@@ -70,8 +70,8 @@ export default function PublicPricing() {
             <li><span className="timeline-number">3</span><div><strong>Envie de reprendre plus tard ?</strong><p>Un crédit supplémentaire débloque une seule correction, utilisable pendant 7 jours. Les versions restent rattachées à votre photo.</p></div></li>
           </ol>
         </section>
-        <div className="tariffs-conditions"><p>Une première génération et une correction sont incluses par photo. Ensuite, chaque correction coûte 1 crédit photo. Les nouvelles créations photo sont limitées à 30 depuis le dernier achat. Un ancien téléchargement ne remet pas ce compteur à zéro.</p><p>Les aperçus photo payants sont protégés par un filigrane ajouté hors génération. La photo offerte et les fichiers achetés se téléchargent sans filigrane. Les crédits photo et vidéo sont deux soldes distincts ; chaque essai vidéo abouti consomme les crédits annoncés avant sa création.</p></div>
-        <section className="public-next"><div><span className="public-eyebrow">PRÉPAREZ VOS PHOTOS</span><h2>Votre espace vous attend.</h2><p>Créez votre compte, ajoutez votre logement et préparez vos demandes.</p></div><Link className="button dark" href="/connexion/?suite=photo">Préparer ma photo offerte <ArrowRight size={17} aria-hidden="true" /></Link></section>
+        <div className="tariffs-conditions"><p>Une première génération et une correction sont incluses par photo. Ensuite, chaque correction coûte 1 crédit photo. Les nouvelles créations photo sont limitées à 30 depuis le dernier achat. Un ancien téléchargement ne remet pas ce compteur à zéro.</p><p>Le filigrane est ajouté seulement à l’aperçu des retouches payantes non acquises. Il n’est pas imprimé sur l’image finale : la photo offerte et les fichiers HD gardés se téléchargent nets et sans filigrane. Les crédits photo et vidéo sont deux soldes distincts ; chaque essai vidéo abouti consomme les crédits annoncés avant sa création.</p></div>
+        <section className="public-next"><div><span className="public-eyebrow">PRÉPAREZ VOS PHOTOS</span><h2>Votre espace vous attend.</h2><p>Créez votre compte, ajoutez votre logement et préparez vos demandes.</p></div><Link className="button dark" href="/inscription/?suite=photo">Préparer ma photo offerte <ArrowRight size={17} aria-hidden="true" /></Link></section>
       </main>
       <PublicFooter />
     </div>

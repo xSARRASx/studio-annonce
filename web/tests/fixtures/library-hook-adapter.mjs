@@ -3,3 +3,4 @@ export const initialLibrary = () => globalThis.__libraryHookAdapter.initialLibra
 export const readLibrary = () => globalThis.__libraryHookAdapter.readLibrary();
 export const changeLibrary = change => globalThis.__libraryHookAdapter.changeLibrary(change);
 export const storageError = error => globalThis.__libraryHookAdapter.storageError(error);
+export const asset = path => globalThis.__libraryHookAdapter.asset(path);

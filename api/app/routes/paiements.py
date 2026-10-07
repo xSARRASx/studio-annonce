@@ -10,11 +10,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import reglages
+from .. import credits as credits_photo, credits_video
 from ..credits import mouvement as mouvement_photo
 from ..credits_video import mouvement as mouvement_video
 from .. import limites
 from ..db import session
-from ..models import AchatCredits, Compte, maintenant
+from ..models import AchatCredits, Compte, MouvementCredit, MouvementCreditVideo, maintenant
 from ..paiements import PACKS, disponible
 from .auth import compte_complet, compte_courant
 
@@ -32,6 +33,7 @@ class DemandeAchat(BaseModel):
     pack_id: str | None = None
     articles: list[ArticleAchat] | None = Field(default=None, max_length=12)
     cle_demande: UUID
+    facture: bool = False  # facture Stripe seulement si le client la demande
 
     @model_validator(mode="after")
     def panier_ou_pack(self):
@@ -96,11 +98,18 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
     if achat.stripe_url:
         return {"achat_id": achat.id, "statut": achat.statut, "url": achat.stripe_url}
     achat_id, compte_id, email = achat.id, compte.id, compte.email
+    # Libellé lisible dans le tableau Stripe, partagé avec d'autres activités.
+    description = (f"Studio Annonce — {achat.credits} crédit{'s' if achat.credits > 1 else ''} {'vidéo' if achat.nature == 'video' else 'photo'}"
+                   f" (commande {achat.id})")
     nature = achat.nature
     lignes = [{"price_data": {"currency": "eur", "unit_amount": packs[a["pack_id"]]["prix_centimes"],
                 "product_data": {"name": f"Studio Annonce — {packs[a['pack_id']]['libelle']}",
                                  "metadata": {"pack_id": a["pack_id"], "nature": nature}}},
                "quantity": a["quantite"]} for a in composition_achat]
+    # Facture Stripe émise après le paiement, uniquement à la demande du client.
+    facture = {"invoice_creation": {"enabled": True, "invoice_data": {
+        "description": description,
+        "metadata": {"site": "studioannonce.fr", "achat_id": achat_id, "compte_id": compte_id}}}} if d.facture else {}
     s.commit()  # pas de transaction SQL durant l'appel réseau
     site = reglages.URL_PUBLIQUE_SITE.rstrip("/")
     try:
@@ -109,6 +118,10 @@ def checkout(d: DemandeAchat, compte: Compte = Depends(compte_complet), s: Sessi
             mode="payment", payment_method_types=["card"], locale="fr", customer_email=email,
             client_reference_id=compte_id, metadata={"achat_id": achat_id, "compte_id": compte_id, "nature": nature},
             line_items=lignes,
+            payment_intent_data={"description": description,
+                                 "metadata": {"site": "studioannonce.fr", "achat_id": achat_id,
+                                              "compte_id": compte_id, "nature": nature}},
+            **facture,
             success_url=f"{site}/app/compte/?achat={achat_id}",
             cancel_url=f"{site}/app/compte/?paiement=annule",
         )
@@ -153,6 +166,54 @@ def appliquer_confirmation(objet: dict, s: Session):
     s.commit()  # commande et registre validés dans la même transaction
 
 
+def achat_du_paiement(paiement_id: str | None, s: Session):
+    """Un remboursement ne porte pas nos métadonnées : retrouver la commande par sa session Checkout."""
+    if not paiement_id:
+        return None
+    try:
+        sessions = stripe.checkout.Session.list(api_key=reglages.STRIPE_SECRET_KEY, payment_intent=paiement_id, limit=1)
+    except stripe.StripeError as erreur:
+        raise HTTPException(502, "Paiement introuvable pour le moment.") from erreur  # Stripe renverra l'événement
+    for session_stripe in sessions.data:
+        return s.scalar(select(AchatCredits).where(AchatCredits.stripe_session_id == session_stripe.id))
+    return None  # le même compte Stripe peut servir à d'autres applications
+
+
+def reprendre_credits(achat: AchatCredits, objet: dict, rembourse_centimes: int, origine: str, statut_total: str, s: Session):
+    """Reprend les crédits d'un achat remboursé ou contesté, au prorata, sans jamais rendre un solde négatif.
+
+    Rejouable : le registre garde ce qui a été repris et ce qui était déjà utilisé."""
+    if not achat.credite_le:
+        return
+    if objet.get("currency") != achat.devise or bool(objet.get("livemode")) != bool(achat.reel):
+        raise HTTPException(400, "Remboursement incohérent.")
+    # Écriture neutre : verrouille la commande pendant le calcul, comme pour la confirmation.
+    s.execute(update(AchatCredits).where(AchatCredits.id == achat.id).values(statut=AchatCredits.statut))
+    total = rembourse_centimes >= achat.montant_centimes
+    cible = achat.credits if total else achat.credits * max(rembourse_centimes, 0) // achat.montant_centimes
+    registre, soldes, mouvement, nom = ((MouvementCreditVideo, credits_video, mouvement_video, "vidéo")
+                                        if achat.nature == "video" else
+                                        (MouvementCredit, credits_photo, mouvement_photo, "photo"))
+    reference, reference_manque = f"reprise:{achat.id}", f"reprise-manque:{achat.id}:"
+    repris = -(s.scalar(select(func.coalesce(func.sum(registre.delta), 0)).where(
+        registre.compte_id == achat.compte_id, registre.reference == reference)) or 0)
+    manques = s.scalars(select(registre.reference).where(
+        registre.compte_id == achat.compte_id, registre.reference.like(reference_manque + "%"))).all()
+    reste = cible - repris - sum(int(r.rsplit(":", 1)[1]) for r in manques)
+    if reste > 0:
+        cible_compte = s.get(Compte, achat.compte_id)
+        retrait = min(reste, max(soldes.solde(s, achat.compte_id), 0))
+        if retrait:
+            mouvement(s, cible_compte, -retrait, f"{origine} : reprise de {retrait} crédits {nom}", reference)
+        if reste > retrait:
+            mouvement(s, cible_compte, 0, f"{origine} : {reste - retrait} crédits {nom} déjà utilisés, non repris",
+                      f"{reference_manque}{reste - retrait}")
+    if total:
+        # Une commande remboursée ou contestée sort du chiffre d'affaires de l'administration.
+        s.execute(update(AchatCredits).where(AchatCredits.id == achat.id).values(statut=statut_total))
+    s.commit()
+
+
 @routeur.post("/webhook")
 async def webhook(request: Request, s: Session = Depends(session)):
     # Traiter les règlements déjà lancés même lorsque les nouvelles ventes sont fermées.
@@ -175,6 +236,14 @@ async def webhook(request: Request, s: Session = Depends(session)):
         s.execute(update(AchatCredits).where(AchatCredits.id == achat_id, AchatCredits.credite_le.is_(None),
             AchatCredits.stripe_session_id == objet.get("id")).values(statut="expire" if evenement["type"].endswith("expired") else "echec"))
         s.commit()
+    elif evenement["type"] == "charge.refunded":
+        achat = achat_du_paiement(objet.get("payment_intent"), s)
+        if achat:
+            reprendre_credits(achat, objet, objet.get("amount_refunded") or 0, "Remboursement", "rembourse", s)
+    elif evenement["type"] == "charge.dispute.created":
+        achat = achat_du_paiement(objet.get("payment_intent"), s)
+        if achat:
+            reprendre_credits(achat, objet, achat.montant_centimes, "Contestation bancaire", "conteste", s)
     return {"recu": True}
 
 

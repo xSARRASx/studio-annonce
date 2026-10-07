@@ -28,7 +28,7 @@ export function CreationHubScreen() {
       </Pressable>)}
     </View>
     <Pressable accessibilityRole="button" onPress={() => router.push('/exemples')} style={[styles.card, { backgroundColor: '#f1f4e9', borderColor: '#dde4d1' }]}><Text style={styles.noteTitle}>Avant de commencer, explorez les exemples.</Text><Text style={styles.description}>8 photos, leurs demandes et leurs versions. Sans compte ni crédit.</Text><Text style={styles.noteTitle}>Découvrir les parcours →</Text></Pressable>
-    <View style={styles.note}><Text style={styles.noteTitle}>Vous gardez la main.</Text><Text style={styles.noteBody}>La retouche photo utilise votre compte et les mêmes crédits que le site. Une génération et une correction sont incluses ; chaque correction supplémentaire coûte un crédit.</Text><Text style={styles.preview}>La création d’images et de vidéos permet pour le moment de préparer un brouillon local. La génération vidéo n’est pas encore ouverte. L’extraction vidéo → photos fonctionne sur cet appareil.</Text></View>
+    <View style={styles.note}><Text style={styles.noteTitle}>Vous gardez la main.</Text><Text style={styles.noteBody}>La retouche photo utilise votre compte et les mêmes crédits que le site. Une génération et une correction sont incluses ; chaque correction supplémentaire coûte un crédit.</Text><Text style={styles.preview}>Photos et vidéos du compte : le coût s’affiche avant confirmation. « Créer une image » prépare seulement une description sur cet appareil ; aucune génération n’est lancée depuis ce parcours.</Text></View>
   </AccountScreenFrame>;
 }
 

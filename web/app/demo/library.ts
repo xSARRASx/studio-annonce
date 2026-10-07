@@ -5,6 +5,7 @@ export type DemoProject = {
   createdAt: number; updatedAt: number; versions: DemoVersion[]; selected: string;
   saved?: string; file?: Blob; fileName?: string; draft: string;
   firstDownloadedAt?: number; editUntil?: number; freeDownload?: boolean;
+  usageInitial?: "photo" | "video";
 };
 export type CreditEvent = { id: string; project: string; label: string; amount: number; at: number };
 export type DemoLibrary = { schema: 1; revision?: number; projects: DemoProject[]; credits: number; freeUsed: boolean; events: CreditEvent[] };
@@ -21,7 +22,7 @@ export function sampleProject(kind: MediaKind): DemoProject {
   if (kind === "video") return {
     id: "example-tour", title: "Une visite en douceur", property: "Appartement Lumière", kind, sample: true,
     createdAt: now, updatedAt: now, selected: "tour", draft: "",
-    versions: [{ id: "tour", label: "Maquette animée", src: asset("visite-guidee-demo.mp4"), note: "Séjour, cuisine, chambre · montage de photos fictives, sans génération vidéo." }],
+    versions: [{ id: "tour", label: "Visite vidéo d’exemple", src: asset("visite-drone-exemple-2026-10-06.mp4"), note: "Séjour, cuisine, chambre · essai réel généré à partir de trois images de démonstration." }],
   };
   return {
     id: "example-salon", title: "Le salon", property: "Appartement Lumière", kind, sample: true,

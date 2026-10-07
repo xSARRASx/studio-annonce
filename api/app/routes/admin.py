@@ -1,5 +1,5 @@
 """Administration des comptes. Chaque permission est vérifiée côté serveur."""
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,10 +8,10 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from .. import credits, limites
+from .. import credits, frais, limites
 from ..db import session
-from ..models import (CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin,
-                      Logement, Photo, QuotaCreation, maintenant)
+from ..models import (AchatCredits, CodeConnexion, Compte, ConnexionCompte, Jeton, JournalAdmin,
+                      FraisFournisseur, Logement, Photo, QuotaCreation, Version, Video, maintenant)
 from .auth import compte_complet
 from .compte import Profil
 
@@ -85,19 +85,134 @@ class ActionCompte(BaseModel):
     confirmation_email: EmailStr
 
 
+class NouveauFrais(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    fournisseur: Literal["OpenAI", "Higgsfield", "Stripe", "Stockage", "Autre"]
+    reference: str = Field(min_length=1, max_length=160)
+    nature: Literal["photo", "video", "autre"]
+    montant_centimes: int = Field(gt=0, le=10_000_000, strict=True)
+    date: date
+    compte_id: str | None = Field(default=None, max_length=24)
+
+
+@routeur.post("/frais", status_code=201)
+def ajouter_frais(d: NouveauFrais, acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
+    verrouiller(s, acteur)
+    if d.date > maintenant().date():
+        raise HTTPException(422, "Indiquez la date d’un frais déjà constaté.")
+    if d.compte_id and not s.get(Compte, d.compte_id):
+        raise HTTPException(404, "Compte introuvable.")
+    donnees = {**d.model_dump(exclude={"date"}), "date_frais": datetime.combine(d.date, time.min)}
+    precedent = s.scalar(select(FraisFournisseur).where(FraisFournisseur.fournisseur == d.fournisseur,
+                                                        FraisFournisseur.reference == d.reference))
+    if precedent:
+        if precedent.annule_le or any(getattr(precedent, k) != v for k, v in donnees.items()):
+            raise HTTPException(409, "Cette référence est déjà enregistrée. Vérifiez la saisie existante avant d’ajouter un autre frais.")
+        return {"id": precedent.id, "deja_enregistre": True}
+    f = FraisFournisseur(**donnees, acteur_id=acteur.id)
+    s.add(f)
+    try:
+        s.flush()
+    except IntegrityError:
+        s.rollback()
+        raise HTTPException(409, "Cette référence vient d’être enregistrée. Actualisez le tableau.")
+    journal(s, acteur, s.get(Compte, d.compte_id) if d.compte_id else acteur, "frais_enregistre",
+            {"frais_id": f.id, "fournisseur": f.fournisseur, "montant_centimes": f.montant_centimes})
+    s.commit()
+    return {"id": f.id, "deja_enregistre": False}
+
+
+@routeur.post("/frais/{frais_id}/annuler")
+def annuler_frais(frais_id: str, acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
+    verrouiller(s, acteur)
+    f = s.get(FraisFournisseur, frais_id)
+    if not f:
+        raise HTTPException(404, "Frais introuvable.")
+    if not f.annule_le:
+        f.annule_le = maintenant()
+        journal(s, acteur, s.get(Compte, f.compte_id) if f.compte_id else acteur, "frais_annule", {"frais_id": f.id})
+        s.commit()
+    return {"id": f.id, "annule": True}
+
+
 @routeur.get("/vue-ensemble")
 def vue_ensemble(acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
     statuts = dict(s.execute(select(Compte.statut, func.count()).group_by(Compte.statut)).all())
     debut = maintenant().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=6)
     jours = dict(s.execute(select(func.date(ConnexionCompte.cree_le), func.count())
                           .where(ConnexionCompte.cree_le >= debut).group_by(func.date(ConnexionCompte.cree_le))).all())
+    par_compte = s.execute(select(Compte.id, Compte.email, Compte.prenom, Compte.nom,
+                                 func.count(ConnexionCompte.id), func.max(ConnexionCompte.cree_le))
+        .join(ConnexionCompte, ConnexionCompte.compte_id == Compte.id)
+        .where(ConnexionCompte.cree_le >= debut)
+        .group_by(Compte.id, Compte.email, Compte.prenom, Compte.nom)
+        .order_by(func.count(ConnexionCompte.id).desc(), func.max(ConnexionCompte.cree_le).desc())).all()
     return {"comptes": sum(statuts.values()), "actifs": statuts.get("actif", 0),
             "suspendus": statuts.get("suspendu", 0), "supprimes": statuts.get("supprime", 0),
             "administrateurs": s.scalar(select(func.count()).select_from(Compte).where(
                 Compte.role.in_(["proprietaire", "admin"]), Compte.statut == "actif")),
             "photos": s.scalar(select(func.count()).select_from(Photo)),
             "connexions": [{"jour": (debut + timedelta(days=i)).date().isoformat(),
-                             "nombre": jours.get((debut + timedelta(days=i)).date().isoformat(), 0)} for i in range(7)]}
+                             "nombre": jours.get((debut + timedelta(days=i)).date().isoformat(), 0)} for i in range(7)],
+            "connexions_par_compte": [{"id": ident, "email": email,
+                "nom": f"{prenom} {nom}".strip(), "nombre": nombre, "derniere_connexion_le": utc(derniere)}
+                for ident, email, prenom, nom, nombre, derniere in par_compte]}
+
+
+@routeur.get("/activite-commerciale")
+def activite_commerciale(acteur: Compte = Depends(administrateur), s: Session = Depends(session)):
+    """Paiements réels crédités et remboursements enregistrés, sans marge inventée."""
+    operations = s.execute(select(AchatCredits, Compte).join(Compte, Compte.id == AchatCredits.compte_id)
+        .where(AchatCredits.statut.in_(["paye", "rembourse"]), AchatCredits.credite_le.is_not(None), AchatCredits.reel == 1)
+        .order_by(AchatCredits.credite_le.desc(), AchatCredits.id.desc())).all()
+    ventes = [(achat, compte) for achat, compte in operations if achat.statut == "paye"]
+    remboursements = [(achat, compte) for achat, compte in operations if achat.statut == "rembourse"]
+    revenus = {"photo": 0, "video": 0}
+    par_compte: dict[str, dict] = {}
+    for achat, compte in operations:
+        ligne = par_compte.setdefault(compte.id, {"id": compte.id, "email": compte.email,
+            "nom": f"{compte.prenom} {compte.nom}".strip(), "achats_photo": 0,
+            "achats_video": 0, "ca_photo_centimes": 0, "ca_video_centimes": 0,
+            "achats_rembourses": 0, "remboursements_centimes": 0,
+            "photos_importees": 0, "retouches_creees": 0, "videos_creees": 0})
+        if achat.statut == "rembourse":
+            ligne["achats_rembourses"] += 1
+            ligne["remboursements_centimes"] += achat.montant_centimes
+        else:
+            revenus[achat.nature] = revenus.get(achat.nature, 0) + achat.montant_centimes
+            ligne[f"achats_{achat.nature}"] = ligne.get(f"achats_{achat.nature}", 0) + 1
+            ligne[f"ca_{achat.nature}_centimes"] = ligne.get(f"ca_{achat.nature}_centimes", 0) + achat.montant_centimes
+    photos = dict(s.execute(select(Logement.compte_id, func.count(Photo.id)).join(Photo, Photo.logement_id == Logement.id).group_by(Logement.compte_id)).all())
+    retouches = dict(s.execute(select(Logement.compte_id, func.count(Version.id)).join(Photo, Photo.logement_id == Logement.id)
+        .join(Version, Version.photo_id == Photo.id).group_by(Logement.compte_id)).all())
+    videos = dict(s.execute(select(Logement.compte_id, func.count(Video.id)).join(Video, Video.logement_id == Logement.id)
+        .group_by(Logement.compte_id)).all())
+    comptes_frais = set(s.scalars(select(FraisFournisseur.compte_id).where(FraisFournisseur.compte_id.is_not(None))))
+    comptes = s.scalars(select(Compte).where(Compte.id.in_(set(photos) | set(retouches) | set(videos) | set(par_compte) | comptes_frais))).all()
+    for compte in comptes:
+        ligne = par_compte.setdefault(compte.id, {"id": compte.id, "email": compte.email,
+            "nom": f"{compte.prenom} {compte.nom}".strip(), "achats_photo": 0,
+            "achats_video": 0, "ca_photo_centimes": 0, "ca_video_centimes": 0,
+            "achats_rembourses": 0, "remboursements_centimes": 0,
+            "photos_importees": 0, "retouches_creees": 0, "videos_creees": 0})
+        ligne.update(photos_importees=photos.get(compte.id, 0), retouches_creees=retouches.get(compte.id, 0), videos_creees=videos.get(compte.id, 0))
+    depenses = frais.resume(s, sum(revenus.values()))
+    for ligne in par_compte.values():
+        cout = depenses["par_compte"].get(ligne["id"])
+        ligne.update(frais_centimes=cout, marge_provisoire_centimes=(ligne["ca_photo_centimes"] + ligne["ca_video_centimes"] - cout) if cout is not None else None)
+    return {"devise": "EUR", "ca_photo_centimes": revenus.get("photo", 0),
+        "ca_video_centimes": revenus.get("video", 0), "ca_total_centimes": sum(revenus.values()),
+        "encaissements_bruts_centimes": sum(achat.montant_centimes for achat, _ in operations),
+        "remboursements_centimes": sum(achat.montant_centimes for achat, _ in remboursements),
+        "achats_rembourses": len(remboursements),
+        "achats_payes": len(ventes), "photos_importees": sum(photos.values()),
+        "retouches_creees": sum(retouches.values()), "videos_creees": sum(videos.values()),
+        "cout_fournisseur": depenses["montant_centimes"], "benefice": None, "frais": depenses,
+        "note_couts": "La marge provisoire correspond aux encaissements nets moins les frais saisis en euros. Elle reste partielle tant que tous les frais, taxes et commissions ne sont pas rapprochés des justificatifs. Une recharge API n’est pas le coût d’une génération.",
+        "par_compte": sorted(par_compte.values(), key=lambda ligne: (ligne["ca_photo_centimes"] + ligne["ca_video_centimes"] + ligne["remboursements_centimes"], ligne["photos_importees"] + ligne["videos_creees"]), reverse=True),
+        "ventes_recentes": [{"id": achat.id, "compte": compte.email, "nature": achat.nature,
+            "pack": achat.pack_id, "credits": achat.credits, "montant_centimes": achat.montant_centimes,
+            "statut": achat.statut, "date": utc(achat.credite_le)} for achat, compte in operations[:50]]}
 
 
 @routeur.get("/comptes")
@@ -126,7 +241,8 @@ def liste_alertes(page: int = Query(1, ge=1), acteur: Compte = Depends(administr
     # Les quotas confirmés sont la source de vérité. Les réservations en cours
     # ne produisent pas d'alerte. Un achat ou un déblocage résout l'alerte dans
     # la même transaction que la remise à zéro, sans doublon de notification.
-    filtres = [Compte.statut == "actif", or_(
+    # Les administrateurs et le propriétaire ne sont pas bloqués par ces quotas.
+    filtres = [Compte.statut == "actif", Compte.role == "client", or_(
         and_(QuotaCreation.nature == "photo", QuotaCreation.utilisees >= limites.plafond("photo")),
         and_(QuotaCreation.nature == "video", QuotaCreation.utilisees >= limites.plafond("video")),
     )]

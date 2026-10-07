@@ -4,7 +4,7 @@ export type Limits = { proprietaire?: boolean; photo: Limit; video: Limit; suppo
 export type Pack = { id: string; nature: 'photo' | 'video'; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
 export type Account = {
   id: string; email: string; prenom: string; nom: string; profil_complet: boolean;
-  role: 'client' | 'admin' | 'proprietaire'; solde: number; photo_offerte_disponible: boolean;
+  role: 'client' | 'admin' | 'proprietaire'; solde: number; photo_offerte_disponible: boolean; photo_offerte_telechargee?: boolean;
   gratuit_illimite: boolean;
   paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean;
   solde_video: number; limites?: Limits;
@@ -13,7 +13,7 @@ export type Account = {
   registre_video: { delta: number; motif: string; le: string }[];
 };
 export type Health = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; video_disponible?: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
-export type Property = { id: string; nom: string; ville: string; type_annonce: string; source_url: string; cree_le?: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean; archivee?: boolean; titre?: string; ordre?: number; cree_le?: string; original?: string; version_gardee?: string | null; versions?: PhotoVersion[] }[] };
+export type Property = { id: string; nom: string; ville: string; type_annonce: string; source_url: string; cree_le?: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean; archivee?: boolean; usage_initial?: 'photo' | 'video'; titre?: string; ordre?: number; cree_le?: string; original?: string; version_gardee?: string | null; versions?: PhotoVersion[] }[] };
 export type PhotoVersion = { id: string; numero: number; apercu: string; hd: boolean; consigne: string; cree_le?: string };
 export type CreatedVideo = { id: string; statut: string; duree: number; erreur: string; url: string; plans_prets?: number; plans_total?: number; clips?: { photo_id: string; url: string }[] };
 export type AccountPhoto = {
@@ -61,8 +61,8 @@ export function generationLabel(photo: AccountPhoto) {
   return photo.cycle_id === 'initial' ? 'Appliquer ma correction incluse' : 'Appliquer ma correction';
 }
 export function downloadLabel(photo: AccountPhoto) {
-  if (photo.offerte) return 'Télécharger ma photo offerte';
-  return photo.credite_le ? 'Télécharger sans filigrane' : 'Garder en HD · 1 crédit';
+  if (photo.offerte) return 'HD offerte sans filigrane';
+  return photo.credite_le ? 'Télécharger HD sans filigrane' : 'HD sans filigrane · 1 crédit';
 }
 export function needsDownloadCredit(photo: AccountPhoto) { return !photo.offerte && !photo.credite_le; }
 export function previewIsProtected(photo: AccountPhoto, isVersion: boolean) {

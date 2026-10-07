@@ -1,4 +1,12 @@
-# Studio Annonce sur N0C — état vérifié le 5 octobre 2026
+# Studio Annonce sur N0C — état actuel du 7 octobre 2026
+
+Les paiements installés par Sébastien sont actifs. Conserver la version serveur de `app/routes/paiements.py`, les clés, `.env` et le checkout : une copie de travail plus ancienne ne doit jamais les écraser. Retouche, vidéo et export mobile sont disponibles ; administrateurs/propriétaire gratuits sans quotas clients. Le détail récent et les preuves se trouvent dans [le suivi du 7 octobre](../docs/SUIVI-2026-10-07.md). Les sections datées ci-dessous décrivent des états historiques, et leurs mentions de services fermés ne sont plus la situation actuelle.
+
+Les sauvegardes volumineuses sont conservées sur le Mac dans `/Users/more/Documents/Codex/studio-annonce-backups/`, avec contrôle des empreintes, pour éviter de saturer le quota N0C. Ne pas recréer une copie complète sur le serveur avant chaque publication sans vérifier l’espace disponible.
+
+## Repérage du logement — 6 octobre 2026
+
+Le volet facultatif de repérage des portes est publié sur le compte `vzbbtadpbm` pour la préparation vidéo web et mobile. La route privée `/api/videos/reperage` analyse seulement quelques images extraites sur l'appareil et les photos choisies ; aucune vidéo de visite brute n'est envoyée au serveur ou à Higgsfield. Un passage non confirmé devient une coupe. Sauvegarde préalable locale, libération réversible d'archives de livraison et contrôle des 169 fichiers publiés : [preuves et limites](../docs/SUIVI-2026-10-06.md#repérage-facultatif-des-portes-et-parcours-court). La vente vidéo client reste fermée.
 
 ## Parcours, brouillons et imports du 5 octobre
 

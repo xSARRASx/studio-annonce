@@ -62,7 +62,7 @@ export function Presentation() {
             <li><span>03</span> Comparez la proposition</li>
           </ol>
         </div>
-        <Link className="button dark" href="/connexion/?suite=photo">Préparer ma photo <ArrowRight size={18} /></Link>
+        <Link className="button dark" href="/inscription/?suite=photo">Préparer ma photo <ArrowRight size={18} /></Link>
       </div>
 
       <div className="presentation-panel">
@@ -89,7 +89,7 @@ export function Presentation() {
             {!started && <button className="presentation-play" type="button" onClick={startFilm} aria-label={`Voir le film ${format} de Studio Annonce`}><Play size={24} fill="currentColor" /><span>Voir le film</span></button>}
           </div>
         </div>
-        <p className="presentation-note">Film de présentation du parcours. Le lien d’annonce est enregistré, puis les photos sont ajoutées depuis votre appareil. La création vidéo montrée à la fin est encore en préparation.</p>
+        <p className="presentation-note">Film de présentation du parcours. Le lien d’annonce est enregistré, puis les photos sont ajoutées depuis votre appareil. Une vraie visite vidéo d’exemple est présentée plus bas.</p>
       </div>
     </section>
   );

@@ -42,14 +42,14 @@ function base64(blob: Blob): Promise<string> {
 }
 
 /** Une réponse perdue reprend le même envoi, sans dupliquer la photo sur le compte. */
-export async function envoyerPhoto(fichier: File, logementId: string, demande = ""): Promise<Photo> {
+export async function envoyerPhoto(fichier: File, logementId: string, demande = "", usageInitial: "photo" | "video" = "photo"): Promise<Photo> {
   let confirmations = imports.get(fichier);
   if (!confirmations) { confirmations = new Map(); imports.set(fichier, confirmations); }
-  const signature = `${logementId}:${demande}`;
+  const signature = `${logementId}:${demande}:${usageInitial}`;
   let confirmation = confirmations.get(signature);
   if (!confirmation) {
     const cle = crypto.randomUUID();
-    confirmation = { cle, body: preparerPhoto(fichier).then(base64).then(image => JSON.stringify({ image, demande, cle_import: cle })) };
+    confirmation = { cle, body: preparerPhoto(fichier).then(base64).then(image => JSON.stringify({ image, demande, cle_import: cle, usage_initial: usageInitial })) };
     confirmations.set(signature, confirmation);
     void confirmation.body.catch(() => confirmations?.delete(signature));
   }

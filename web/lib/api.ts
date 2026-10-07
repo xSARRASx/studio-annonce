@@ -9,8 +9,8 @@ export function jeton(): string | null {
 }
 export function poserJeton(j: string | null) {
   try {
-    if (j) localStorage.setItem("jeton", j);
-    else localStorage.removeItem("jeton");
+    if (j) { localStorage.setItem("jeton", j); localStorage.setItem("studio-annonce.account-session", j); }
+    else { localStorage.removeItem("jeton"); localStorage.removeItem("studio-annonce.account-session"); sessionStorage.removeItem("studio-annonce.account-session"); }
   } catch {}
 }
 
@@ -62,6 +62,7 @@ export type LimitesCreation = { proprietaire?: boolean; photo: LimiteCreation; v
 export type Photo = {
   id: string; logement_id: string; original?: string; cree_le?: string; ordre: number; offerte: boolean; vignette: string; analyse: Analyse | null;
   demande_brouillon: string;
+  usage_initial?: "photo" | "video";
   essais: number; essais_restants: number; alerte: number | null; version_gardee: string | null;
   credite_le: string | null; reprise_jusqu_au: string | null; versions: Version[];
   cycle_id: string; reprise_expiree: boolean; reprise_necessaire: boolean;
@@ -70,12 +71,14 @@ export type Photo = {
 };
 export type Logement = { id: string; nom: string; ville: string; type_annonce: string; cree_le: string;
   source_url: string; photos: { id: string; vignette: string; essais: number; gardee: boolean; offerte: boolean; creditee: boolean; archivee?: boolean;
+    usage_initial?: "photo" | "video";
     titre?: string; ordre?: number; cree_le?: string; original?: string; version_gardee?: string | null; versions?: Version[] }[] };
 export type VideoCreee = { id: string; statut: string; duree: number; erreur: string; url: string;
   plans_prets?: number; plans_total?: number; clips?: { photo_id: string; url: string }[] };
 export type Pack = { id: string; nature: "photo" | "video"; credits: number; secondes?: number; prix_centimes: number; prix_unitaire_centimes: number; libelle: string; avantage?: string };
+export type Achat = { id: string; nature: "photo" | "video"; credits: number; montant_centimes: number; devise: string; statut: string; cree_le: string; test: boolean };
 export type Sante = { ok: boolean; connexion_disponible: boolean; retouche_disponible: boolean; video_disponible?: boolean; paiement_disponible: boolean; paiement_photo_disponible?: boolean; paiement_video_disponible?: boolean };
-export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean; solde: number; solde_video: number; photo_offerte_disponible: boolean;
+export type Compte = { id: string; email: string; prenom: string; nom: string; role: "client" | "admin" | "proprietaire"; profil_complet: boolean; paiement_disponible: boolean; paiement_photo_disponible: boolean; paiement_video_disponible: boolean; solde: number; solde_video: number; photo_offerte_disponible: boolean; photo_offerte_telechargee?: boolean;
   gratuit_illimite: boolean;
   limites: LimitesCreation;
   packs: Pack[]; packs_photo: Pack[]; packs_video: Pack[];

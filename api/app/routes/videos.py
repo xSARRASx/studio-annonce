@@ -3,18 +3,21 @@ from __future__ import annotations
 
 import asyncio
 import httpx
+import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Lock
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
-from .. import acces_ia, credits_video, higgsfield_video, images, stockage, video_montage
+from .. import acces_ia, credits_video, higgsfield_video, images, limites, openai_vision, stockage, video_montage, video_reperage
 from ..config import reglages
-from ..consignes_video import Mouvement, VERSION, mouvement_du_plan, preparer_consigne
+from ..consignes_video import Mouvement, VERSION, identifier_piece, mouvement_du_plan, preparer_consigne, preparer_visite_continue
 from ..db import session
 from ..models import Brouillon, Compte, Logement, MouvementCreditVideo, Photo, Video, identifiant, maintenant
 from ..paiements import video_disponible as vente_video_disponible
@@ -61,7 +64,52 @@ class DemandeVisite(DemandeVideo):
     brouillon_id: str | None = Field(default=None, max_length=36)
     duree: int | None = Field(default=None, ge=5, le=30, strict=True)
     photos: list[SourceVideo] = Field(min_length=1, max_length=6)
+    agencement: str = Field(default="", max_length=1200)
+    liaisons: list[Literal["coupe", "meme", "gauche", "centre", "droite"]] = Field(default_factory=list, max_length=5)
+    montage: Literal["montage", "continue"] = "montage"
+    qualite: Literal["720p", "1080p"] = "720p"
     cle_demande: str = Field(pattern=r"^[a-fA-F0-9-]{36}$")
+
+
+class DemandeReperage(BaseModel):
+    photos: list[str] = Field(min_length=1, max_length=6)
+    images: list[str] = Field(min_length=3, max_length=10)
+
+
+@routeur.post("/reperage")
+async def reperer(request: Request, compte: Compte = Depends(compte_complet), s: Session = Depends(session)):
+    """Analyse de vues prélevées sur l'appareil ; aucun octet vidéo ne va à Higgsfield."""
+    if not (acces_ia.gratuit_proprietaire(compte) or vente_video_disponible()):
+        raise HTTPException(503, "La préparation vidéo n'est pas encore ouverte sur ce compte.")
+    if not reglages.OPENAI_API_KEY:
+        raise HTTPException(503, "L'analyse du repérage n'est pas encore disponible.")
+    if not acces_ia.gratuit_proprietaire(compte):
+        limites.verifier(s, compte.id, "video")
+        if credits_video.solde(s, compte.id) < 1:
+            raise HTTPException(402, "Ajoutez des crédits vidéo avant de préparer cette visite.")
+    contenu = bytearray()
+    async for morceau in request.stream():
+        contenu.extend(morceau)
+        if len(contenu) > 3_300_000:
+            raise HTTPException(413, "Les images extraites de la vidéo sont trop lourdes.")
+    try:
+        demande = DemandeReperage.model_validate(json.loads(contenu))
+        vues = [video_reperage.decoder_image(image) for image in demande.images]
+        planche_video = video_reperage.planche(vues)
+    except (ValueError, TypeError) as erreur:
+        raise HTTPException(400, str(erreur)) from erreur
+    if len(set(demande.photos)) != len(demande.photos):
+        raise HTTPException(400, "Choisissez chaque photo une seule fois.")
+    photos = [_photo(s, compte, ident) for ident in demande.photos]
+    if len({photo.logement_id for photo in photos}) != 1:
+        raise HTTPException(400, "Les photos doivent venir du même logement.")
+    try:
+        planche_photos = video_reperage.planche([stockage.lire(p.cle_originale) for p in photos], colonnes=3)
+        analyse = await openai_vision.analyser_reperage(planche_video, planche_photos)
+    except Exception as erreur:
+        logging.getLogger(__name__).warning("Repérage vidéo indisponible : %s", type(erreur).__name__)
+        raise HTTPException(503, "Le repérage n'a pas abouti. Vous pouvez décrire les pièces vous-même, sans lancer de vidéo.") from erreur
+    return video_reperage.proposition(analyse)
 
 
 def _photo(s: Session, compte: Compte, photo_id: str) -> Photo:
@@ -82,9 +130,10 @@ def _video(s: Session, compte: Compte, video_id: str) -> Video:
 def _vue(v: Video) -> dict:
     plans = (v.requetes or {}).get("clips", [])
     return {"id": v.id, "statut": v.statut, "duree": (v.plan or {}).get("duree", 5),
+            "qualite": (v.plan or {}).get("qualite", "720p"), "montage": (v.plan or {}).get("montage", "montage"),
             "erreur": v.erreur, "url": stockage.url_privee(v.cle_video) if v.cle_video else "",
             "plans_prets": sum(bool(p.get("cle_clip")) for p in plans),
-            "plans_total": len((v.plan or {}).get("sources", [])) or 1,
+            "plans_total": 1 if (v.plan or {}).get("schema") == 3 else len((v.plan or {}).get("sources", [])) or 1,
             "clips": [{"photo_id": p["photo_id"], "url": stockage.url_privee(p["cle_clip"])}
                       for p in plans if p.get("cle_clip")]}
 
@@ -100,14 +149,25 @@ def _rembourser_echec(s: Session, v: Video, compte: Compte) -> None:
         credits_video.mouvement(s, compte, reserves, "Remboursement d'une vidéo en échec", reference)
 
 
-def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: str, cle: str | None, duree: int | None = None) -> Video:
+def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: str, cle: str | None, duree: int | None = None,
+             agencement: str = "", liaisons: list[str] | None = None, montage: str = "montage", qualite: str = "720p") -> Video:
     proprietaire = acces_ia.gratuit_proprietaire(compte)
     if not (proprietaire or vente_video_disponible()) or not higgsfield_video.disponible():
         raise HTTPException(503, "La création vidéo n'est pas encore ouverte sur ce compte.")
     duree = duree if duree is not None else len(sources) * 5
     if duree not in (5, 10, 15, 20, 25, 30):
         raise HTTPException(422, "Choisissez 5, 10, 15, 20, 25 ou 30 secondes.")
-    duree_source = next(n for n in (5, 10, 20, 30) if n * len(sources) >= duree)
+    references = reglages.VIDEO_MODELE == higgsfield_video.MODELE_REFERENCE
+    if qualite == "1080p" and not references:
+        raise HTTPException(503, "La qualité 1080p demande le moteur de visite actuellement indisponible.")
+    liaisons = liaisons or []
+    if liaisons and len(liaisons) != len(sources) - 1:
+        raise HTTPException(422, "Indiquez un passage pour chaque paire de photos consécutives.")
+    if montage == "continue" and len(sources) > 1 and (len(liaisons) != len(sources) - 1 or "coupe" in liaisons):
+        raise HTTPException(422, "Pour demander une visite fluide, confirmez d’abord le passage réel entre chaque pièce.")
+    if references and len(sources) > 2 * (duree // 5):
+        raise HTTPException(422, f"Choisissez au plus {2 * (duree // 5)} photos pour {duree} secondes.")
+    duree_source = duree if references else next(n for n in (5, 10, 20, 30) if n * len(sources) >= duree)
     if reglages.VIDEO_MODELE == higgsfield_video.MODELE_KLING and duree_source > 10:
         raise HTTPException(422, "Ajoutez des photos : ce moteur accepte jusqu’à 10 secondes par plan.")
     compte_id = compte.id
@@ -117,11 +177,19 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
     compte = s.get(Compte, compte_id)
     if not compte or compte.statut != "actif":
         raise HTTPException(403, "Ce compte n'est plus actif.")
+    proprietaire = acces_ia.gratuit_proprietaire(compte)
+    if not (proprietaire or vente_video_disponible()):
+        raise HTTPException(503, "La création vidéo n'est pas encore ouverte sur ce compte.")
     if cle:
         deja = s.scalar(select(Video).where(Video.cle_demande == cle))
         if deja:
             _video(s, compte, deja.id)
-            if (deja.plan or {}).get("duree") != duree or (deja.plan or {}).get("demande") != demande or (deja.plan or {}).get("selection") != _selection(sources):
+            if ((deja.plan or {}).get("duree") != duree or (deja.plan or {}).get("demande") != demande
+                    or (deja.plan or {}).get("selection") != _selection(sources)
+                    or (deja.plan or {}).get("agencement", "") != agencement
+                    or (deja.plan or {}).get("liaisons", []) != liaisons
+                    or (deja.plan or {}).get("montage", "montage") != montage
+                    or (deja.plan or {}).get("qualite", "720p") != qualite):
                 raise HTTPException(409, "Cette confirmation correspond à une autre demande vidéo.")
             s.commit()
             return deja
@@ -144,7 +212,7 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
             raise HTTPException(409, "Une vidéo de ce logement est déjà en cours. Retrouvez son suivi avant de recommencer.")
     debut = maintenant() - timedelta(days=1)
     nb = s.scalar(select(func.count(Video.id)).where(Video.logement_id == logement_id, Video.cree_le >= debut)) or 0
-    if nb >= 5:
+    if nb >= 5 and not proprietaire:
         raise HTTPException(429, "Limite de cinq projets vidéo par logement et par jour atteinte.")
     plans = []
     if reglages.VIDEO_MODELE not in higgsfield_video.MODELES:
@@ -159,14 +227,24 @@ def _reserver(s: Session, compte: Compte, sources: list[SourceVideo], demande: s
             version = next((p for p in photo.versions if p.id == photo.version_gardee_id), None)
         plans.append({"photo_id": photo.id, "version_id": version.id if version else None,
                       "cle_source": version.cle_pleine if version else photo.cle_originale})
-    reserves = 0 if proprietaire else duree // 5
+    portes = {"coupe": "unconfirmed passage: use a cut", "meme": "same room; stay in this space",
+              "gauche": "confirmed left doorway", "centre": "confirmed opening straight ahead", "droite": "confirmed right doorway"}
+    carte = " ".join(f"Reference image {i + 1} to {i + 2}: {portes[choix]}." for i, choix in enumerate(liaisons))
+    disposition = f"{carte}\n{agencement}".strip()
+    prompt_continu = (preparer_visite_continue(demande, [p.mouvement for p in sources], duree,
+                      [identifier_piece(p.analyse) for p in photos], disposition, montage) if references else None)
+    if prompt_continu and len(prompt_continu) > 10000:
+        raise HTTPException(422, "Votre demande vidéo est trop longue. Raccourcissez le texte avant de confirmer.")
+    reserves = 0 if proprietaire else duree // 5 * (2 if qualite == "1080p" else 1)
     if reserves and credits_video.solde(s, compte.id) < reserves:
-        raise HTTPException(402, f"Cette vidéo de {duree} secondes utilise {reserves} crédits vidéo. Votre solde reste disponible pour une durée plus courte.")
+        raise HTTPException(402, f"Cette vidéo de {duree} secondes en {qualite} utilise {reserves} crédits vidéo. Votre solde reste disponible pour une durée ou une qualité inférieure.")
     v = Video(logement_id=logement_id, cle_demande=cle, statut="preparation",
-              plan={"schema": 2, "photo_id": photos[0].id, "duree": duree, "duree_source": duree_source, "montage_exact": True, "demande": demande,
+              plan={"schema": 3 if references else 2, "photo_id": photos[0].id, "duree": duree, "duree_source": duree_source, "montage_exact": True, "demande": demande,
+                    "agencement": agencement, "liaisons": liaisons, "montage": montage, "qualite": qualite,
                     "credits_reserves": reserves,
                     "selection": _selection(sources), "sources": plans,
                     "modele": reglages.VIDEO_MODELE, "direction_version": VERSION,
+                    "prompt_continu": prompt_continu,
                     "directions": [{"mouvement": mouvement_du_plan(p.mouvement, i),
                                     "prompt": preparer_consigne(demande, p.mouvement, i, len(sources), duree_source)}
                                    for i, p in enumerate(sources)]}, requetes={"clips": []})
@@ -209,7 +287,7 @@ def creer_visite(d: DemandeVisite, compte: Compte = Depends(compte_complet), s: 
             deja = _video(s, compte, brouillon.video_id)
             if deja.cle_demande != d.cle_demande:
                 raise HTTPException(409, "Cette préparation a déjà été lancée. Retrouvez-la dans Mes créations.")
-    v = _reserver(s, compte, d.photos, d.demande, d.cle_demande, d.duree)
+    v = _reserver(s, compte, d.photos, d.demande, d.cle_demande, d.duree, d.agencement.strip(), d.liaisons, d.montage, d.qualite)
     if brouillon:
         brouillon.video_id = v.id
         s.commit()
@@ -262,7 +340,7 @@ async def _avancer(fabrique, video_id: str) -> None:
             s.commit()
             return
         # Les anciens clips conservent exactement leur reçu et leur idempotence.
-        if (v.plan or {}).get("schema") != 2:
+        if (v.plan or {}).get("schema") not in (2, 3):
             if v.statut == "preparation" and not (v.requetes or {}).get("image_url") and v.cree_le < maintenant() - timedelta(minutes=5):
                 v.statut, v.erreur = "echec", "La préparation a été interrompue. Vous pouvez réessayer."
                 v.traitement_jusqu_au = None
@@ -274,7 +352,8 @@ async def _avancer(fabrique, video_id: str) -> None:
             s.commit()
         plans = [dict(p) for p in (v.requetes or {}).get("clips", [])]
         sources = v.plan["sources"]
-        while len(plans) < len(sources):
+        references = v.plan.get("schema") == 3
+        while len(plans) < (1 if references else len(sources)):
             index = len(plans)
             plans.append({"photo_id": sources[index]["photo_id"], "idempotence": f"{v.id}-{index}"})
         def sauver(minutes=5):
@@ -289,7 +368,14 @@ async def _avancer(fabrique, video_id: str) -> None:
             for index, plan in enumerate(plans):
                 if plan.get("request_id") or plan.get("cle_clip"):
                     continue
-                if not plan.get("image_url"):
+                if references:
+                    image_urls = list(plan.get("image_urls") or [])
+                    for source_plan in sources[len(image_urls):]:
+                        source = stockage.lire(source_plan["cle_source"])
+                        image_urls.append(await higgsfield_video.preparer_image(images.preparer_envoi_ia(source)))
+                        plan["image_urls"] = image_urls
+                        sauver()
+                elif not plan.get("image_url"):
                     source = stockage.lire(sources[index]["cle_source"])
                     plan["image_url"] = await higgsfield_video.preparer_image(images.preparer_envoi_ia(source))
                     sauver()
@@ -301,7 +387,10 @@ async def _avancer(fabrique, video_id: str) -> None:
                 directions = v.plan.get("directions")
                 prompt = directions[index]["prompt"] if directions else CONSIGNE_FIDELITE + v.plan.get("demande", "")
                 modele = v.plan.get("modele", higgsfield_video.MODELE)
-                plan.update(await higgsfield_video.soumettre(plan["image_url"], prompt, v.plan.get("duree_source", 5), plan["idempotence"], modele))
+                if references:
+                    plan.update(await higgsfield_video.soumettre_references(plan["image_urls"], v.plan["prompt_continu"], v.plan["duree"], plan["idempotence"], v.plan.get("qualite", "720p")))
+                else:
+                    plan.update(await higgsfield_video.soumettre(plan["image_url"], prompt, v.plan.get("duree_source", 5), plan["idempotence"], modele))
                 v.statut, v.erreur = "en_attente", ""
                 sauver()
                 return
@@ -329,7 +418,7 @@ async def _avancer(fabrique, video_id: str) -> None:
                 else:
                     v.statut = "montage"
                     sauver(minutes=15)
-                    contenu = video_montage.assembler([stockage.lire(p["cle_clip"]) for p in plans], v.plan["duree"])
+                    contenu = video_montage.assembler([stockage.lire(p["cle_clip"]) for p in plans], v.plan["duree"], v.plan.get("qualite", "720p"))
                     v.cle_video = stockage.ecrire(f"prive/videos/{v.id}/video.mp4", contenu, "video/mp4")
                 v.statut, v.erreur = "prete", ""
             sauver()

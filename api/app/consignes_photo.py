@@ -35,6 +35,10 @@ Regarde la photo et réponds UNIQUEMENT en JSON avec ces clés :
 - "question" : UNE question courte et optionnelle s'il reste un vrai choix à faire, sinon chaîne vide.
 N'invente aucun défaut ni détail invisible sur la photo."""
 
+CONSIGNE_AUTOMATIQUE = """Prépare cette photo pour une annonce Airbnb ou Booking, sans intervention demandée par le client.
+Améliore uniquement ce qui est nécessaire pour une photographie immobilière naturelle : exposition équilibrée, lumière lisible sans surexposition, balance des blancs juste, verticales légèrement redressées, textures et détails nets. Retire ou range seulement les petits objets manifestement gênants si leur présence est visible et si le résultat reste crédible.
+Garde le cadrage et la perspective d'origine. Conserve à l'identique la structure, les dimensions, la position des portes, fenêtres, radiateurs, équipements fixes, meubles, revêtements et couleurs. N'invente aucun élément, aucune pièce ni ouverture ; n'applique pas de décoration ou de rénovation virtuelle sans demande explicite. Le résultat doit ressembler à une vraie photo du même logement, sans flou, lissage excessif ou effet 3D."""
+
 
 def contexte_reformulation(analyse: dict | None, historique: list[str], demande: str) -> str:
     return (

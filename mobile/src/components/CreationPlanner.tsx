@@ -140,7 +140,7 @@ function CreationPlanner({ kind }: { kind: PlannerKind }) {
         {showBrief && <TextInput accessibilityLabel={kind === 'image' ? 'Description de l’image modifiable' : 'Description de la vidéo modifiable'} value={draft.brief} onChangeText={brief => setDraft(previous => ({ ...previous, brief }))} maxLength={20000} multiline style={[styles.input, { minHeight: 240 }]}/>}
       </View>}
 
-      <View style={styles.next}><Text style={styles.nextTitle}>✦ {kind === 'image' ? 'Imaginez librement.' : 'Votre brief reste modifiable.'}</Text><Text style={styles.nextText}>{kind === 'image' ? 'Une image créée de toutes pièces est une scène fictive. Pour améliorer une photo réelle, choisissez « Retoucher une photo ».' : 'Le moteur vidéo et l’estimation du coût seront connectés ici. Une visite longue peut nécessiter plusieurs plans et un montage.'}</Text><Text style={styles.nextText}>Pour le moment, cet aperçu prépare une description. Aucune image ni vidéo n’est générée.</Text></View>
+      <View style={styles.next}><Text style={styles.nextTitle}>✦ {kind === 'image' ? 'Imaginez librement.' : 'Votre brief reste modifiable.'}</Text><Text style={styles.nextText}>{kind === 'image' ? 'Une image imaginée de toutes pièces est une scène fictive. Pour améliorer une photo réelle, choisissez « Retoucher une photo ».' : 'Pour créer une visite et voir son coût, ouvrez Photos → vidéo depuis votre espace connecté.'}</Text><Text style={styles.nextText}>Ce parcours conserve votre description sur cet appareil. Il ne lance aucune génération.</Text></View>
       <Text accessibilityLiveRegion="polite" style={notice ? styles.warning : styles.storage}>{notice || (saved ? 'Brouillon enregistré sur cet appareil.' : 'Enregistrement du brouillon…')}</Text>
     </>}
   </Screen>;

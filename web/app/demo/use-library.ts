@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { changeLibrary, initialLibrary, readLibrary, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
+import { asset, changeLibrary, initialLibrary, readLibrary, storageError, type DemoLibrary, type DemoProject, type DemoVersion } from "./library";
 
 type Preview = { file: Blob; url: string };
 
@@ -83,6 +83,8 @@ export function useLibrary() {
     return next;
   }, [adopt]);
   const source = (project: DemoProject, version?: DemoVersion) =>
-    (version || project.versions.find(item => item.id === project.selected) || project.versions[0])?.src || urls.current.get(project.id)?.url || "";
+    project.sample && project.id === "example-tour"
+      ? asset("visite-drone-exemple-2026-10-06.mp4")
+      : (version || project.versions.find(item => item.id === project.selected) || project.versions[0])?.src || urls.current.get(project.id)?.url || "";
   return { library, loading, error, update, source, refresh };
 }

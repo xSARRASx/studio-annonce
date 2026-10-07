@@ -1,6 +1,7 @@
 """Aperçu privé puis ajout explicite des photos choisies, sans crédit ni IA."""
 import asyncio
 import time
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel,Field
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ class Import(BaseModel):
     jeton_photo: str=Field(max_length=4000)
     logement_id: str=Field(max_length=24)
     cle_import: str=Field(pattern=r'^[a-fA-F0-9-]{36}$')
+    usage_initial: Literal['photo', 'video'] = 'photo'
 
 @routeur.post('/photos')
 async def chercher(d:Recherche, compte:Compte=Depends(compte_complet)):
@@ -40,4 +42,4 @@ async def importer(d:Import, compte:Compte=Depends(compte_complet), s:Session=De
         raise HTTPException(404,"Logement introuvable.")
     url=annonces.verifier(compte.id,d.jeton_photo)
     data=await annonces.charger(url,15*1024*1024,image=True)
-    return _deposer(d.logement_id,data,'',d.cle_import,compte,s)
+    return _deposer(d.logement_id,data,'',d.cle_import,compte,s,d.usage_initial)

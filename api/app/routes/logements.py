@@ -40,6 +40,7 @@ def _vue(l: Logement, archives: bool = False) -> dict:
             "photos": [{"id": p.id, "vignette": stockage.url_publique(p.cle_vignette), "essais": p.essais,
                         "gardee": bool(p.version_gardee_id), "offerte": bool(p.offerte),
                         "creditee": bool(p.credite_le), "archivee": bool(p.archive_le),
+                        "usage_initial": p.usage_initial,
                         "titre": (p.analyse or {}).get("piece") or f"Photo {p.ordre + 1}", "ordre": p.ordre,
                         "cree_le": _utc(p.cree_le), "original": stockage.url_publique(p.cle_originale),
                         "version_gardee": p.version_gardee_id,

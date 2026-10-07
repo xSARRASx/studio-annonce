@@ -30,6 +30,7 @@ class Compte(Base):
     statut: Mapped[str] = mapped_column(String(20), default="actif", server_default="actif")
     revision_admin: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     email_verifie_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    mot_de_passe_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     derniere_connexion_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
     photos_offertes_utilisees: Mapped[int] = mapped_column(Integer, default=0)
@@ -41,6 +42,7 @@ class CodeConnexion(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(320), index=True)
     code: Mapped[str] = mapped_column(String(6))
+    usage: Mapped[str] = mapped_column(String(24), default="connexion", server_default="connexion")
     expire_le: Mapped[datetime] = mapped_column(DateTime)
     utilise: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -100,6 +102,7 @@ class Photo(Base):
     cle_vignette: Mapped[str] = mapped_column(String(300), default="")
     analyse: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # ce que l'IA a vu, sa consigne, sa question
     demande_brouillon: Mapped[str] = mapped_column(Text, default="", server_default="")
+    usage_initial: Mapped[str] = mapped_column(String(10), default="photo", server_default="photo")
     offerte: Mapped[int] = mapped_column(Integer, default=0)      # 1 = la photo offerte du compte
     essais: Mapped[int] = mapped_column(Integer, default=0)
     credite_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 1er téléchargement HD
@@ -180,6 +183,22 @@ class UsageIA(Base):
     modele: Mapped[str] = mapped_column(String(120))
     operation: Mapped[str] = mapped_column(String(30))
     usage: Mapped[dict] = mapped_column(JSON)
+    cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
+
+
+class FraisFournisseur(Base):
+    """Frais réels rapprochés d'un justificatif, séparés des paiements et crédits."""
+    __tablename__ = "frais_fournisseurs"
+    __table_args__ = (UniqueConstraint("fournisseur", "reference"),)
+    id: Mapped[str] = mapped_column(String(24), primary_key=True, default=identifiant)
+    fournisseur: Mapped[str] = mapped_column(String(20))
+    reference: Mapped[str] = mapped_column(String(160))
+    nature: Mapped[str] = mapped_column(String(10))
+    montant_centimes: Mapped[int] = mapped_column(Integer)
+    date_frais: Mapped[datetime] = mapped_column(DateTime)
+    compte_id: Mapped[str | None] = mapped_column(ForeignKey("comptes.id"), nullable=True, index=True)
+    acteur_id: Mapped[str] = mapped_column(ForeignKey("comptes.id"))
+    annule_le: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cree_le: Mapped[datetime] = mapped_column(DateTime, default=maintenant)
 
 

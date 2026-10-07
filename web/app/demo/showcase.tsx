@@ -125,7 +125,7 @@ export function LxListing() {
   </section>;
 }
 
-/* 4. La suite : la visite vidéo, annoncée comme telle. */
+/* 4. Un vrai essai vidéo, distinct des créations des clients. */
 export function LxVideo() {
   const section = useRef<HTMLElement>(null);
   const [active, setActive] = useState(false);
@@ -138,13 +138,13 @@ export function LxVideo() {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  return <section ref={section} className="lx-section lx-video-section" aria-labelledby="lx-video-title">
-    <div className="lx-video-phone"><video src={active ? asset("visite-guidee-demo.mp4") : undefined} poster={asset("visite/sejour.webp")} autoPlay={active} preload="none" muted loop playsInline aria-label="Aperçu d’une visite en vidéo"/></div>
+  return <section ref={section} id="lx-video-section" className="lx-section lx-video-section" aria-labelledby="lx-video-title">
+    <div className="lx-video-frame"><video src={active ? asset("visite-drone-exemple-2026-10-06.mp4") : undefined} poster={asset("visite-drone-exemple-2026-10-06.jpg")} autoPlay={active} preload="none" muted loop playsInline controls aria-label="Exemple de visite vidéo du séjour à la chambre" >Votre navigateur ne peut pas lire cette vidéo.</video></div>
     <div className="lx-video-copy">
-      <span className="lx-soon"><Film size={14}/> Bientôt</span>
+      <span className="lx-soon"><Film size={14}/> Photos → vidéo</span>
       <h2 id="lx-video-title">La visite en vidéo.</h2>
       <p>À partir de vos photos gardées, une courte vidéo de votre logement, prête pour vos réseaux.</p>
-      <p className="lx-fineprint">Aperçu de principe, monté à partir d’images d’exemple.</p>
+      <p className="lx-fineprint">Essai réel créé à partir de trois images de démonstration. Le rendu de chaque logement dépend des photos et du trajet indiqué.</p>
     </div>
   </section>;
 }

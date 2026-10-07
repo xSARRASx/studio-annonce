@@ -4,20 +4,22 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowDownLeft, ArrowRight, Bell, Check, ChevronLeft, ChevronRight, Clock3, Crown, ImageIcon, Info, KeyRound, LoaderCircle, LockKeyhole, LogOut, MoreHorizontal, Plus, RefreshCw, Search, ShieldCheck, ShieldMinus, Trash2, UserRound, UserRoundCheck, Users, X } from "lucide-react";
 import { api, type Sante } from "@/lib/api";
-import { actionLabel, roleLabel, statusLabel, type AdminAction, type AdminAlerts, type AdminDetail, type AdminLog, type AdminOverview, type AdminStatus, type AdminUser, type AdminUsers } from "@/lib/admin";
+import { actionLabel, roleLabel, statusLabel, type AdminAction, type AdminAlerts, type AdminCommerce, type AdminDetail, type AdminLog, type AdminOverview, type AdminStatus, type AdminUser, type AdminUsers } from "@/lib/admin";
 import { useStudioAccount } from "@/components/studio-account";
 import { Modal } from "../../demo/studio-parts";
+import AdminCosts from "@/components/admin-costs";
 import "./admin.css";
 
 const date = (value: string | null, time = false) => value ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", ...(time ? { timeStyle: "short" as const } : {}) }).format(new Date(value)) : "Jamais connecté";
 const fullName = (user: AdminUser) => `${user.prenom} ${user.nom}`.trim() || "Profil à compléter";
 const initials = (user: AdminUser) => `${user.prenom.slice(0, 1)}${user.nom.slice(0, 1)}` || user.email.slice(0, 1).toUpperCase();
+const euros = (centimes: number) => (centimes / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const actions: Record<AdminAction, { title: string; description: string; button: string }> = {
   suspendre: { title: "Suspendre ce compte ?", description: "Ses sessions seront fermées et la connexion bloquée jusqu’à sa réactivation. Ses créations et ses crédits sont conservés.", button: "Suspendre le compte" },
-  reactiver: { title: "Réactiver ce compte ?", description: "Cette personne pourra de nouveau se connecter avec un nouveau code reçu par email.", button: "Réactiver le compte" },
+  reactiver: { title: "Réactiver ce compte ?", description: "Cette personne pourra de nouveau se connecter avec son email et son mot de passe.", button: "Réactiver le compte" },
   supprimer: { title: "Supprimer ce compte ?", description: "Le compte sera placé dans les comptes supprimés et toutes ses sessions seront fermées. Vous pourrez le restaurer. Cette action ne purge pas ses données ni ses crédits.", button: "Supprimer le compte" },
   restaurer: { title: "Restaurer ce compte ?", description: "Le compte retrouvera ses créations et ses crédits. Il sera restauré avec un rôle client, sans droits administrateur et sans nouvel essai offert.", button: "Restaurer le compte" },
-  deconnecter: { title: "Fermer toutes ses sessions ?", description: "Tous ses appareils seront déconnectés. Cette personne pourra se reconnecter avec un nouveau code par email.", button: "Fermer les sessions" },
+  deconnecter: { title: "Fermer toutes ses sessions ?", description: "Tous ses appareils seront déconnectés. Cette personne pourra se reconnecter avec son email et son mot de passe.", button: "Fermer les sessions" },
   nommer_admin: { title: "Ajouter cet administrateur ?", description: "Cette personne pourra consulter et gérer les comptes clients et accéder au journal d’administration. Seul vous, le propriétaire, pourrez nommer d’autres administrateurs. Ses sessions actuelles seront fermées pour qu’elle se reconnecte.", button: "Accorder l’accès administrateur" },
   retirer_admin: { title: "Retirer l’accès administrateur ?", description: "Cette personne retrouvera un compte client et ses sessions seront fermées. Ses créations et ses crédits restent conservés.", button: "Retirer l’accès administrateur" },
   reinitialiser_essais: { title: "Débloquer les créations ?", description: "Les compteurs des créations photo et vidéo depuis le dernier achat seront remis à zéro sur le site et sur mobile. Les crédits, les limites de correction par photo et les fichiers restent inchangés. Cette intervention est enregistrée dans le journal.", button: "Réinitialiser les deux compteurs" },
@@ -31,6 +33,7 @@ export default function AdminPage() {
 
 function AdminWorkspace({ owner, myId, health }: { owner: boolean; myId: string; health: Sante | null }) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [commerce, setCommerce] = useState<AdminCommerce | null>(null);
   const [users, setUsers] = useState<AdminUsers | null>(null);
   const [logs, setLogs] = useState<AdminLog | null>(null);
   const [tab, setTab] = useState<"comptes" | "equipe" | "journal" | "alertes">("comptes");
@@ -82,8 +85,14 @@ function AdminWorkspace({ owner, myId, health }: { owner: boolean; myId: string;
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
-    Promise.all([api<AdminOverview>("/admin/vue-ensemble", { signal: controller.signal }), api<AdminLog>(`/admin/journal?page=${logPage}`, { signal: controller.signal })])
-      .then(([summary, journal]) => { if (active) { setOverview(summary); setLogs(journal); } })
+    api<AdminOverview>("/admin/vue-ensemble", { signal: controller.signal })
+      .then(summary => { if (active) setOverview(summary); })
+      .catch(e => { if (active) setError(e.message); });
+    api<AdminLog>(`/admin/journal?page=${logPage}`, { signal: controller.signal })
+      .then(journal => { if (active) setLogs(journal); })
+      .catch(e => { if (active) setError(e.message); });
+    api<AdminCommerce>("/admin/activite-commerciale", { signal: controller.signal })
+      .then(sales => { if (active) setCommerce(sales); })
       .catch(e => { if (active) setError(e.message); });
     return () => { active = false; controller.abort(); };
   }, [refresh, logPage]);
@@ -107,7 +116,7 @@ function AdminWorkspace({ owner, myId, health }: { owner: boolean; myId: string;
   }, [modal, refresh]);
 
   const reload = () => { setError(""); setLoading(true); setRefresh(r => r + 1); };
-  function changeTab(value: typeof tab) { setTab(value); setPage(1); setStatus("tous"); reload(); }
+  function changeTab(value: typeof tab) { if (value === tab) return; setTab(value); setPage(1); setStatus("tous"); setError(""); setLoading(true); }
   function open(id: string) { setModal(id); setDetail(null); setModalError(""); setConfirmation(null); setFirst(""); setLast(""); setEmail(""); setConfirmEmail(""); }
   function close() { if (!mutation.current) { setModal(null); setConfirmation(null); setDetail(null); } }
   async function run(path: string, method: string, body: object, success: string) {
@@ -132,7 +141,11 @@ function AdminWorkspace({ owner, myId, health }: { owner: boolean; myId: string;
     {alertError && <div className="admin-feedback error" role="alert"><Bell size={18}/><p>Les notifications ne peuvent pas être actualisées. {alertError}</p><button onClick={reload}>Réessayer</button></div>}
     {!!alerts?.total && tab !== "alertes" && <div className="admin-alert-banner" role="status"><Bell size={22}/><div><strong>{alerts.total} limite{alerts.total > 1 ? "s" : ""} de créations à vérifier</strong><p>Consultez les comptes concernés avant de débloquer leurs essais.</p></div><button className="button outlined" onClick={() => changeTab("alertes")}>Voir les notifications <ArrowRight size={16}/></button></div>}
     <section className="admin-metrics" aria-label="Vue d’ensemble">
-      {[{ label: "Comptes actifs", value: overview?.actifs, note: `${overview?.comptes ?? "…"} compte${overview?.comptes === 1 ? "" : "s"} au total`, Icon: Users }, { label: "Connexions sur 7 jours", value: overview ? totalConnections : undefined, note: "Connexions réussies enregistrées", Icon: Activity }, { label: "Photos du studio", value: overview?.photos, note: "Originaux importés", Icon: ImageIcon }, { label: "Accès administrateurs", value: overview?.administrateurs, note: "Propriétaire inclus", Icon: ShieldCheck }].map(({ label, value, note, Icon }) => <article key={label} className="admin-metric"><span>{label}<Icon size={18}/></span><strong>{value ?? "—"}</strong><small>{note}</small></article>)}
+      {[{ label: "Comptes actifs", value: overview?.actifs, note: `${overview?.comptes ?? "…"} compte${overview?.comptes === 1 ? "" : "s"} au total`, Icon: Users }, { label: "Connexions sur 7 jours", value: overview ? totalConnections : undefined, note: "Connexions réussies, pas personnes distinctes", Icon: Activity }, { label: "Photos du studio", value: overview?.photos, note: "Originaux importés", Icon: ImageIcon }, { label: "Accès administrateurs", value: overview?.administrateurs, note: "Propriétaire inclus", Icon: ShieldCheck }].map(({ label, value, note, Icon }) => <article key={label} className="admin-metric"><span>{label}<Icon size={18}/></span><strong>{value ?? "—"}</strong><small>{note}</small>{label === "Connexions sur 7 jours" && overview && <details className="admin-login-breakdown"><summary>Voir qui s’est connecté</summary>{overview.connexions_par_compte.length ? <ul>{overview.connexions_par_compte.map(personne => <li key={personne.id}><button type="button" onClick={() => open(personne.id)}><strong>{personne.nom || personne.email}</strong><small>{personne.email}</small><span>{personne.nombre} connexion{personne.nombre > 1 ? "s" : ""} · dernière le {date(personne.derniere_connexion_le, true)}</span></button></li>)}</ul> : <p>Aucune connexion enregistrée sur cette période.</p>}</details>}</article>)}
+    </section>
+    <section className="admin-commerce" aria-label="Ventes et créations"><div className="admin-section-heading"><div><h2>Ventes et créations</h2><p>Encaissements, remboursements et créations enregistrés sur tous les comptes.</p></div><button className="admin-refresh" onClick={reload} aria-label="Actualiser les ventes"><RefreshCw size={16}/></button></div>
+      <div className="admin-commerce-metrics"><div><span>Encaissements avant remboursements</span><strong>{commerce ? euros(commerce.encaissements_bruts_centimes) : '—'}</strong></div><div><span>Remboursements enregistrés</span><strong>{commerce ? euros(commerce.remboursements_centimes) : '—'}</strong></div><div><span>Chiffre d’affaires net</span><strong>{commerce ? euros(commerce.ca_total_centimes) : '—'}</strong></div><div><span>Photo · net</span><strong>{commerce ? euros(commerce.ca_photo_centimes) : '—'}</strong></div><div><span>Vidéo · net</span><strong>{commerce ? euros(commerce.ca_video_centimes) : '—'}</strong></div><div><span>Achats conservés</span><strong>{commerce?.achats_payes ?? '—'}</strong></div><div><span>Achats remboursés</span><strong>{commerce?.achats_rembourses ?? '—'}</strong></div><div><span>Photos importées</span><strong>{commerce?.photos_importees ?? '—'}</strong></div><div><span>Retouches créées</span><strong>{commerce?.retouches_creees ?? '—'}</strong></div><div><span>Vidéos lancées</span><strong>{commerce?.videos_creees ?? '—'}</strong></div></div>
+      {commerce && <><p className="admin-commerce-note">Un achat remboursé reste visible ci-dessous, mais ne compte plus dans le chiffre d’affaires net. {commerce.note_couts}</p><AdminCosts frais={commerce.frais} comptes={commerce.par_compte} onChange={reload}/><details><summary>Activité par compte · {commerce.par_compte.length}</summary><div className="admin-commerce-table"><table><thead><tr><th>Compte</th><th>Photos</th><th>Retouches</th><th>Vidéos</th><th>Achats photo</th><th>Achats vidéo</th><th>Ventes photo</th><th>Ventes vidéo</th><th>Remboursements</th><th>Frais saisis</th><th>Marge provisoire</th></tr></thead><tbody>{commerce.par_compte.map(row => <tr key={row.id}><td>{row.nom || row.email}<small>{row.nom && row.email}</small></td><td>{row.photos_importees}</td><td>{row.retouches_creees}</td><td>{row.videos_creees}</td><td>{row.achats_photo}</td><td>{row.achats_video}</td><td>{euros(row.ca_photo_centimes)}</td><td>{euros(row.ca_video_centimes)}</td><td>{row.achats_rembourses} · {euros(row.remboursements_centimes)}</td><td>{row.frais_centimes != null ? euros(row.frais_centimes) : "À rapprocher"}</td><td>{row.marge_provisoire_centimes != null ? euros(row.marge_provisoire_centimes) : "—"}</td></tr>)}</tbody></table></div></details><details><summary>Derniers paiements · {commerce.ventes_recentes.length}</summary><div className="admin-commerce-table"><table><thead><tr><th>Date d’achat</th><th>Compte</th><th>Produit</th><th>Crédits</th><th>Montant</th><th>État actuel</th></tr></thead><tbody>{commerce.ventes_recentes.map(sale => <tr key={sale.id}><td>{date(sale.date, true)}</td><td>{sale.compte}</td><td>{sale.nature === 'photo' ? 'Photo' : 'Vidéo'} · {sale.pack}</td><td>{sale.credits}</td><td>{euros(sale.montant_centimes)}</td><td>{sale.statut === 'rembourse' ? 'Remboursé' : 'Payé'}</td></tr>)}</tbody></table></div></details></>}
     </section>
     <div className="admin-overview-row">
       <section className="admin-activity"><div className="admin-section-heading"><div><h2>Le studio au fil des jours.</h2><p>Connexions enregistrées depuis l’activation du suivi.</p></div><span>7 derniers jours</span></div><div className="admin-chart" role="img" aria-label={overview ? overview.connexions.map(d => `${d.jour} : ${d.nombre} connexions`).join(", ") : "Chargement de l’activité"}>{overview?.connexions.map(d => <div className="admin-chart-day" key={d.jour}><span>{d.nombre}</span><div className="admin-chart-track"><i style={{ height: `${d.nombre ? Math.max(8, d.nombre / maxConnections * 100) : 3}%` }} className={d.nombre ? "has-activity" : ""}/></div><small>{new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(new Date(`${d.jour}T12:00:00`))}</small></div>)}</div></section>
@@ -161,8 +174,8 @@ function AdminWorkspace({ owner, myId, health }: { owner: boolean; myId: string;
     {modal && <Modal title={modal === "create" ? "Créer un compte" : confirmation ? actions[confirmation].title : "Fiche du compte"} onClose={close} wide>
       <div className="admin-modal-body">
         {modalError && <p className="admin-feedback error" role="alert">{modalError}<button onClick={() => { setModalError(""); setConfirmation(null); setRefresh(r => r + 1); }} disabled={busy}>Actualiser</button></p>}
-        {modal === "create" ? <form onSubmit={event => { event.preventDefault(); void run("/admin/comptes", "POST", { prenom: first, nom: last, email: email.trim() }, "Le compte client est créé. Son titulaire pourra valider son email depuis la page de connexion."); }}>
-          <div className="admin-modal-lead"><span className="admin-modal-symbol"><UserRoundCheck size={25}/></span><h3>Un nouvel espace, prêt à l’accueillir.</h3><p>Créez un compte client. Son titulaire se connectera avec son propre code reçu par email. Aucun message n’est envoyé par ce formulaire.</p></div>
+        {modal === "create" ? <form onSubmit={event => { event.preventDefault(); void run("/admin/comptes", "POST", { prenom: first, nom: last, email: email.trim() }, "Le compte client est créé. Son titulaire pourra choisir son mot de passe et valider son email depuis la page d’inscription."); }}>
+          <div className="admin-modal-lead"><span className="admin-modal-symbol"><UserRoundCheck size={25}/></span><h3>Un nouvel espace, prêt à l’accueillir.</h3><p>Créez un compte client. Son titulaire devra terminer son inscription pour choisir son mot de passe et vérifier son email. Aucun message n’est envoyé par ce formulaire.</p></div>
           <div className="admin-form-grid"><label>Prénom<input required maxLength={80} value={first} onChange={e => setFirst(e.target.value)} autoComplete="off"/></label><label>Nom<input required maxLength={80} value={last} onChange={e => setLast(e.target.value)} autoComplete="off"/></label><label className="full">Adresse email<input required type="email" maxLength={320} value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" placeholder="prenom@entreprise.fr"/></label></div>
           <div className="admin-modal-actions"><button type="button" className="button outlined" onClick={close} disabled={busy}>Annuler</button><button className="button dark" type="submit" disabled={busy || !first.trim() || !last.trim()}>{busy ? "Création…" : "Créer le compte client"}<ArrowRight size={16}/></button></div>
         </form> : !detail ? <p className="admin-empty" role="status">Chargement de la fiche…</p> : confirmation ? <form onSubmit={event => { event.preventDefault(); void run(`/admin/comptes/${detail.id}/actions`, "POST", { revision: detail.revision, action: confirmation, confirmation_email: risky ? confirmEmail.trim() : detail.email }, `${actionLabel[confirmation]} : ${detail.email}.`); }}>

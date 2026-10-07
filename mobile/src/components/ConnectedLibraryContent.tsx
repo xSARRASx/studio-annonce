@@ -27,7 +27,7 @@ export function ConnectedLibraryContent() {
     catch (error) { setNotice(message(error)); } finally { setLoading(false); }
   }, [api]);
   useFocusEffect(useCallback(() => { void load(); if (params.selection && selectionLoaded.current !== params.selection) { selectionLoaded.current = params.selection; setChosen(params.selection.split(',').filter(Boolean)); } }, [load, params.selection]));
-  const photos = properties.flatMap(property => property.photos.map(photo => ({ ...photo, home: property.nom, homeId: property.id })))
+  const photos = properties.flatMap(property => property.photos.filter(photo => photo.usage_initial !== 'video' || photo.essais > 0).map(photo => ({ ...photo, home: property.nom, homeId: property.id })))
     .sort((a, b) => ((a.cree_le || '').localeCompare(b.cree_le || '') || (a.ordre || 0) - (b.ordre || 0)) * (oldest ? 1 : -1));
   const selected = chosen.flatMap(id => { const photo = photos.find(item => item.id === id && !item.archivee); return photo ? [photo] : []; });
   async function archivePhoto(restore: boolean, id: string) {
@@ -71,6 +71,7 @@ export function ConnectedLibraryContent() {
     <Button title={account?.gratuit_illimite ? 'Retoucher de nouvelles photos' : account?.photo_offerte_disponible ? 'Préparer ma photo offerte' : 'Ajouter des photos'} onPress={() => router.navigate('/nouvelle')}/>
     <Button secondary title="Préparer une vidéo" onPress={() => router.navigate('/visite')}/>
     <View style={s.card}><TextInput accessibilityLabel="Retrouver une création" value={search} onChangeText={setSearch} placeholder="Une pièce ou un logement…" style={s.input}/><View style={s.row}><Button secondary title={oldest ? 'Les plus anciennes' : 'Les plus récentes'} onPress={() => setOldest(value => !value)}/><Button secondary title={archives ? 'Voir mes photos actives' : 'Voir mes archives'} onPress={() => setArchives(value => !value)}/></View></View>
+    <View style={s.collectionTitle}><Text style={s.title}>{archives ? 'Mes photos archivées' : 'Mes photos'}</Text><Text style={s.small}>{archives ? 'Vos photos mises de côté restent dans leur logement. Touchez Restaurer pour les remettre dans Mes créations.' : 'Retrouvez vos photos ci-dessous. Pour les photos mises de côté, touchez « Voir mes archives ».'}</Text></View>
     {!!notice && <Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>}
     {!!selected.length && !archives && <View style={s.card}><Text style={s.title}>{selected.length} photos choisies</Text><Text style={s.small}>{account?.gratuit_illimite ? 'Sans débit sur votre compte.' : `Si vous gardez toutes les retouches en HD : ${selected.filter(photo => !photo.offerte && !photo.creditee).length} crédits. Vous décidez pour chacune.`}</Text>
       <Button secondary title="Retoucher une par une" onPress={() => router.push({ pathname: '/retouche', params: { id: selected[0].id, mode: 'compte', lot: selected.map(photo => photo.id).join(',') } })}/>
@@ -93,4 +94,5 @@ export function ConnectedLibraryContent() {
 }
 const s = StyleSheet.create({
   card: { backgroundColor: '#fffefa', borderWidth: 1, borderColor: '#dce2d1', padding: 17, borderRadius: 20, gap: 13 }, input: { borderWidth: 1, borderColor: '#dce2d1', borderRadius: 12, padding: 13, color: colors.ink, fontSize: 16, backgroundColor: '#f5f7f0' }, multiline: { minHeight: 100, textAlignVertical: 'top' }, title: { fontSize: 17, fontWeight: '600', color: colors.ink }, label: { fontSize: 14, fontWeight: '600', color: colors.ink }, small: { color: colors.muted, fontSize: 12, lineHeight: 19 }, row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' }, grid: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' }, tile: { width: '47%', maxWidth: 375, flexGrow: 1, padding: 10, gap: 9, borderWidth: 1, borderColor: '#dce2d1', borderRadius: 18, backgroundColor: '#fffefa' }, chosen: { borderColor: '#738d55', backgroundColor: '#eff4e8' }, thumb: { width: '100%', aspectRatio: 1.3, borderRadius: 11 }, link: { fontSize: 13, color: '#566847', minHeight: 38, paddingVertical: 9 }, notice: { backgroundColor: '#f7eddd', padding: 13, borderRadius: 12, fontSize: 13, lineHeight: 20, color: '#75553c' }, scrim: { flex: 1, backgroundColor: '#20271988', padding: 24, justifyContent: 'center' },
+  collectionTitle: { gap: 4, paddingHorizontal: 2 },
 });

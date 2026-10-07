@@ -19,6 +19,18 @@ from app.routes import videos
 
 
 class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
+    async def test_administrateur_lance_sans_credit_ni_plafond_de_cinq_projets(self):
+        with self.sessions() as s:
+            s.get(Compte, "owner").role = "admin"
+            s.add_all([Video(id=f"ancienne-{i}", logement_id="house", statut="prete", plan={"duree": 5}, cree_le=maintenant()) for i in range(5)])
+            s.commit()
+        with patch.object(videos, "vente_video_disponible", return_value=False):
+            resultat = await self.client.post("/videos/visites", json=self.request())
+        self.assertEqual(resultat.status_code, 200, resultat.text)
+        with self.sessions() as s:
+            self.assertEqual(s.get(Video, resultat.json()["id"]).plan["credits_reserves"], 0)
+            self.assertEqual(s.scalars(select(MouvementCreditVideo)).all(), [])
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.engine = create_engine(f"sqlite:///{self.temp.name}/video.db", connect_args={"check_same_thread": False})
@@ -47,10 +59,14 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         app.dependency_overrides[session] = sessions
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer owner"})
         self.stack = ExitStack()
+        # These regression cases cover visits confirmed with the original
+        # per-photo model; a separate case exercises the new reference model.
+        self.stack.enter_context(patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE))
         self.schedule = self.stack.enter_context(patch.object(videos, "_planifier"))
         self.stack.enter_context(patch.object(videos.higgsfield_video, "disponible", return_value=True))
         self.prepare = self.stack.enter_context(patch.object(videos.higgsfield_video, "preparer_image", new=AsyncMock(return_value="https://files.higgsfield.ai/photo.jpg")))
         self.submit = self.stack.enter_context(patch.object(videos.higgsfield_video, "soumettre", new=AsyncMock(return_value={"request_id": "p", "status_url": "https://api.higgsfield.ai/requests/p/status"})))
+        self.submit_references = self.stack.enter_context(patch.object(videos.higgsfield_video, "soumettre_references", new=AsyncMock(return_value={"request_id": "reference", "status_url": "https://api.higgsfield.ai/requests/reference/status"})))
         self.poll = self.stack.enter_context(patch.object(videos.higgsfield_video, "etat", new=AsyncMock(return_value={"status": "queued"})))
         self.stack.enter_context(patch.object(videos.higgsfield_video, "fichier_resultat", new=AsyncMock(return_value=b"0000ftypdata")))
         self.stack.enter_context(patch.object(videos.images, "preparer_envoi_ia", return_value=b"jpeg"))
@@ -124,6 +140,87 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
         original = await self.create(photos=[{"photo_id": "photo", "version_id": ""}])
         with self.sessions() as s:
             self.assertEqual(s.get(Video, original["id"]).plan["sources"][0]["cle_source"], "source")
+
+    async def test_modele_multi_reference_soumet_une_seule_visite(self):
+        with self.sessions() as s:
+            s.get(Photo, "photo2").analyse = {"piece": "Cuisine"}
+            s.get(Photo, "photo").analyse = {"piece": "Salon"}
+            s.commit()
+        demande = {**self.request(photos=[{"photo_id": "photo2", "mouvement": "traversee"},
+                                         {"photo_id": "photo", "mouvement": "orbite"}]),
+                   "agencement": "La cuisine communique avec le salon par la porte à gauche."}
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_REFERENCE):
+            response = await self.client.post("/videos/visites", json=demande)
+            self.assertEqual(response.status_code, 200, response.text)
+            result = response.json()
+            self.assertEqual(result["duree"], 10)
+            self.assertEqual(result["plans_total"], 1)
+            await videos._avancer(self.sessions, result["id"])
+            self.assertEqual(self.prepare.await_count, 2)
+            self.submit.assert_not_awaited()
+            self.submit_references.assert_awaited_once()
+            self.assertEqual(self.submit_references.await_args.args[0],
+                             ["https://files.higgsfield.ai/photo.jpg"] * 2)
+            self.assertEqual(self.submit_references.await_args.args[2], 10)
+            with self.sessions() as s:
+                plan = s.get(Video, result["id"]).plan
+                self.assertEqual(plan["modele"], higgsfield_video.MODELE_REFERENCE)
+                self.assertIn("REFERENCE ORDER", plan["prompt_continu"])
+                self.assertIn("Reference image 1 — kitchen", plan["prompt_continu"])
+                self.assertIn("Reference image 2 — living room", plan["prompt_continu"])
+                self.assertIn(demande["agencement"], plan["prompt_continu"])
+            self.assertEqual((await self.client.post("/videos/visites", json={**demande,
+                "agencement": "La chambre est ici."})).status_code, 409)
+            self.assertEqual((await self.client.get(f"/videos/{result['id']}")).json()["plans_total"], 1)
+
+    async def test_visite_fluide_demande_des_passages_confirmes(self):
+        photos = [{"photo_id": "photo"}, {"photo_id": "photo2"}]
+        demande = {**self.request(photos=photos), "montage": "continue", "duree": 10}
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_REFERENCE):
+            sans_trajet = await self.client.post("/videos/visites", json=demande)
+            self.assertEqual(sans_trajet.status_code, 422, sans_trajet.text)
+            passage_inconnu = await self.client.post("/videos/visites", json={**demande, "liaisons": ["coupe"]})
+            self.assertEqual(passage_inconnu.status_code, 422, passage_inconnu.text)
+            confirme = await self.client.post("/videos/visites", json={**demande, "liaisons": ["gauche"]})
+        self.assertEqual(confirme.status_code, 200, confirme.text)
+        with self.sessions() as s:
+            plan = s.get(Video, confirme.json()["id"]).plan
+            self.assertEqual(plan["montage"], "continue")
+            self.assertEqual(plan["liaisons"], ["gauche"])
+            self.assertIn("confirmed left doorway", plan["prompt_continu"])
+            self.assertIn("one flowing drone-style tour", plan["prompt_continu"])
+        self.assertEqual((await self.client.post("/videos/visites", json={**demande, "liaisons": ["droite"]})).status_code, 409)
+
+    async def test_full_hd_debite_deux_credits_par_cinq_secondes_et_arrive_au_fournisseur(self):
+        with self.sessions() as s:
+            credits_video.mouvement(s, s.get(Compte, "client"), 3, "Pack", "achat:hd")
+            s.commit()
+        demande = {**self.request(photos=[{"photo_id": "foreign"}]), "duree": 10, "qualite": "1080p"}
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_REFERENCE), patch.object(videos, "vente_video_disponible", return_value=True):
+            insuffisant = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json=demande)
+            self.assertEqual(insuffisant.status_code, 402, insuffisant.text)
+            with self.sessions() as s:
+                credits_video.mouvement(s, s.get(Compte, "client"), 1, "Complément", "achat:hd-complement")
+                s.commit()
+            confirme = await self.client.post("/videos/visites", headers={"Authorization": "Bearer client"}, json=demande)
+            self.assertEqual(confirme.status_code, 200, confirme.text)
+            await videos._avancer(self.sessions, confirme.json()["id"])
+        with self.sessions() as s:
+            self.assertEqual(credits_video.solde(s, "client"), 0)
+            plan = s.get(Video, confirme.json()["id"]).plan
+            self.assertEqual(plan["credits_reserves"], 4)
+            self.assertEqual(plan["qualite"], "1080p")
+        self.assertEqual(self.submit_references.await_args.args[4], "1080p")
+        self.assertEqual(higgsfield_video.parametres_references(["https://files.higgsfield.ai/photo.jpg"], "Visite", 5, "1080p")["resolution"], "1080p")
+
+    async def test_modele_multi_reference_plafonne_deux_photos_par_cinq_secondes(self):
+        with patch.object(videos.reglages, "VIDEO_MODELE", higgsfield_video.MODELE_REFERENCE):
+            response = await self.client.post("/videos/visites", json={
+                **self.request(photos=[{"photo_id": "photo"}, {"photo_id": "photo2"}, {"photo_id": "photo3"}]),
+                "duree": 5,
+            })
+        self.assertEqual(response.status_code, 422)
+        self.submit_references.assert_not_awaited()
 
     async def test_sources_invalides_refusees_avant_fournisseur(self):
         for sources, status in [([{"photo_id": "foreign"}], 404), ([{"photo_id": "photo"}, {"photo_id": "photo"}], 400),
@@ -285,9 +382,12 @@ class ParcoursVideo(unittest.IsolatedAsyncioTestCase):
 
     async def test_plafond_cinq_projets_sur_24h(self):
         with self.sessions() as s:
-            s.add_all([Video(logement_id="house", statut="prete", plan={}, requetes={}) for _ in range(5)])
+            s.add_all([Video(logement_id="other", statut="prete", plan={}, requetes={}) for _ in range(5)])
+            s.add(MouvementCreditVideo(compte_id="client", delta=1, motif="Fixture"))
             s.commit()
-        self.assertEqual((await self.client.post("/videos/visites", json=self.request())).status_code, 429)
+        with patch.object(videos, "vente_video_disponible", return_value=True):
+            resultat = await self.client.post("/videos/visites", json=self.request(photos=[{"photo_id": "foreign"}]), headers={"Authorization": "Bearer client"})
+        self.assertEqual(resultat.status_code, 429, resultat.text)
         self.submit.assert_not_awaited()
 
     async def test_ancien_clip_repris_sans_nouvelle_soumission(self):

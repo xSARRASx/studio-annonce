@@ -3,20 +3,22 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Download, Gift, History, ShieldCheck } from "lucide-react";
-import { api, ErreurApi, type Compte, type Pack } from "@/lib/api";
+import { api, ErreurApi, type Achat, type Compte, type Pack } from "@/lib/api";
 import { Bouton, Champ, Message } from "@/components/ui";
 import { CreationLimits, SupportContact } from "@/components/creation-limits";
 import { useStudioAccount } from "@/components/studio-account";
+import PurchaseDocument from "@/components/purchase-document";
 
 type Panier = Record<string, number>;
 const articlesDuPanier = (packs: Pack[], panier: Panier) => packs.flatMap(p => panier[p.id] ? [{ pack_id: p.id, quantite: panier[p.id] }] : []);
 const totalDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p) => total + p.prix_centimes * (panier[p.id] || 0), 0);
 const creditsDuPanier = (packs: Pack[], panier: Panier) => packs.reduce((total, p) => total + p.credits * (panier[p.id] || 0), 0);
 
-export default function AccountPage({ billing = false }: { billing?: boolean }) {
+export default function AccountPage({ billing = false, credits = false }: { billing?: boolean; credits?: boolean }) {
   const router = useRouter();
   const { compte: comptePartage } = useStudioAccount();
   const [compte, setCompte] = useState<Compte | null>(null);
+  const [achats, setAchats] = useState<Achat[]>([]);
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [erreur, setErreur] = useState("");
@@ -37,6 +39,7 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
       } catch (e) { if (actif) setErreur((e as Error).message); }
     };
     void charger();
+    if (billing) void api<Achat[]>("/compte/achats").then(items => { if (actif) setAchats(items); }).catch(e => { if (actif) setErreur((e as Error).message); });
     const query = new URLSearchParams(window.location.search);
     const achat = query.get("achat");
     if (query.get("paiement") === "annule") queueMicrotask(() => setMessage("Paiement annulé. Vous pouvez reprendre votre achat quand vous le souhaitez."));
@@ -59,7 +62,7 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
       void verifier();
     }
     return () => { actif = false; clearTimeout(minuterie); };
-  }, []);
+  }, [billing]);
 
   async function enregistrer(event: React.FormEvent) {
     event.preventDefault(); if (verrou.current) return;
@@ -113,12 +116,23 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
   const paiementVideo = compte?.paiement_video_disponible ?? false;
   const totalPhoto = totalDuPanier(packsPhoto, panierPhoto), creditsPhoto = creditsDuPanier(packsPhoto, panierPhoto);
   const totalVideo = totalDuPanier(packsVideo, panierVideo), creditsVideo = creditsDuPanier(packsVideo, panierVideo);
-  return <main className="st-main st-billing">
-    <p className="eyebrow">{billing ? "FACTURATION" : "VOTRE ESPACE PERSONNEL"}</p>
-    <h1>{billing ? "Vos crédits et vos achats." : "Mon compte"}</h1>
-    <p className="connected-account-intro">{billing ? "Retrouvez votre solde et les crédits utilisés." : "Vos informations pour retrouver toutes vos créations."}</p>
+  if (billing) return <main className="st-main st-billing">
+    <p className="eyebrow">FACTURATION</p><h1>Vos achats et justificatifs.</h1>
+    <p className="connected-account-intro">Retrouvez les commandes associées à votre compte. Pour acheter des crédits, ouvrez l’onglet Crédits.</p>
     <Message texte={erreur}/><Message texte={message} ton="info"/>
-    {!billing ? <>
+    <Link className="button dark" href="/app/credits/">Acheter des crédits <ArrowRight size={17}/></Link>
+    <section className="st-bill-block" style={{ marginTop: 24 }}><div className="st-block-head"><h2>Historique des achats</h2><span>{achats.length} commande{achats.length > 1 ? "s" : ""}</span></div>
+      {achats.length ? <ul className="st-ledger">{achats.map(a => <li key={a.id}><span><strong>{a.credits} crédit{a.credits > 1 ? "s" : ""} {a.nature === "video" ? "vidéo" : "photo"} · {a.statut === "paye" ? "Paiement confirmé" : a.statut === "rembourse" ? "Remboursé" : a.statut === "conteste" ? "Contestation bancaire" : a.statut === "en_attente" ? "En attente" : "Paiement non abouti"}{a.test ? " · Test" : ""}</strong><small>{new Date(a.cree_le).toLocaleDateString("fr-FR")} · Réf. {a.id}</small><PurchaseDocument achat={a}/></span><b>{euros(a.montant_centimes)}</b></li>)}</ul> : <p className="st-empty-line">Aucun achat enregistré pour ce compte.</p>}
+      <p className="connected-account-intro">Ouvrez le reçu de chaque paiement confirmé. Si une facture a été émise par Stripe pour votre commande, le bouton ouvre son PDF. Pour toute question, transmettez la référence de la commande au support.</p>
+    </section>
+    <SupportContact limites={comptePartage.limites}/>
+  </main>;
+  return <main className="st-main st-billing">
+    <p className="eyebrow">{credits ? "ACHETER DES CRÉDITS" : "VOTRE ESPACE PERSONNEL"}</p>
+    <h1>{credits ? "Choisissez vos crédits." : "Mon compte"}</h1>
+    <p className="connected-account-intro">{credits ? "Les tarifs d’abord, puis vos soldes et vos créations déjà utilisées." : "Vos informations pour retrouver toutes vos créations."}</p>
+    <Message texte={erreur}/><Message texte={message} ton="info"/>
+    {!credits ? <>
       <section className="st-bill-block">
         <div className="st-block-head"><h2>Mes informations</h2><span><ShieldCheck size={16}/> Email vérifié</span></div>
         <p className="connected-account-email">{compte?.email}</p>
@@ -130,24 +144,25 @@ export default function AccountPage({ billing = false }: { billing?: boolean }) 
         </form>
       </section>
       <div className="st-free"><Gift size={22}/><div><strong>{compte?.gratuit_illimite ? "Vos créations sont offertes" : compte?.photo_offerte_disponible ? "Votre première photo est offerte" : "Votre studio vous attend"}</strong><p>Vos photos, vos demandes et leurs différentes versions au même endroit.</p></div><Link className="text-action" href={compte?.gratuit_illimite || compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/#creer"}>{compte?.gratuit_illimite ? "Créer gratuitement" : compte?.photo_offerte_disponible ? "Préparer ma photo offerte" : "Créer"} <ArrowRight size={15}/></Link></div>
-      <Link className="connected-billing-link text-action" href="/app/facturation/">Consulter mes crédits et mes achats <ArrowRight size={15}/></Link>
+      <Link className="connected-billing-link text-action" href="/app/credits/">Acheter des crédits <ArrowRight size={15}/></Link>
     </> : <>
-      <div className="st-bill-top">
-        <div className="st-balance"><span>{compte?.gratuit_illimite ? "Votre compte" : "Crédits photo"}</span><strong>{compte?.gratuit_illimite ? "Offert" : compte?.solde ?? "…"}{!compte?.gratuit_illimite && <small>crédits</small>}</strong><p>{compte?.gratuit_illimite ? "Même atelier que les clients, sans débit pour vos photos et corrections." : "1 crédit pour garder une photo en HD, ou pour ajouter une correction."}</p><span className="connected-video-balance">{compte?.gratuit_illimite ? "Vos clips vidéo pilotes sont aussi offerts sur votre compte." : <>Crédits vidéo : <b>{compte?.solde_video ?? 0}</b> · {(compte?.solde_video ?? 0) * 5} secondes disponibles, à utiliser en plusieurs vidéos</>}</span></div>
-        <div className="st-free"><Gift size={22}/><div><strong>{compte?.photo_offerte_disponible ? "1 photo offerte" : "Votre essai photo"}</strong><p>{compte?.photo_offerte_disponible ? "Votre première photo retouchée est gratuite." : "Retrouvez votre photo offerte dans Mes créations."}</p></div><Link className="text-action" href={compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/"}>{compte?.photo_offerte_disponible ? "Créer ma retouche" : "Mes créations"} <ArrowRight size={15}/></Link></div>
-      </div>
-      <section className="st-bill-block"><div className="st-block-head"><h2>Vos créations depuis le dernier achat</h2></div><CreationLimits limites={comptePartage.limites}/><CreationLimits limites={comptePartage.limites} kind="video"/><p className="connected-account-intro">Une première génération et une correction sont incluses par photo. {compte?.gratuit_illimite ? "Vos corrections supplémentaires et vos clips vidéo pilotes sont offerts." : "Chaque correction supplémentaire nécessite 1 crédit. La génération vidéo ouvrira après la phase pilote."}</p></section>
       <section className="st-bill-block"><div className="st-block-head"><h2>Packs photo</h2><span>Achat ponctuel, sans abonnement.</span></div>
-        {!paiementPhoto && <p className="connected-account-intro">Les tarifs sont fixés. Le paiement ouvrira dès que la génération photo aura passé sa recette de production.</p>}
+        <p className="connected-account-intro">Le filigrane protège seulement l’aperçu d’une retouche payante. Une fois la photo gardée, son fichier HD est net et sans filigrane ; vous pouvez le télécharger à nouveau sans second crédit.</p>
+        {!paiementPhoto && <p className="connected-account-intro" role="status">Le paiement photo est momentanément indisponible. Votre panier reste modifiable ; aucun débit ne sera effectué.</p>}
         <div className="st-packs">{packsPhoto.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{euros(p.prix_unitaire_centimes)} par photo · sans abonnement</small><div className="connected-pack-quantity" aria-label={`Quantité pour ${p.libelle}`}><button type="button" aria-label={`Retirer un pack ${p.libelle}`} disabled={!panierPhoto[p.id]} onClick={() => modifierPanier("photo", p.id, -1)}>−</button><b>{panierPhoto[p.id] || 0}</b><button type="button" aria-label={`Ajouter un pack ${p.libelle}`} disabled={(Object.values(panierPhoto).reduce((a, b) => a + b, 0)) >= 20} onClick={() => modifierPanier("photo", p.id, 1)}>+</button></div></div>)}</div>
-        <div className="connected-cart-summary"><span>{creditsPhoto ? `${creditsPhoto} crédits photo sélectionnés` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalPhoto)}</strong><Bouton disabled={!paiementPhoto || !compte?.profil_complet || !creditsPhoto || !!achatEnCours} chargement={achatEnCours === "photo"} onClick={() => acheter("photo", packsPhoto, panierPhoto)}>{paiementPhoto ? "Payer mon panier photo" : "Bientôt disponible"}</Bouton></div>
+        <div className="connected-cart-summary"><span>{creditsPhoto ? `${creditsPhoto} crédits photo sélectionnés` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalPhoto)}</strong><Bouton disabled={!paiementPhoto || !compte?.profil_complet || !creditsPhoto || !!achatEnCours} chargement={achatEnCours === "photo"} onClick={() => acheter("photo", packsPhoto, panierPhoto)}>{paiementPhoto ? "Payer mon panier photo" : "Paiement indisponible"}</Bouton></div>
       </section>
       <section className="st-bill-block"><div className="st-block-head"><h2>Packs vidéo</h2><span>Des crédits séparés pour un prix clair.</span></div>
-        <p className="connected-account-intro">1 crédit vidéo = 1 essai de 5 secondes en 720p. Vos crédits restent dans votre solde : si vous prenez 30 secondes et créez une vidéo de 10 secondes, 20 secondes de crédits restent disponibles. Vous pouvez acheter jusqu’à 120 secondes de crédits en un pack, puis les utiliser en plusieurs vidéos de 5 à 30 secondes chacune. Un nouvel essai utilisera de nouveaux crédits ; revoir et télécharger une vidéo terminée n’en utilisera pas. Les crédits photo restent séparés.</p>
-        {!paiementVideo && <p className="connected-account-intro">Les packs sont préparés, mais leur achat reste fermé pendant les tests vidéo et avant l’ouverture des paiements.</p>}
-        <div className="st-packs st-packs-video">{packsVideo.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{p.credits} crédit{p.credits > 1 ? "s" : ""} vidéo · {euros(p.prix_unitaire_centimes)} les 5 secondes</small><div className="connected-pack-quantity" aria-label={`Quantité pour ${p.libelle}`}><button type="button" aria-label={`Retirer un pack ${p.libelle}`} disabled={!panierVideo[p.id]} onClick={() => modifierPanier("video", p.id, -1)}>−</button><b>{panierVideo[p.id] || 0}</b><button type="button" aria-label={`Ajouter un pack ${p.libelle}`} disabled={(Object.values(panierVideo).reduce((a, b) => a + b, 0)) >= 20} onClick={() => modifierPanier("video", p.id, 1)}>+</button></div></div>)}</div>
-        <div className="connected-cart-summary"><span>{creditsVideo ? `${creditsVideo * 5} secondes de crédits sélectionnées` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalVideo)}</strong><Bouton disabled={!paiementVideo || !compte?.profil_complet || !creditsVideo || !!achatEnCours} chargement={achatEnCours === "video"} onClick={() => acheter("video", packsVideo, panierVideo)}>{paiementVideo ? "Payer mon panier vidéo" : "Bientôt disponible"}</Bouton></div>
+        <p className="connected-account-intro">En HD 720p, 1 crédit vidéo finance 5 secondes ; en Full HD 1080p, il en faut 2 pour 5 secondes. La qualité et le débit exact sont affichés avant le lancement. Vos crédits restent dans votre solde : un pack de 30 secondes représente 6 crédits, utilisables en plusieurs vidéos de 5 à 30 secondes. Un nouvel essai consomme de nouveaux crédits ; revoir et télécharger une vidéo terminée n’en utilise pas. Les crédits photo restent séparés.</p>
+        {!paiementVideo && <p className="connected-account-intro" role="status">Le paiement vidéo est momentanément indisponible. Votre panier reste modifiable ; aucun débit ne sera effectué.</p>}
+        <div className="st-packs st-packs-video">{packsVideo.map(p => <div className={`st-pack${p.avantage ? " st-pack-featured" : ""}`} key={p.id}>{p.avantage && <em>{p.avantage}</em>}<span>{p.libelle}</span><strong>{euros(p.prix_centimes)}</strong><small>{p.credits} crédit{p.credits > 1 ? "s" : ""} vidéo · {euros(p.prix_unitaire_centimes)} les 5 secondes en 720p</small><div className="connected-pack-quantity" aria-label={`Quantité pour ${p.libelle}`}><button type="button" aria-label={`Retirer un pack ${p.libelle}`} disabled={!panierVideo[p.id]} onClick={() => modifierPanier("video", p.id, -1)}>−</button><b>{panierVideo[p.id] || 0}</b><button type="button" aria-label={`Ajouter un pack ${p.libelle}`} disabled={(Object.values(panierVideo).reduce((a, b) => a + b, 0)) >= 20} onClick={() => modifierPanier("video", p.id, 1)}>+</button></div></div>)}</div>
+        <div className="connected-cart-summary"><span>{creditsVideo ? `${creditsVideo * 5} secondes de crédits sélectionnées` : "Choisissez un ou plusieurs packs"}</span><strong>{euros(totalVideo)}</strong><Bouton disabled={!paiementVideo || !compte?.profil_complet || !creditsVideo || !!achatEnCours} chargement={achatEnCours === "video"} onClick={() => acheter("video", packsVideo, panierVideo)}>{paiementVideo ? "Payer mon panier vidéo" : "Paiement indisponible"}</Bouton></div>
       </section>
+      <div className="st-bill-top">
+        <div className="st-balance"><span>{compte?.gratuit_illimite ? "Votre compte" : "Crédits photo"}</span><strong>{compte?.gratuit_illimite ? "Offert" : compte?.solde ?? "…"}{!compte?.gratuit_illimite && <small>crédits</small>}</strong><p>{compte?.gratuit_illimite ? "Même atelier que les clients, sans débit pour vos photos et corrections." : "1 crédit pour garder une photo en HD sans filigrane, ou pour ajouter une correction."}</p><span className="connected-video-balance">{compte?.gratuit_illimite ? "Vos clips vidéo sont aussi offerts sur votre compte." : <>Crédits vidéo : <b>{compte?.solde_video ?? 0}</b> · jusqu’à {(compte?.solde_video ?? 0) * 5} secondes en HD 720p, à utiliser en plusieurs vidéos</>}</span></div>
+        {!compte?.gratuit_illimite && !compte?.photo_offerte_telechargee && <div className="st-free"><Gift size={22}/><div><strong>{compte?.photo_offerte_disponible ? "1 photo offerte" : "Votre photo offerte vous attend"}</strong><p>{compte?.photo_offerte_disponible ? "Créez votre première retouche et téléchargez-la gratuitement." : "Votre photo est ajoutée, mais sa version offerte n’a pas encore été téléchargée."}</p></div><Link className="text-action" href={compte?.photo_offerte_disponible ? "/app/#nouvelle" : "/app/"}>{compte?.photo_offerte_disponible ? "Créer ma retouche" : "Terminer ma photo"} <ArrowRight size={15}/></Link></div>}
+      </div>
+      <section className="st-bill-block"><div className="st-block-head"><h2>Vos créations depuis le dernier achat</h2></div><CreationLimits limites={comptePartage.limites}/><CreationLimits limites={comptePartage.limites} kind="video"/><p className="connected-account-intro">Une première génération et une correction sont incluses par photo. {compte?.gratuit_illimite ? "Vos corrections supplémentaires et vos clips vidéo sont offerts." : "Chaque correction supplémentaire nécessite 1 crédit photo. Une vidéo utilise les crédits vidéo annoncés avant son lancement."}</p></section>
       <section className="st-bill-block"><div className="st-block-head"><h2><History size={18}/> Historique</h2><span>{compte?.registre.length || 0} opérations</span></div>
         {(compte?.registre.length || compte?.registre_video?.length) ? <ul className="st-ledger">{[...(compte?.registre || []).map(m => ({...m, nature: "photo" as const})), ...(compte?.registre_video || []).map(m => ({...m, nature: "video" as const}))].sort((a, b) => Date.parse(b.le) - Date.parse(a.le)).map((m, i) => <li key={`${m.nature}-${m.le}-${i}`}><span><strong>{m.motif}</strong><small>{new Date(m.le).toLocaleDateString("fr-FR")}</small></span><b className={m.delta < 0 ? "debit" : ""}>{m.delta > 0 ? "+" : ""}{m.delta} crédit{Math.abs(m.delta) > 1 ? "s" : ""} {m.nature}</b></li>)}</ul> : <p className="st-empty-line">Aucun crédit utilisé pour l’instant.</p>}
       </section>

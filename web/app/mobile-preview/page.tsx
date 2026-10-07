@@ -22,7 +22,7 @@ export default function MobilePreview() {
       </div>
       <p className="preview-explainer">Touchez l’écran pour essayer.<br/>Connectez-vous avec le même compte que sur le site.</p>
       <a className="preview-open" href={`${APPLI_MOBILE}/`} target="_blank" rel="noreferrer">Ouvrir l’app en grand <ArrowUpRight size={16}/></a>
-      <p className="preview-disclosure">Aperçu interactif, sans installation. Votre compte, vos photos et vos crédits sont reliés au site. La génération IA et les achats restent momentanément indisponibles.</p>
+      <p className="preview-disclosure">Application mobile accessible dans le navigateur, sans installation. Retrouvez le même compte, vos créations et vos crédits. La disponibilité de chaque création et du paiement est indiquée dans votre espace.</p>
     </section>
     <div className={`phone-shell ${device}`}>
       <iframe title="Studio Annonce — aperçu de l’application mobile" src={`${APPLI_MOBILE}/`} allow="camera"/>

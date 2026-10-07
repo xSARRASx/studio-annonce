@@ -7,6 +7,7 @@ import binascii
 import hashlib
 import json
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -65,7 +66,7 @@ def _periode(s: Session, p: Photo) -> dict:
 
 def _vue_version(v: Version, autorisee: bool = False) -> dict:
     return {"id": v.id, "numero": v.numero, "consigne": v.consigne, "depuis": v.depuis_version_id,
-            "apercu": stockage.url_privee(v.cle_pleine) if autorisee else stockage.url_publique(v.cle_apercu),
+            "apercu": stockage.url_privee(v.cle_hd or v.cle_pleine) if autorisee else stockage.url_publique(v.cle_apercu),
             "hd": bool(v.cle_hd), "cree_le": _utc(v.cree_le)}
 
 
@@ -78,11 +79,12 @@ def _vue_photo(s: Session, p: Photo) -> dict:
         "vignette": stockage.url_publique(p.cle_vignette), "original": stockage.url_publique(p.cle_originale),
         "cree_le": _utc(p.cree_le), "analyse": p.analyse,
         "demande_brouillon": p.demande_brouillon or "",
+        "usage_initial": p.usage_initial,
         "essais": p.essais, "essais_cycle": periode["essais_cycle"], "essais_restants": restants,
         "alerte": restants if restants in reglages.ALERTES_ESSAIS_RESTANTS else None,
         "version_gardee": p.version_gardee_id, "credite_le": _utc(p.credite_le),
         "reprise_jusqu_au": _utc(periode["fin"]), "reprise_commence_le": _utc(periode["debut"]),
-        "reprise_expiree": periode["expiree"], "reprise_necessaire": periode["necessaire"],
+        "reprise_expiree": periode["expiree"] and not proprietaire, "reprise_necessaire": periode["necessaire"] and not proprietaire,
         "cycle_id": periode["cycle_id"], "versions": [_vue_version(v, bool(proprietaire or p.offerte or p.credite_le)) for v in p.versions],
         "filigrane": not bool(proprietaire or p.offerte or p.credite_le),
         "limites": limites.vue(s, p.logement.compte_id),
@@ -128,16 +130,17 @@ def _abandonner(s: Session, compte_id: str, photo_id: str, jeton: str) -> None:
 
 
 @routeur.post("/{logement_id}")
-async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: str = Form(default="", max_length=4000), cle_import: str | None = Form(default=None, pattern=r"^[a-fA-F0-9-]{36}$"), compte: Compte = Depends(compte_complet),
+async def deposer(logement_id: str, fichier: UploadFile = File(...), demande: str = Form(default="", max_length=4000), cle_import: str | None = Form(default=None, pattern=r"^[a-fA-F0-9-]{36}$"), usage_initial: Literal["photo", "video"] = Form(default="photo"), compte: Compte = Depends(compte_complet),
                   s: Session = Depends(session)):
     donnees = await fichier.read(30 * 1024 * 1024 + 1)
-    return _deposer(logement_id, donnees, demande, cle_import, compte, s)
+    return _deposer(logement_id, donnees, demande, cle_import, compte, s, usage_initial)
 
 
 class ImportPhoto(BaseModel):
     image: str = Field(min_length=4, max_length=40 * 1024 * 1024)
     demande: str = Field(default="", max_length=4000)
     cle_import: str = Field(pattern=r"^[a-fA-F0-9-]{36}$")
+    usage_initial: Literal["photo", "video"] = "photo"
 
 
 @routeur.post("/{logement_id}/import")
@@ -154,10 +157,10 @@ async def importer(logement_id: str, request: Request, compte: Compte = Depends(
         donnees = base64.b64decode(d.image, validate=True)
     except (ValueError, binascii.Error):
         raise HTTPException(400, "L'envoi de cette photo est incomplet. Réessayez avec le fichier d'origine.")
-    return _deposer(logement_id, donnees, d.demande, d.cle_import, compte, s)
+    return _deposer(logement_id, donnees, d.demande, d.cle_import, compte, s, d.usage_initial)
 
 
-def _deposer(logement_id: str, donnees: bytes, demande: str, cle_import: str | None, compte: Compte, s: Session):
+def _deposer(logement_id: str, donnees: bytes, demande: str, cle_import: str | None, compte: Compte, s: Session, usage_initial: Literal["photo", "video"] = "photo"):
     compte_id = compte.id
     logement = s.get(Logement, logement_id)
     if not logement or logement.compte_id != compte_id:
@@ -180,11 +183,11 @@ def _deposer(logement_id: str, donnees: bytes, demande: str, cle_import: str | N
                 raise HTTPException(404, "Photo introuvable.")
             if deja.supprime_le:
                 raise HTTPException(409, "Cette photo est dans la corbeille. Restaurez-la depuis Mes créations.")
-            if deja.logement_id != logement_id or deja.empreinte_import != empreinte:
+            if deja.logement_id != logement_id or deja.empreinte_import != empreinte or deja.usage_initial != usage_initial:
                 raise HTTPException(409, "Cette confirmation correspond à un autre envoi photo.")
             s.commit()
             return _vue_photo(s, deja)
-    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="", demande_brouillon=demande,
+    photo = Photo(logement_id=logement.id, ordre=len(logement.photos), cle_originale="", demande_brouillon=demande, usage_initial=usage_initial,
                   cle_import=cle_import, empreinte_import=empreinte)
     s.add(photo); s.flush()
     try:
@@ -229,9 +232,10 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
     _operation_libre(s, p.id)
     limites.verifier(s, compte_id, "photo")
     periode = _periode(s, p)
-    if periode["expiree"]:
+    gratuit = acces_ia.gratuit_proprietaire(compte)
+    if periode["expiree"] and not gratuit:
         raise HTTPException(402, "La période de retouche est terminée. Reprenez explicitement cette photo avec un crédit.")
-    if periode["essais_cycle"] >= periode["limite"]:
+    if periode["essais_cycle"] >= periode["limite"] and not gratuit:
         raise HTTPException(402, "Les créations incluses sont utilisées. Un crédit permet une correction supplémentaire, avec son téléchargement HD.")
     if not (acces_ia.gratuit_proprietaire(compte) or p.offerte or p.credite_le) and credits.solde(s, compte_id) < 1:
         raise HTTPException(402, "Votre solde photo est à zéro. Un crédit est nécessaire pour créer une nouvelle retouche. Votre première photo offerte et les corrections déjà incluses restent disponibles.")
@@ -241,7 +245,7 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
     reserves = s.scalar(select(func.count(OperationPhoto.photo_id)).where(
         OperationPhoto.compte_id == compte_id, OperationPhoto.nature == "essai",
         OperationPhoto.statut == "en_cours", OperationPhoto.expire_le > maintenant())) or 0
-    if essais_du_jour + reserves >= reglages.ESSAIS_MAX_PAR_JOUR:
+    if essais_du_jour + reserves >= reglages.ESSAIS_MAX_PAR_JOUR and not gratuit:
         raise HTTPException(429, "Limite d'essais du jour atteinte, revenez demain (remise à zéro à minuit UTC).")
     if d.depuis_version_id:
         base = s.get(Version, d.depuis_version_id)
@@ -256,7 +260,8 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         if d.demande.strip():
             consigne = await vision.reformuler_demande(analyse, historique, d.demande.strip())
         else:
-            consigne = (analyse or {}).get("consigne") or "Rends cette photo digne d'un photographe immobilier professionnel : lumière équilibrée, couleurs justes, netteté, verticales droites, sans rien changer d'autre."
+            from ..consignes_photo import CONSIGNE_AUTOMATIQUE
+            consigne = CONSIGNE_AUTOMATIQUE
         resultat = await retouche.retoucher(source, consigne)
         # Stockage unique par opération : même une réponse tardive ne remplace pas une version.
         base_cle = f"{compte_id}/{p.logement_id}/{photo_id}/{jeton}"
@@ -267,7 +272,7 @@ async def essai(photo_id: str, d: DemandeEssai, compte: Compte = Depends(compte_
         p = _photo_du_compte(s, compte, photo_id)
         op = _operation_a_terminer(s, photo_id, jeton)
         periode = _periode(s, p)
-        if periode["expiree"]:
+        if periode["expiree"] and not acces_ia.gratuit_proprietaire(compte):
             raise HTTPException(402, "La période de retouche s'est terminée pendant le traitement. Aucun crédit supplémentaire n'a été consommé.")
         v = Version(photo_id=p.id, numero=max((v.numero for v in p.versions), default=0) + 1,
                     depuis_version_id=d.depuis_version_id, consigne=consigne,
@@ -367,7 +372,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
     if p.credite_le is None and not p.offerte and not acces_ia.gratuit_proprietaire(compte) and credits.solde(s, compte_id) < 1:
         raise HTTPException(402, "Il vous faut un crédit pour télécharger cette photo en haute qualité.")
     # Une HD déjà produite reste récupérable, même après les sept jours.
-    if periode["expiree"] and not v.cle_hd:
+    if periode["expiree"] and not v.cle_hd and not acces_ia.gratuit_proprietaire(compte):
         raise HTTPException(402, "La période est terminée. Reprenez explicitement la photo avant de produire une autre version HD.")
     if v.cle_hd:
         contenu = stockage.lire(v.cle_hd)
@@ -399,7 +404,7 @@ async def telecharger(photo_id: str, version_id: str, compte: Compte = Depends(c
         op = _operation_a_terminer(s, photo_id, jeton)
         v = s.get(Version, version_id)
         periode = _periode(s, p)
-        if periode["expiree"] and not v.cle_hd:
+        if periode["expiree"] and not v.cle_hd and not acces_ia.gratuit_proprietaire(compte):
             raise HTTPException(402, "La période s'est terminée pendant le traitement. Aucun crédit supplémentaire n'a été consommé.")
         premiere_fois = p.credite_le is None
         credit_consomme = premiere_fois and not p.offerte and not acces_ia.gratuit_proprietaire(compte)

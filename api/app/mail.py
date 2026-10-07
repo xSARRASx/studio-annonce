@@ -75,3 +75,20 @@ def envoyer_code_connexion(destinataire: str, code: str) -> str:
   </table>
 </body></html>"""
     return envoyer(destinataire, sujet, texte, html)
+
+
+def envoyer_code_securite(destinataire: str, code: str, action: str) -> str:
+    """Code dédié à la confirmation du compte ou au changement de mot de passe."""
+    if action not in ("inscription", "reinitialisation"):
+        raise ValueError("Action de sécurité inconnue")
+    titre = "Confirmez votre compte" if action == "inscription" else "Réinitialisez votre mot de passe"
+    texte = (f"Bonjour,\n\n{titre} Studio Annonce avec ce code : {code}\n"
+             "Il est valable 10 minutes et utilisable une seule fois.\n\n"
+             "Si vous n'avez rien demandé, ignorez cet email. Ne partagez jamais ce code.\n\n"
+             f"L'équipe Studio Annonce\nBesoin d'aide : {reglages.SUPPORT_EMAIL}")
+    html = ("<html lang='fr'><body style='font-family:Arial,sans-serif'>"
+            f"<h1>{escape(titre)}</h1><p>Votre code à saisir sur studioannonce.fr :</p>"
+            f"<p style='font-size:32px;letter-spacing:6px'><strong>{escape(code)}</strong></p>"
+            "<p>Valable 10 minutes, une seule fois. Si vous n'avez rien demandé, ignorez cet email."
+            " Vérifiez aussi vos spams.</p></body></html>")
+    return envoyer(destinataire, f"{code} — {titre} Studio Annonce", texte, html)

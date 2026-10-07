@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import stockage
 from app.db import Base
+from app.models import Compte, maintenant
 from app.routes.auth import DemandeCode, Verification, demander_code, verifier
 
 
@@ -24,6 +25,8 @@ class DeploiementPublic(unittest.TestCase):
                 "app.routes.auth.reglages.CODE_DANS_LA_REPONSE", True
             ), patch("app.routes.auth.secrets.randbelow", side_effect=[123456, 654321, 222222]):
                 email = "client@example.com"
+                s.add(Compte(email=email, email_verifie_le=maintenant()))
+                s.commit()
                 premier = demander_code(DemandeCode(email=email), s)["code_demo"]
                 second = demander_code(DemandeCode(email=email), s)["code_demo"]
                 with self.assertRaises(HTTPException) as erreur:

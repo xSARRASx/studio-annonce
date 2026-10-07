@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Images, Link2 } from "lucide-react";
 import { api, type Logement, type Photo } from "@/lib/api";
@@ -38,6 +38,11 @@ export default function ImporterAnnonce() {
   const [glisse, setGlisse] = useState(false);
   const [erreur, setErreur] = useState("");
   const [logementCree, setLogementCree] = useState<Logement | null>(null);
+  const forVideo = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get("suite") === "video",
+    () => false,
+  );
   const champ = useRef<HTMLInputElement>(null);
   const previews = useRef<string[]>([]);
   const imported = useRef<string[]>([]);
@@ -93,7 +98,8 @@ export default function ImporterAnnonce() {
       }
       for (let i = 0; i < retenues.length; i++) {
         const choice = retenues[i];
-        const photo = choice.file ? await envoyerPhoto(choice.file, home.id) : await api<Photo>("/annonces/importer", { method: "POST", body: JSON.stringify({ logement_id: home.id, jeton_photo: choice.jeton, cle_import: choice.cle }) });
+        const usage = new URLSearchParams(window.location.search).get("suite") === "video" ? "video" : "photo";
+        const photo = choice.file ? await envoyerPhoto(choice.file, home.id, "", usage) : await api<Photo>("/annonces/importer", { method: "POST", body: JSON.stringify({ logement_id: home.id, jeton_photo: choice.jeton, cle_import: choice.cle, usage_initial: usage }) });
         imported.current.push(photo.id);
         setEnvoi({ fait: i + 1, total: retenues.length });
         setPhotos(previous => previous.filter(choice => choice !== retenues[i]));
@@ -104,7 +110,7 @@ export default function ImporterAnnonce() {
         const key = `studio:${compte.id}:video-plan`;
         try {
           const current = JSON.parse(localStorage.getItem(key) || "{}");
-          localStorage.setItem(key, JSON.stringify({ ...current, selectedIds: [...new Set([...(Array.isArray(current.selectedIds) ? current.selectedIds : []), ...ids])] }));
+          localStorage.setItem(key, JSON.stringify({ ...current, selectedIds: [...new Set([...(Array.isArray(current.selectedIds) ? current.selectedIds : []), ...ids])].slice(0, 6) }));
         } catch { /* Les photos restent dans le compte si le stockage local est refusé. */ }
         router.push("/app/#visite");
       } else router.push(`/app/photo/?id=${ids[0]}&lot=${encodeURIComponent(ids.join(","))}`);
@@ -115,8 +121,8 @@ export default function ImporterAnnonce() {
   }
 
   return <main className="batch-page">
-    <button className="batch-back" onClick={() => router.push("/app/#nouvelle")}><ArrowLeft size={16}/> Retour à la création</button>
-    <div className="batch-heading"><span className="eyebrow">VOTRE ANNONCE</span><h1>Rassemblez les photos de votre logement.</h1><p>Collez votre lien Airbnb ou Booking pour rechercher les photos accessibles, puis choisissez celles que vous souhaitez améliorer.</p></div>
+    <button className="batch-back" onClick={() => router.push(forVideo ? "/app/#visite" : "/app/#nouvelle")}><ArrowLeft size={16}/> Retour à la création</button>
+    <div className="batch-heading"><span className="eyebrow">VOTRE ANNONCE</span><h1>Rassemblez les photos de votre logement.</h1><p>Collez votre lien Airbnb ou Booking pour rechercher les photos accessibles, puis choisissez celles que vous souhaitez {forVideo ? "animer dans une vidéo" : "améliorer"}.</p></div>
     <div className="batch-card">
       <label className="batch-label">Nom du logement<input value={nom} onChange={event => setNom(event.target.value)} maxLength={120} placeholder="Ex. : Appartement du centre" disabled={occupe}/></label>
       <label className="batch-label"><span><Link2 size={16}/> Lien Airbnb ou Booking <small>facultatif</small></span><input type="url" inputMode="url" value={lien} onChange={event => setLien(event.target.value)} maxLength={1000} placeholder="https://www.airbnb.fr/rooms/… ou https://www.booking.com/hotel/…" disabled={occupe || !!logementCree}/></label>
@@ -139,7 +145,7 @@ export default function ImporterAnnonce() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={photo.preview} alt=""/><span className="batch-check">{photo.selected && <Check size={16}/>}</span><small>Photo {index + 1}</small>
     </button>)}</div></section>}
-    <div className="batch-summary" role="status"><div><strong>{retenues.length} photo{retenues.length > 1 ? "s" : ""} sélectionnée{retenues.length > 1 ? "s" : ""}</strong><p>Si vous gardez toutes leurs retouches en HD : {credits} crédit{credits > 1 ? "s" : ""}{compte.photo_offerte_disponible && retenues.length ? " après votre photo offerte" : ""}. Vous déciderez photo par photo.</p></div><button type="button" className="button dark" disabled={occupe || !retenues.length || !lienValide(lien)} onClick={() => void importer()}>{occupe ? `Ajout ${envoi.fait}/${envoi.total}…` : "Ajouter mes photos"}<ArrowRight size={17}/></button></div>
+    <div className="batch-summary" role="status"><div><strong>{retenues.length} photo{retenues.length > 1 ? "s" : ""} sélectionnée{retenues.length > 1 ? "s" : ""}</strong><p>{forVideo ? "Aucun crédit photo utilisé à l’ajout. Choisissez ensuite jusqu’à 6 images pour votre vidéo ; les crédits vidéo sont confirmés avant le lancement." : <>Si vous gardez toutes leurs retouches en HD : {credits} crédit{credits > 1 ? "s" : ""}{compte.photo_offerte_disponible && retenues.length ? " après votre photo offerte" : ""}. Vous déciderez photo par photo.</>}</p></div><button type="button" className="button dark" disabled={occupe || !retenues.length || !lienValide(lien)} onClick={() => void importer()}>{occupe ? `Ajout ${envoi.fait}/${envoi.total}…` : forVideo ? "Ajouter à ma vidéo" : "Ajouter mes photos"}<ArrowRight size={17}/></button></div>
     {erreur && <p className="batch-error" role="alert">{erreur}{logementCree && <button onClick={() => router.push(`/app/logement/?id=${logementCree.id}`)}>Voir les photos déjà ajoutées</button>}</p>}
   </main>;
 }

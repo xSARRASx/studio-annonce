@@ -8,7 +8,8 @@ import { AccountConnection } from '../components/AccountConnection';
 const navigationItems = [
   { name: 'index', title: 'Mes créations' },
   { name: 'creer', title: 'Créer' },
-  { name: 'compte', title: 'Mon compte' },
+  { name: 'credits', title: 'Crédits' },
+  { name: 'facturation', title: 'Facturation' },
 ] as const;
 const creationScreens = new Set(['creer', 'nouvelle', 'creer-image', 'visite', 'video-photos']);
 
@@ -21,7 +22,7 @@ function NavigationIcon({ name, color }: { name: string; color: string }) {
 export default function Layout() {
   return <StudioProvider><AccountConnection><StatusBar style="dark"/><Tabs screenOptions={{ headerShown: false }} tabBar={({ state, navigation, insets }) => {
     const currentScreen = state.routes[state.index].name;
-    const activeTab = creationScreens.has(currentScreen) ? 'creer' : currentScreen === 'compte' ? 'compte' : 'index';
+    const activeTab = creationScreens.has(currentScreen) ? 'creer' : currentScreen === 'credits' || currentScreen === 'facturation' ? currentScreen : 'index';
     return <View style={[styles.tabs, { paddingBottom: Math.max(8, insets.bottom) }]}>{navigationItems.map(item => {
       const route = state.routes.find(candidate => candidate.name === item.name);
       if (!route) return null;
@@ -37,7 +38,9 @@ export default function Layout() {
   }}>
     <Tabs.Screen name="index" options={{ title: 'Mes créations' }}/>
     <Tabs.Screen name="creer" options={{ title: 'Créer' }}/>
-    <Tabs.Screen name="compte" options={{ title: 'Mon compte' }}/>
+    <Tabs.Screen name="credits" options={{ title: 'Crédits' }}/>
+    <Tabs.Screen name="facturation" options={{ title: 'Facturation' }}/>
+    <Tabs.Screen name="compte" options={{ href: null }}/>
     <Tabs.Screen name="exemples" options={{ href: null }}/><Tabs.Screen name="local" options={{ href: null }}/>
     <Tabs.Screen name="nouvelle" options={{ href: null }}/><Tabs.Screen name="atelier" options={{href:null}}/><Tabs.Screen name="versions" options={{href:null}}/><Tabs.Screen name="retouche" options={{href:null}}/><Tabs.Screen name="historique" options={{href:null}}/><Tabs.Screen name="creer-image" options={{href:null}}/><Tabs.Screen name="video-photos" options={{href:null}}/><Tabs.Screen name="visite" options={{href:null}}/></Tabs></AccountConnection></StudioProvider>;
 }

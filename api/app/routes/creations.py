@@ -46,6 +46,12 @@ def lister(corbeille: bool = False, compte: Compte = Depends(compte_complet), s:
                       "en_cours": model is Video and item.statut in EN_COURS}
             if model is Video:
                 entree.update(_vue(item))
+                entree["photos_sources"] = [
+                    {"id": source.id, "titre": (source.analyse or {}).get("piece") or f"Photo {source.ordre + 1}",
+                     "vignette": stockage.url_publique(source.cle_vignette), "retouchee": bool(source.versions)}
+                    for reference in plan.get("sources", [])
+                    if (source := s.get(Photo, reference.get("photo_id"))) is not None and not source.supprime_le
+                ]
             resultat.append(entree)
     return sorted(resultat, key=lambda item: item["supprime_le"] or item["cree_le"], reverse=True)
 

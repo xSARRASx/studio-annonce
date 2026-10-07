@@ -7,7 +7,7 @@ class Reglages(BaseSettings):
 
     GEMINI_API_KEY: str = ""
     HF_KEY: str = ""
-    VIDEO_MODELE: str = "bytedance/seedance-2.5/image-to-video"  # Kling prêt pour recette comparative, pas de bascule sans contrôle du rendu
+    VIDEO_MODELE: str = "bytedance/seedance-2.5/reference-to-video"  # Une requête multi-photo pour les nouveaux projets ; les projets anciens gardent leur modèle.
     VIDEO_ACTIVE: bool = False  # ouvrir seulement après une recette Higgsfield réussie
     VENTE_VIDEO_ACTIVE: bool = False  # seulement après débit par essai et livraison client vérifiés
     DATABASE_URL: str = "sqlite:///./studio.db"

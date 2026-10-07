@@ -15,8 +15,9 @@ PACKS_PHOTO = [
      "libelle": "100 crédits photo", "prix_unitaire_centimes": 60, "avantage": "Meilleur tarif"},
 ]
 
-# Un crédit vidéo finance un essai de cinq secondes en 720p, et non un
-# téléchargement. Un nouvel essai consommera à nouveau des crédits.
+# Un crédit vidéo finance cinq secondes en 720p ; en 1080p, cette durée
+# consomme deux crédits. Le téléchargement est inclus dans la création.
+# Un nouvel essai consomme à nouveau des crédits.
 # La vente reste fermée tant que cette règle n'est pas appliquée au parcours client.
 PACKS_VIDEO = [
     {"id": "video1-897", "nature": "video", "credits": 1, "secondes": 5,
